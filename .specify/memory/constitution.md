@@ -116,6 +116,71 @@ unverified work that blocks the entire project.
 | Typed DB | Supabase helpers in `/lib/supabase/queries/` |
 | Types | Auto-generated via `supabase gen types typescript > types/supabase.ts` |
 
+## Design System
+
+All visual decisions MUST reference the design tokens defined in `plan.md` §4.
+Deviations require justification in the implementation plan.
+
+### Colors (CSS Variables)
+
+Dark mode is the default theme. Light mode mirrors the same variable names
+with inverted luminance values. Both themes MUST pass WCAG 2.1 AA contrast
+ratios for all text/background combinations.
+
+```css
+/* Dark mode */
+--bg-primary:    #0a0a0f;   /* Page background */
+--bg-surface:    #111118;   /* Card / panel background */
+--bg-elevated:   #1a1a24;   /* Modal / dropdown background */
+--accent-primary: #6366f1;  /* Buttons, links, active states */
+--accent-success: #10b981;  /* Positive indicators (renewed, sold, profit) */
+--accent-warning: #f59e0b;  /* Expiring-soon warnings */
+--accent-danger:  #ef4444;  /* Expired / delete / critical */
+--text-primary:  #f1f5f9;   /* Body text */
+--text-muted:    #64748b;   /* Secondary / placeholder text */
+--border:        #1e1e2e;   /* Dividers, input borders, card strokes */
+```
+
+Domain expiry badge colors MUST use the following threshold mapping:
+- 🔴 `#ef4444` (danger): ≤ 30 days until expiry or already expired
+- 🟠 `#f59e0b` (warning): 31–90 days
+- 🟡 `#eab308` (caution): 91–180 days
+- 🟢 `#10b981` (success): > 180 days
+
+### Typography
+
+All text MUST use one of three typefaces; no other font families permitted:
+
+| Role | Font | Weight |
+|---|---|---|
+| Display / headings | **Syne** | 600–800 |
+| Body / labels / UI | **DM Sans** | 400–500 |
+| Domain names / codes | **JetBrains Mono** | 400–500 |
+
+Fonts MUST be loaded via `next/font/google` to eliminate layout shift.
+
+### Breakpoints
+
+All layouts MUST be tested at the Tailwind breakpoints defined below.
+Every screen MUST function correctly from 375px mobile through 1920px desktop.
+
+| Breakpoint | Width | Typical Target |
+|---|---|---|
+| `sm` | 640px | Large phones, landscape |
+| `md` | 768px | Tablets |
+| `lg` | 1024px | Small laptops / iPad Pro |
+| `xl` | 1280px | Desktop monitors |
+
+Dashboard layout rules per breakpoint:
+- **≥ 1024px**: 2-column grid (charts left, alerts/stats right)
+- **768–1023px**: single column
+- **< 768px**: stacked cards with simplified chart variants; KPIs collapse from 4-across → 2×2 → 1-column
+
+Domain table rules per breakpoint:
+- **≥ 768px**: standard `<table>` with all columns visible
+- **480–767px**: horizontal-scrollable table
+- **< 480px**: card layout (one card per domain, stacked vertically)
+
 ## Development Workflow & Quality Gates
 
 **Before any phase begins**:
