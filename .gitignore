@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+
+# Environment files (secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Vercel
+.vercel/
+
+# TypeScript incremental builds
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OpenCode internal dependencies
+.opencode/node_modules/
+.opencode/package-lock.json
+# SpecKit auto-generated / local state
+.specify/integration.json
+.specify/integrations/
+.specify/workflows/
+.specify/extensions/.registry
+.specify/init-options.json
+
+# Supabase local
+supabase/.temp/
+
+# Agent md
+AGENTS.md
