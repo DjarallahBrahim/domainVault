@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-surface: #f8fafc;
+    --bg-elevated: #f1f5f9;
+    --accent-primary: #4f46e5;
+    --accent-success: #059669;
+    --accent-warning: #d97706;
+    --accent-danger: #dc2626;
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --bg-primary: #0a0a0f;
+    --bg-surface: #111118;
+    --bg-elevated: #1a1a24;
+    --accent-primary: #6366f1;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --text-primary: #f1f5f9;
+    --text-muted: #64748b;
+    --border: #1e1e2e;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-family: var(--font-dm-sans), sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-syne), sans-serif;
+  }
+  code, pre, kbd {
+    font-family: var(--font-jetbrains-mono), monospace;
+  }
+}

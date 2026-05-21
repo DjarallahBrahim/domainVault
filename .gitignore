@@ -43,5 +43,4 @@ node_modules/
 # Supabase local
 supabase/.temp/
 
-# Agent md
-AGENTS.md
+
