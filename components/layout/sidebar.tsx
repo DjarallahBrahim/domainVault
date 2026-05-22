@@ -35,7 +35,7 @@ export function Sidebar() {
       onMouseEnter={() => !pinned && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
-        "hidden md:flex md:flex-col md:fixed md:inset-y-0 z-30 border-r border-border bg-bg-surface transition-all duration-200 ease-in-out",
+        "hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen shrink-0 z-30 border-r border-border bg-bg-surface transition-all duration-200 ease-in-out",
         isExpanded ? "md:w-64" : "md:w-16"
       )}
     >
@@ -52,7 +52,7 @@ export function Sidebar() {
             href="/dashboard"
             className="font-bold text-lg font-display text-accent-primary mx-auto"
           >
-            D
+            DV
           </Link>
         )}
         <div className="flex items-center gap-1">
@@ -71,7 +71,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -105,4 +105,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

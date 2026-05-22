@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { DashboardMain } from "@/components/layout/dashboard-main";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -17,10 +16,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <>
+    <div className="flex min-h-screen">
       <Sidebar />
-      <DashboardMain>{children}</DashboardMain>
+      <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 pb-16 md:pb-0">
+        {children}
+      </main>
       <BottomTabBar />
-    </>
+    </div>
   );
 }
