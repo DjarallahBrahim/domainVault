@@ -8,6 +8,12 @@
 
 **Input**: User description: "read plan.md and create specification for the PHASE 4 · Sales Tracking & Earnings"
 
+## Clarifications
+
+### Session 2026-05-22
+
+- Q: When a user logs a sale for a domain that is expired, should the sale auto-associate and change the domain status to "sold"? → A: Warn but allow. The system warns "This domain is expired" but allows the sale to proceed after user confirmation, then changes the domain status to "sold."
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Log a Domain Sale (Priority: P1)
@@ -86,7 +92,7 @@ When a sale is logged with a domain name that matches an active domain in the us
 - How does the earnings summary handle mixed currencies (if multiple currencies were supported)?
 - What happens when a user deletes a domain that has associated sales?
 - How does the system handle a sale with a domain name that differs in casing from the portfolio domain (e.g., sale "Example.com" vs portfolio "example.com")?
-- What happens when a user logs a sale for a domain that is expired — should the status still change to "sold"?
+- What happens when a user logs a sale for a domain that is expired — should the status still change to "sold"? → The system warns "This domain is expired" and requires user confirmation, then proceeds to auto-associate and change the status to "sold."
 - What happens when a sale is edited to change the domain name — should the system re-attempt auto-association?
 - How does the sales list perform with thousands of sales spanning multiple years?
 - What happens when a user deletes a sale that was the most recent — does the domain status revert?
@@ -101,7 +107,7 @@ When a sale is logged with a domain name that matches an active domain in the us
 - **FR-004**: System MUST validate that the sale date is not in the future and display an inline error if validation fails.
 - **FR-005**: System MUST auto-associate the sale with a domain in the user's portfolio when the domain name matches case-insensitively (assign domain_id).
 - **FR-006**: System MUST allow sales to be recorded for domains not in the user's portfolio (domain_id = null, marked as external sale).
-- **FR-007**: System MUST automatically update the associated domain's status to "sold" when a sale is logged and auto-associated.
+- **FR-007**: System MUST automatically update the associated domain's status to "sold" when a sale is logged and auto-associated, for domains in any status (active, expired, or pending). For domains that are expired, the system MUST warn the user before proceeding.
 - **FR-008**: System MUST display a warning when logging a sale for a domain already marked "sold" but allow the sale to proceed (domains can be sold multiple times).
 - **FR-009**: System MUST display a paginated list of all logged sales on the Sales page, sorted by sale date descending by default.
 - **FR-010**: System MUST display an earnings summary on the Sales page showing: total sales count, total revenue (sum of sale prices), average sale price, and highest sale.
