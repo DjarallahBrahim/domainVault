@@ -8,6 +8,12 @@
 
 **Input**: User description: "read plan.md and create specification for the PHASE PHASE 3 · Dashboard & Analytics"
 
+## Clarifications
+
+### Session 2026-05-22
+
+- Q: Should the portfolio value distribution chart (US3) be a bar chart or donut/pie chart? → A: Bar chart — vertical bars per TLD sorted by value descending. Consistent with the other two charts (TLD distribution, expiration timeline). Better readability for portfolios with many TLDs.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Portfolio Overview Dashboard (Priority: P1)
@@ -47,7 +53,7 @@ A domain investor wants to know which domains are at risk of expiring so they ca
 
 ### User Story 3 — Portfolio Value & TLD Distribution Charts (Priority: P2)
 
-A domain investor wants to understand the financial composition of their portfolio. The dashboard shows a value distribution chart — a pie or donut chart breaking down total portfolio value by status (active value, sold value) or by TLD. This helps them see which TLDs represent the largest investment and how much value is tied up in sold vs active domains.
+A domain investor wants to understand the financial composition of their portfolio. The dashboard shows a value distribution chart — a bar chart breaking down total portfolio value by TLD,
 
 **Why this priority**: Financial intelligence is valuable but secondary to basic counts and expiration alerts. Users can manage their portfolio without value charts, but investors tracking ROI benefit from this data.
 
