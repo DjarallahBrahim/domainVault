@@ -27,7 +27,7 @@
 
 **Purpose**: Create directories for sales feature
 
-- [ ] T001 [P] Create feature component directory: `components/sales/`
+- [x] T001 [P] Create feature component directory: `components/sales/`
 
 **Checkpoint**: Directory ready
 
@@ -39,9 +39,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 [P] Create sale form Zod validation schema in `lib/validations/sales.ts` — export `saleFormSchema` (domain_name: required string, sale_price: positive number, sold_at: required string not in future, buyer/platform/notes: optional strings) and inferred type `SaleFormInput`
-- [ ] T003 Create typed sales server queries in `lib/supabase/queries/sales.ts` — export: `fetchSales(filters)` (paginated, sortable, filterable by date range), `fetchSaleById(id)`, `lookupDomain(name)` (case-insensitive domain lookup returning id + status), `countSalesForDomain(domainId)`
-- [ ] T004 [P] Create typed sales client mutations in `lib/supabase/queries/sales-client.ts` — export: `createSale(data)` (insert sale + update domain status to sold), `updateSale(id, data)` (update sale + re-associate domain if name changed), `deleteSale(id)` (delete sale + revert domain status if last sale)
+- [x] T002 [P] Create sale form Zod validation schema in `lib/validations/sales.ts` — export `saleFormSchema` (domain_name: required string, sale_price: positive number, sold_at: required string not in future, buyer/platform/notes: optional strings) and inferred type `SaleFormInput`
+- [x] T003 Create typed sales server queries in `lib/supabase/queries/sales.ts` — export: `fetchSales(filters)` (paginated, sortable, filterable by date range), `fetchSaleById(id)`, `lookupDomain(name)` (case-insensitive domain lookup returning id + status), `countSalesForDomain(domainId)`
+- [x] T004 [P] Create typed sales client mutations in `lib/supabase/queries/sales-client.ts` — export: `createSale(data)` (insert sale + update domain status to sold), `updateSale(id, data)` (update sale + re-associate domain if name changed), `deleteSale(id)` (delete sale + revert domain status if last sale)
 
 **Checkpoint**: Schemas and queries ready — user story implementation can begin
 
@@ -55,10 +55,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Create sale log/edit form in `components/sales/sales-log-form.tsx` — uses React Hook Form with `saleFormSchema` Zod resolver; fields: domain_name (Input, readOnly when pre-filled from domain detail), sale_price (Input/number), sold_at (Input/date), buyer (Input), platform (Input), notes (Textarea); submit triggers `createSale` or `updateSale` mutation; inline validation errors; toast on success/error
-- [ ] T006 [P] [US1] Create sales empty state in `components/sales/sales-empty-state.tsx` — message "No sales logged yet — log your first sale to start tracking earnings" with "Log Sale" button
-- [ ] T007 [US1] Add "Log Sale" button to domain detail page in `app/(dashboard)/domains/[id]/page.tsx` — button navigates to `/sales?domain=<name>` or opens inline form; passes current domain name to form as pre-filled read-only value (depends on T005)
-- [ ] T008 [US1] Implement Sales page base in `app/(dashboard)/sales/page.tsx` — renders `sales-log-form` (initially collapsed, expandable with "Log Sale" button), `sales-empty-state` (when no sales); page structure ready for US2 list integration
+- [x] T005 [P] [US1] Create sale log/edit form in `components/sales/sales-log-form.tsx` — uses React Hook Form with `saleFormSchema` Zod resolver; fields: domain_name (Input, readOnly when pre-filled from domain detail), sale_price (Input/number), sold_at (Input/date), buyer (Input), platform (Input), notes (Textarea); submit triggers `createSale` or `updateSale` mutation; inline validation errors; toast on success/error
+- [x] T006 [P] [US1] Create sales empty state in `components/sales/sales-empty-state.tsx` — message "No sales logged yet — log your first sale to start tracking earnings" with "Log Sale" button
+- [x] T007 [US1] Add "Log Sale" button to domain detail page in `app/(dashboard)/domains/[id]/page.tsx` — button navigates to `/sales?domain=<name>` or opens inline form; passes current domain name to form as pre-filled read-only value (depends on T005)
+- [x] T008 [US1] Implement Sales page base in `app/(dashboard)/sales/page.tsx` — renders `sales-log-form` (initially collapsed, expandable with "Log Sale" button), `sales-empty-state` (when no sales); page structure ready for US2 list integration
 
 **Checkpoint**: Sale logging functional — form works, sales created in database
 
@@ -72,9 +72,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [P] [US2] Create earnings summary cards in `components/sales/sales-summary-cards.tsx` — 4 cards: Total Sales (count), Total Revenue ($ sum), Average Sale ($ avg), Highest Sale ($ max); responsive grid (2-col mobile, 4-col desktop); props accept `{ count, revenue, average, highest }` numbers
-- [ ] T010 [P] [US2] Create sales list table in `components/sales/sales-list.tsx` — shadcn/ui Table; columns: domain name (link to domain detail if associated), sale price (formatted $), sale date (formatted), buyer, platform; supports sort by sold_at (default DESC) and sale_price; pagination (50/page); date range filter inputs (start/end date); empty state for filtered results: "No sales in this date range"
-- [ ] T011 [US2] Add sales list and earnings summary to Sales page in `app/(dashboard)/sales/page.tsx` — server component fetches sales via `fetchSales()`; computes earnings summary (total revenue, count, average, highest) client-side; renders `sales-summary-cards`, `sales-list`, and `sales-empty-state`; earnings summary updates when filters change; responsive layout (depends on T008, T009, T010)
+- [x] T009 [P] [US2] Create earnings summary cards in `components/sales/sales-summary-cards.tsx` — 4 cards: Total Sales (count), Total Revenue ($ sum), Average Sale ($ avg), Highest Sale ($ max); responsive grid (2-col mobile, 4-col desktop); props accept `{ count, revenue, average, highest }` numbers
+- [x] T010 [P] [US2] Create sales list table in `components/sales/sales-list.tsx` — shadcn/ui Table; columns: domain name (link to domain detail if associated), sale price (formatted $), sale date (formatted), buyer, platform; supports sort by sold_at (default DESC) and sale_price; pagination (50/page); date range filter inputs (start/end date); empty state for filtered results: "No sales in this date range"
+- [x] T011 [US2] Add sales list and earnings summary to Sales page in `app/(dashboard)/sales/page.tsx` — server component fetches sales via `fetchSales()`; computes earnings summary (total revenue, count, average, highest) client-side; renders `sales-summary-cards`, `sales-list`, and `sales-empty-state`; earnings summary updates when filters change; responsive layout (depends on T008, T009, T010)
 
 **Checkpoint**: Sales list and earnings summary functional
 
@@ -88,9 +88,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T012 [P] [US3] Create delete confirmation dialog in `components/sales/sales-delete-dialog.tsx` — shadcn/ui Dialog; message "Delete this sale? This action cannot be undone."; Cancel + Delete buttons; triggers delete on confirm
-- [ ] T013 [US3] Add edit action to sales list in `components/sales/sales-list.tsx` — edit button per row opens `sales-log-form` in edit mode with pre-filled data; on save, calls `updateSale` and invalidates cache (depends on T005, T010)
-- [ ] T014 [US3] Add delete action to sales list in `components/sales/sales-list.tsx` — delete button per row opens `sales-delete-dialog`; on confirm, calls `deleteSale` (which also reverts domain status if last sale) and invalidates cache; toast on success (depends on T012, T010)
+- [x] T012 [P] [US3] Create delete confirmation dialog in `components/sales/sales-delete-dialog.tsx` — shadcn/ui Dialog; message "Delete this sale? This action cannot be undone."; Cancel + Delete buttons; triggers delete on confirm
+- [x] T013 [US3] Add edit action to sales list in `components/sales/sales-list.tsx` — edit button per row opens `sales-log-form` in edit mode with pre-filled data; on save, calls `updateSale` and invalidates cache (depends on T005, T010)
+- [x] T014 [US3] Add delete action to sales list in `components/sales/sales-list.tsx` — delete button per row opens `sales-delete-dialog`; on confirm, calls `deleteSale` (which also reverts domain status if last sale) and invalidates cache; toast on success (depends on T012, T010)
 
 **Checkpoint**: Edit and delete functional — sales list keeps up to date
 
@@ -104,10 +104,10 @@
 
 ### Implementation for User Story 4
 
-- [ ] T015 [US4] Implement domain lookup and auto-association in `lib/supabase/queries/sales-client.ts` — `createSale()`: after form validation, call `lookupDomain(name)` (case-insensitive); if found: set domain_id; if domain status is 'expired': return warning flag (FR-007 clarification); if domain status is 'sold': return "already sold" warning (FR-008); always proceed with sale creation; update domain status to "sold" via Supabase `.update()` after insert (depends on T004)
-- [ ] T016 [US4] Add expired domain warning UI to `components/sales/sales-log-form.tsx` — when `createSale` returns expired warning, show inline warning "This domain is expired" with a "Log Sale Anyway" confirm button before proceeding (depends on T005, T015)
-- [ ] T017 [US4] Implement domain re-association on sale edit in `lib/supabase/queries/sales-client.ts` — `updateSale()`: if domain_name changed, re-run `lookupDomain()`; revert old domain status if it was the last sale for that domain; associate with new domain and set new domain status to "sold" (depends on T004)
-- [ ] T018 [US4] Implement status revert on sale delete in `lib/supabase/queries/sales-client.ts` — `deleteSale()`: after deletion, call `countSalesForDomain(domainId)`; if count = 0 AND domain is "sold": `.update()` domain status to "active" (depends on T004)
+- [x] T015 [US4] Implement domain lookup and auto-association in `lib/supabase/queries/sales-client.ts` — `createSale()`: after form validation, call `lookupDomain(name)` (case-insensitive); if found: set domain_id; if domain status is 'expired': return warning flag (FR-007 clarification); if domain status is 'sold': return "already sold" warning (FR-008); always proceed with sale creation; update domain status to "sold" via Supabase `.update()` after insert (depends on T004)
+- [x] T016 [US4] Add expired domain warning UI to `components/sales/sales-log-form.tsx` — when `createSale` returns expired warning, show inline warning "This domain is expired" with a "Log Sale Anyway" confirm button before proceeding (depends on T005, T015)
+- [x] T017 [US4] Implement domain re-association on sale edit in `lib/supabase/queries/sales-client.ts` — `updateSale()`: if domain_name changed, re-run `lookupDomain()`; revert old domain status if it was the last sale for that domain; associate with new domain and set new domain status to "sold" (depends on T004)
+- [x] T018 [US4] Implement status revert on sale delete in `lib/supabase/queries/sales-client.ts` — `deleteSale()`: after deletion, call `countSalesForDomain(domainId)`; if count = 0 AND domain is "sold": `.update()` domain status to "active" (depends on T004)
 
 **Checkpoint**: Auto-association and status management fully functional
 
@@ -117,11 +117,11 @@
 
 **Purpose**: Visual polish and build verification
 
-- [ ] T019 [P] Add skeleton loaders to `components/sales/sales-summary-cards.tsx` — show Skeleton cards while data loads
-- [ ] T020 [P] Add skeleton loader to `components/sales/sales-list.tsx` — show 5 Skeleton rows while data loads
-- [ ] T021 Run TypeScript strict check: `npx tsc --noEmit` — ensure zero errors
-- [ ] T022 Run production build: `npm run build` — ensure clean Vercel build
-- [ ] T023 Run quickstart.md verification checklist — confirm all 10 items pass
+- [x] T019 [P] Add skeleton loaders to `components/sales/sales-summary-cards.tsx` — show Skeleton cards while data loads
+- [x] T020 [P] Add skeleton loader to `components/sales/sales-list.tsx` — show 5 Skeleton rows while data loads
+- [x] T021 Run TypeScript strict check: `npx tsc --noEmit` — ensure zero errors
+- [x] T022 Run production build: `npm run build` — ensure clean Vercel build
+- [x] T023 Run quickstart.md verification checklist — confirm all 10 items pass
 
 ---
 
