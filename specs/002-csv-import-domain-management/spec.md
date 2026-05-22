@@ -13,6 +13,7 @@
 ### Session 2026-05-22
 
 - Q: Should domain name search and duplicate detection be case-sensitive or case-insensitive? → A: Case-insensitive. Searching for "exemple" must match "EXEMPLE.com" and vice versa. Domain names are stored as-provided in the CSV but matched case-insensitively for both search and duplicate detection. "Example.com" and "example.com" are treated as the same domain during both import and search.
+- Q: When a CSV import encounters a domain that already exists in the portfolio but with different data, should it skip the row silently or update the existing record? → A: Per-import choice. Before each import, the user is presented with a toggle: "Skip existing domains" (default) or "Update existing with new data". This gives users control while defaulting to the safer option that prevents accidental overwrites.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -22,15 +23,16 @@ A domain investor has their portfolio stored in a CSV file (exported from a regi
 
 **Why this priority**: CSV import is the primary onboarding channel for existing portfolios. Without it, users must manually enter each domain one by one, making the product unusable for anyone with more than a handful of domains. It is the critical path to getting data into the system.
 
-**Independent Test**: Can be fully tested by uploading a CSV file with 50 domain entries (mix of valid, invalid, and duplicate rows), verifying the correct number of domains appear on the domain list page, and checking the import summary for accuracy. Delivers a populated domain portfolio ready for management.
+**Independent Test**: Can be fully tested by uploading a CSV file with 50 domain entries (mix of valid, invalid, and existing/duplicate rows) using both "Skip existing" and "Update existing" modes, verifying the correct number of domains appear on the domain list page, and checking the import summary for accuracy. Delivers a populated domain portfolio ready for management.
 
 **Acceptance Scenarios**:
 
 1. **Given** a user on the Import page with no domains in their portfolio, **When** they upload a CSV containing 20 valid domain rows, **Then** all 20 domains are imported, the import summary shows "20 imported, 0 skipped, 0 errors", and the domains appear on the domain list page.
 2. **Given** a user on the Import page, **When** they upload a CSV where 3 rows have invalid domain names (e.g., no dot, contains spaces), **Then** the valid rows are imported, the 3 invalid rows are reported as errors in the summary, and domains already in the portfolio are not duplicated.
-3. **Given** a user who previously imported 10 domains, **When** they upload the same CSV file again, **Then** all 10 domains are recognized as duplicates and skipped, the summary shows "0 imported, 10 skipped, 0 errors", and no duplicate domains are created.
-4. **Given** a user on the Import page, **When** they attempt to upload a file that is not a CSV (e.g., `.xlsx`, `.txt` with no commas), **Then** an error message is displayed immediately and no import is attempted.
-5. **Given** a user on the Import page, **When** they upload an empty CSV file (headers only, no data rows), **Then** the summary shows "0 imported, 0 skipped, 0 errors" and a message indicates the file contained no data.
+3. **Given** a user who previously imported 10 domains, **When** they upload the same CSV file again with the default "Skip existing" option, **Then** all 10 domains are recognized as duplicates and skipped, the summary shows "0 imported, 10 skipped, 0 errors", and no duplicate domains are created and no existing data is modified.
+4. **Given** a user who previously imported a domain "example.com" with an expiration date of 2026-01-01, **When** they upload a CSV where "example.com" has an expiration date of 2027-06-15 and select "Update existing", **Then** the domain's expiration date is updated to 2027-06-15 and the summary shows "1 updated" (or counted as imported).
+5. **Given** a user on the Import page, **When** they upload a file that is not a CSV (e.g., `.xlsx`, `.txt` with no commas), **Then** an error message is displayed immediately and no import is attempted.
+6. **Given** a user on the Import page, **When** they upload an empty CSV file (headers only, no data rows), **Then** the summary shows "0 imported, 0 skipped, 0 errors" and a message indicates the file contained no data.
 
 ---
 
@@ -115,7 +117,7 @@ A user can review their import history, including past CSV imports with their fi
 - How does the domain list behave when a user has thousands of domains and applies filters that match none?
 - What happens when the user's browser loses connectivity during a domain edit save?
 - How does the import handle a CSV row with a future expiration date — is that valid or should it be flagged?
-- What happens when a CSV contains a domain that already exists in the portfolio but has different data (e.g., different expiration date)?
+- What happens when a CSV contains a domain that already exists in the portfolio but has different data (e.g., different expiration date)? → The default behavior is "Skip existing" — the existing domain is left unchanged. Users can opt into "Update existing" mode before import to overwrite matching records.
 - How does domain search behave with mixed-case input — does "ExAmPlE" find "example.com"?
 
 ## Requirements *(mandatory)*
@@ -129,28 +131,29 @@ A user can review their import history, including past CSV imports with their fi
 - **FR-005**: System MUST tolerate optional whitespace around column headers and values during CSV parsing.
 - **FR-006**: System MUST validate each CSV row before insertion, rejecting rows where:
   - The domain name is empty or invalid (no dot, contains spaces, exceeds 253 characters).
-  - The domain already exists in the user's portfolio (skip as duplicate, matched case-insensitively — "Example.com" and "example.com" are the same domain).
+  - The domain already exists in the user's portfolio, matched case-insensitively (e.g., "Example.com" and "example.com" are the same domain). Behavior depends on the user's choice: skip the row silently or update the existing domain's fields with the new CSV data.
   - The expiration date is missing, unparseable, or not a valid date.
   - The purchase price (if provided) is not a valid non-negative number.
-- **FR-007**: System MUST import all valid rows in a single atomic operation — no partial imports on failure.
-- **FR-008**: System MUST create an import log record for every import attempt, recording filename, total row count, number imported, number skipped, and structured error details per row.
-- **FR-009**: System MUST display an import summary after completion showing the counts of imported, skipped, and errored rows.
-- **FR-010**: System MUST display a paginated list of all domains in the user's portfolio on the Domains page.
-- **FR-011**: System MUST support sorting the domain list by domain name, expiration date, and status.
-- **FR-012**: System MUST support filtering the domain list by status (active, expired, sold, pending) and by TLD.
-- **FR-013**: System MUST support search on domain names by case-insensitive substring match — e.g., "exemple" matches "EXEMPLE.com", "MyExemple.io", and "exemple-vente.fr". Domain names are stored with their original casing as provided in the CSV, but search ignores case entirely.
-- **FR-014**: System MUST display an empty-state message when the user has no domains, directing them to the Import page.
-- **FR-015**: System MUST allow users to view a single domain's full details on a dedicated detail page.
-- **FR-016**: System MUST allow users to edit the following domain fields: status, registrar, purchase price, notes, and tags.
-- **FR-017**: System MUST prevent editing of the domain name and TLD fields (read-only).
-- **FR-018**: System MUST validate edited fields with the same rules as CSV import (purchase price must be non-negative, status must be a valid option).
-- **FR-019**: System MUST display inline validation errors on the edit form when field values are invalid.
-- **FR-020**: System MUST allow users to delete individual domains with a confirmation dialog.
-- **FR-021**: System MUST allow users to select multiple domains and bulk-delete them with a single confirmation.
-- **FR-022**: System MUST display a confirmation dialog before any domain deletion, clearly stating the number of domains to be deleted.
-- **FR-023**: System MUST display a list of past import attempts (import log history) with filename, timestamp, and summary counts.
-- **FR-024**: System MUST allow users to expand an import log entry to view detailed per-row error information.
-- **FR-025**: System MUST enforce per-user data isolation — users can only see, edit, and delete their own domains and import logs.
+- **FR-007**: System MUST present a duplicate-handling choice to the user before each import: "Skip existing domains" (default) or "Update existing with new data". When "Skip" is selected, matching domains are not modified. When "Update" is selected, the existing domain's fields (expiration date, purchase price, registrar, notes, tags) are overwritten with the CSV values; the domain name and TLD remain unchanged.
+- **FR-008**: System MUST import all valid rows in a single atomic operation — no partial imports on failure.
+- **FR-009**: System MUST create an import log record for every import attempt, recording filename, total row count, number imported, number skipped, and structured error details per row.
+- **FR-010**: System MUST display an import summary after completion showing the counts of imported, skipped, and errored rows.
+- **FR-011**: System MUST display a paginated list of all domains in the user's portfolio on the Domains page.
+- **FR-012**: System MUST support sorting the domain list by domain name, expiration date, and status.
+- **FR-013**: System MUST support filtering the domain list by status (active, expired, sold, pending) and by TLD.
+- **FR-014**: System MUST support search on domain names by case-insensitive substring match — e.g., "exemple" matches "EXEMPLE.com", "MyExemple.io", and "exemple-vente.fr". Domain names are stored with their original casing as provided in the CSV, but search ignores case entirely.
+- **FR-015**: System MUST display an empty-state message when the user has no domains, directing them to the Import page.
+- **FR-016**: System MUST allow users to view a single domain's full details on a dedicated detail page.
+- **FR-017**: System MUST allow users to edit the following domain fields: status, registrar, purchase price, notes, and tags.
+- **FR-018**: System MUST prevent editing of the domain name and TLD fields (read-only).
+- **FR-019**: System MUST validate edited fields with the same rules as CSV import (purchase price must be non-negative, status must be a valid option).
+- **FR-020**: System MUST display inline validation errors on the edit form when field values are invalid.
+- **FR-021**: System MUST allow users to delete individual domains with a confirmation dialog.
+- **FR-022**: System MUST allow users to select multiple domains and bulk-delete them with a single confirmation.
+- **FR-023**: System MUST display a confirmation dialog before any domain deletion, clearly stating the number of domains to be deleted.
+- **FR-024**: System MUST display a list of past import attempts (import log history) with filename, timestamp, and summary counts.
+- **FR-025**: System MUST allow users to expand an import log entry to view detailed per-row error information.
+- **FR-026**: System MUST enforce per-user data isolation — users can only see, edit, and delete their own domains and import logs.
 
 ### Key Entities
 

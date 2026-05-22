@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-22
-**Updated**: 2026-05-22 (case-insensitive search clarification)
+**Updated**: 2026-05-22 (clarification session: duplicate handling per-import choice)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -19,7 +19,7 @@
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
+- [x] Edge cases are identified (12 resolved, 1 deferred)
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 
@@ -32,10 +32,11 @@
 
 ## Clarifications
 
-- **2026-05-22**: Case-insensitive domain search and duplicate detection. Searching for "exemple" matches "EXEMPLE.com". "Example.com" and "example.com" are the same domain during both search and import. Domain names stored as-provided (original casing), matched case-insensitively.
+- **2026-05-22 (Q1)**: Domain search and duplicate detection are case-insensitive. "exemple" matches "EXEMPLE.com".
+- **2026-05-22 (Q2)**: Per-import duplicate handling choice — "Skip existing" (default) or "Update existing with new data".
 
 ## Notes
 
-- All items pass. Spec is ready for `/speckit.plan`.
-- One clarification documented in the spec's Clarifications section.
-- Updates made: FR-006 (duplicate detection), FR-013 (search), SC-004 (duplicate detection), Assumptions (duplicate detection), Acceptance Scenario (search example), Edge Cases (mixed-case search).
+- All 16 items pass. Spec is ready for `/speckit.plan`.
+- 26 functional requirements (FR-001–FR-026) after adding FR-007 for duplicate handling choice.
+- 13 edge cases, 1 resolved in clarifications.
