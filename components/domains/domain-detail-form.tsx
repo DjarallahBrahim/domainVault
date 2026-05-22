@@ -6,7 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Save, DollarSign } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,13 +95,24 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
   return (
     <div className="space-y-6">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Domains
-      </button>
+      <div className="flex items-start justify-between">
+        <div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Domains
+          </button>
+        </div>
+        <Link
+          href={`/sales?domain=${encodeURIComponent(domain.domain)}`}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent-success/10 text-accent-success text-sm font-medium hover:bg-accent-success/20 transition-colors"
+        >
+          <DollarSign className="h-4 w-4" />
+          Log Sale
+        </Link>
+      </div>
 
       <div>
         <h1 className="text-2xl font-bold font-display">
