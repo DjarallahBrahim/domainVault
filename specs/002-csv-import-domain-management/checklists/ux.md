@@ -89,9 +89,30 @@
 
 ---
 
-## Notes
+## App Shell & Sidebar Layout Requirements
 
-- **Bug Signatures Detected**: Items CHK001-CHK008 target the stale-list-after-delete issue; items CHK009-CHK015 target the transparent dropdown layering issue. These items represent requirements gaps that likely contributed to the implementation bugs.
+- [ ] CHK042 - Are z-index requirements defined for the fixed sidebar relative to the main content area, ensuring content never renders above the sidebar? [Gap, Spec §US3 - App Shell]
+- [ ] CHK043 - Is sidebar background opacity explicitly specified to prevent content "bleed-through" when the main content area extends under the sidebar? [Clarity, Gap]
+- [ ] CHK044 - Are sidebar width requirements specified for both expanded (full labels + icons) and collapsed (icons only) states? [Completeness, Gap]
+- [ ] CHK045 - Are requirements defined for sidebar collapse/expand trigger mechanism — button toggle, keyboard shortcut, or breakpoint-based auto-collapse? [Gap]
+- [ ] CHK046 - Is the sidebar pinned/unpinned state persistence requirement defined — must the preference survive page reloads (like theme)? [Coverage, Gap]
+- [ ] CHK047 - Are hover-expand requirements specified for unpinned sidebar — timing delay before expand, timing delay before collapse on mouse leave? [Clarity, Gap]
+- [ ] CHK048 - Does the spec define what happens to main content layout (margin/padding) when sidebar transitions between collapsed and expanded states? [Completeness, Gap]
+- [ ] CHK049 - Are requirements defined for sidebar behavior on narrow viewports (768–1024px) where space is limited — does it auto-collapse, persist, or switch to bottom tab bar? [Coverage, Spec §US3 - Navigation]
+
+## Sidebar Interaction State Requirements
+
+- [ ] CHK050 - Are transition/animation requirements defined for sidebar width changes when collapsing/expanding? [Completeness, Gap]
+- [ ] CHK051 - Is the visual state of the pin/unpin toggle button defined for both pinned and unpinned states? [Clarity, Gap]
+- [ ] CHK052 - Are tooltip requirements defined for collapsed sidebar navigation icons (showing the route label on hover)? [Coverage, Gap]
+- [ ] CHK053 - Are keyboard accessibility requirements specified for sidebar collapse/expand and navigation — Tab order, Escape to collapse, Enter to navigate? [Coverage, Constitution §III]
+- [ ] CHK054 - Does the spec define sidebar behavior when the user is on a narrow laptop screen (1024px) — must it default to collapsed or expanded? [Edge Case, Gap]
+- [ ] CHK055 - Are requirements defined for sidebar state after login — must it remember the last pinned/collapsed preference from a previous session? [Coverage, Gap]
+
+## Updated Notes
+
+- **Bug Signatures Detected**: Items CHK001-CHK008 target the stale-list-after-delete issue; items CHK009-CHK015 target the transparent dropdown layering issue; items CHK042-CHK048 target the sidebar z-index/content-overlap issue. These items represent requirements gaps that likely contributed to the implementation bugs.
 - The spec implicitly expects list refresh after mutations (US2 "updates immediately", US4 "list updates to exclude it") but does not define the mechanism, timing, or error handling for stale-state scenarios.
 - Visual layering of form elements (dropdown overlays vs adjacent fields) is entirely unaddressed in the current specification — this is a requirements gap, not an implementation oversight.
-- Total: 41 checklist items across 8 categories.
+- Sidebar layout and interaction behavior (collapse/expand, pin/unpin, hover-open) has zero requirements coverage in the spec beyond "a collapsible sidebar lists all sections." The Phase 1 spec mention of "collapsible sidebar" has no corresponding functional requirement.
+- Total: 55 checklist items across 10 categories.
