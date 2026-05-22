@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
 import { DomainTable } from "@/components/domains/domain-table";
@@ -22,6 +22,7 @@ interface DomainListClientProps {
 
 export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const filters = Object.fromEntries(searchParams.entries());
 
   const { data, isLoading } = useQuery({
@@ -58,11 +59,13 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
         const ids = Array.from(selectedIds);
         await deleteDomains(ids);
         setSelectedIds(new Set());
+        queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
         toast.success("Domains deleted", {
           description: `${ids.length} domains removed.`,
         });
       } else {
         await deleteDomain(deleteTarget);
+        queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
         toast.success("Domain deleted");
       }
     } catch (err: unknown) {

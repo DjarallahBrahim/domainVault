@@ -15,6 +15,14 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --radius: 0.5rem;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --input: #e2e8f0;
+    --ring: #4f46e5;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
   }
 
   .dark {
@@ -28,6 +36,14 @@
     --text-primary: #f1f5f9;
     --text-muted: #64748b;
     --border: #1e1e2e;
+    --popover: #1a1a24;
+    --popover-foreground: #f1f5f9;
+    --input: #1e1e2e;
+    --ring: #6366f1;
+    --muted: #1a1a24;
+    --muted-foreground: #64748b;
+    --accent: #1a1a24;
+    --accent-foreground: #f1f5f9;
   }
 }
 
