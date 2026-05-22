@@ -8,6 +8,12 @@
 
 **Input**: User description: "read plan.md and create specification for the PHASE 2 · CSV Import & Domain Management"
 
+## Clarifications
+
+### Session 2026-05-22
+
+- Q: Should domain name search and duplicate detection be case-sensitive or case-insensitive? → A: Case-insensitive. Searching for "exemple" must match "EXEMPLE.com" and vice versa. Domain names are stored as-provided in the CSV but matched case-insensitively for both search and duplicate detection. "Example.com" and "example.com" are treated as the same domain during both import and search.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Bulk CSV Import (Priority: P1)
@@ -40,7 +46,7 @@ A user views all their imported and manually added domains in a paginated list. 
 
 1. **Given** a user with 50+ domains in their portfolio, **When** they navigate to the Domains page, **Then** domains are displayed in a paginated list showing name, TLD, expiration date, purchase price, and status.
 2. **Given** a user on the Domains page, **When** they apply a status filter ("Active"), **Then** only domains with the "Active" status are shown.
-3. **Given** a user on the Domains page, **When** they search for "example", **Then** only domains whose name contains "example" (case-insensitive) are shown.
+3. **Given** a user on the Domains page, **When** they search for "example", **Then** only domains whose name contains "example" (case-insensitive) are shown — typing "exemple" matches "EXEMPLE.com" and typing "EXEMPLE" matches "exemple.com".
 4. **Given** a user on the Domains page, **When** they sort by expiration date ascending, **Then** domains expiring soonest appear first.
 5. **Given** a user on the Domains page with no domains, **When** the page loads, **Then** an empty-state message is displayed guiding them to import their first domain.
 
@@ -110,6 +116,7 @@ A user can review their import history, including past CSV imports with their fi
 - What happens when the user's browser loses connectivity during a domain edit save?
 - How does the import handle a CSV row with a future expiration date — is that valid or should it be flagged?
 - What happens when a CSV contains a domain that already exists in the portfolio but has different data (e.g., different expiration date)?
+- How does domain search behave with mixed-case input — does "ExAmPlE" find "example.com"?
 
 ## Requirements *(mandatory)*
 
@@ -122,7 +129,7 @@ A user can review their import history, including past CSV imports with their fi
 - **FR-005**: System MUST tolerate optional whitespace around column headers and values during CSV parsing.
 - **FR-006**: System MUST validate each CSV row before insertion, rejecting rows where:
   - The domain name is empty or invalid (no dot, contains spaces, exceeds 253 characters).
-  - The domain already exists in the user's portfolio (skip as duplicate).
+  - The domain already exists in the user's portfolio (skip as duplicate, matched case-insensitively — "Example.com" and "example.com" are the same domain).
   - The expiration date is missing, unparseable, or not a valid date.
   - The purchase price (if provided) is not a valid non-negative number.
 - **FR-007**: System MUST import all valid rows in a single atomic operation — no partial imports on failure.
@@ -131,7 +138,7 @@ A user can review their import history, including past CSV imports with their fi
 - **FR-010**: System MUST display a paginated list of all domains in the user's portfolio on the Domains page.
 - **FR-011**: System MUST support sorting the domain list by domain name, expiration date, and status.
 - **FR-012**: System MUST support filtering the domain list by status (active, expired, sold, pending) and by TLD.
-- **FR-013**: System MUST support full-text search on domain names (case-insensitive substring match).
+- **FR-013**: System MUST support search on domain names by case-insensitive substring match — e.g., "exemple" matches "EXEMPLE.com", "MyExemple.io", and "exemple-vente.fr". Domain names are stored with their original casing as provided in the CSV, but search ignores case entirely.
 - **FR-014**: System MUST display an empty-state message when the user has no domains, directing them to the Import page.
 - **FR-015**: System MUST allow users to view a single domain's full details on a dedicated detail page.
 - **FR-016**: System MUST allow users to edit the following domain fields: status, registrar, purchase price, notes, and tags.
@@ -157,7 +164,7 @@ A user can review their import history, including past CSV imports with their fi
 - **SC-001**: A user can import a CSV file of 1,000 valid domain rows and see the results in under 10 seconds.
 - **SC-002**: A user can import a CSV file of 10,000 rows and see the results in under 60 seconds.
 - **SC-003**: 100% of valid domain rows are successfully imported with no data loss or truncation.
-- **SC-004**: Duplicate domain rows are correctly identified and skipped in subsequent imports — zero duplicate domains created.
+- **SC-004**: Duplicate domain rows are correctly identified and skipped in subsequent imports — zero duplicate domains created, including case variations (e.g., "Example.com" is skipped when "example.com" already exists).
 - **SC-005**: A user can locate any specific domain in a portfolio of 1,000 domains within 5 seconds using search or filter.
 - **SC-006**: Domain list pagination delivers a full page of results (up to 50 domains) in under 2 seconds.
 - **SC-007**: Domain edits are reflected in the list view in under 2 seconds after saving.
@@ -171,7 +178,7 @@ A user can review their import history, including past CSV imports with their fi
 - The CSV file uses UTF-8 encoding with comma delimiters and a header row — other formats (tab-delimited, semicolon-delimited, Excel binary) are out of scope.
 - File upload size is limited to 10 MB (approximately 50,000+ typical rows) — files exceeding this will be rejected before parsing.
 - CSV import is synchronous (not a background job) — the user waits on the import page until processing completes. For very large files (50k+ rows), the import may be slower but completes within the stated success criteria.
-- Duplicate detection is based on exact domain name match within the user's portfolio — close matches (e.g., different casing, extra whitespace) are treated as distinct domains.
+- Duplicate detection is case-insensitive — "Example.com" and "example.com" are treated as the same domain. Trimmed whitespace is also normalized. However, domains with different punctuation or TLD variation (e.g., "example-co.com" vs "example.co") are treated as distinct.
 - Tags are provided as a single comma-separated value in the CSV (e.g., "premium, brandable" → ["premium", "brandable"]).
 - Dates are expected in ISO 8601 format (YYYY-MM-DD) or common variants (MM/DD/YYYY, DD/MM/YYYY with auto-detection).
 - The database schema from Phase 1 (domains, import_logs tables with RLS policies) is deployed and accessible.
