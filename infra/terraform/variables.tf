@@ -109,7 +109,10 @@ variable "cloudbuild_sa_email" {
   type        = string
   default     = ""
 }
-
+variable "cloud_build_service_account" {
+  type        = string
+  default     = ""
+}
 # -----------------------------------------------------------------------------
 # Load Balancer
 # -----------------------------------------------------------------------------
