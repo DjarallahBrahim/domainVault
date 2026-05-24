@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/005-phase-2-refresh/plan.md`.
+at `specs/006-phase-3-refresh/plan.md`.
 <!-- SPECKIT END -->
