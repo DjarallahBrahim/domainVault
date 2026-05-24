@@ -414,3 +414,365 @@ GROUP BY month ORDER BY month;
 - Team / multi-user with role-based access
 - React Native mobile companion app
 - Auction tracker with bid history
+
+## Phase 5 · GCP Deployment with Terraform
+
+**Goal**: Deploy DomainVault to Google Cloud Platform using Terraform as Infrastructure as Code. Containerize the Next.js app and run it on Cloud Run, wired to your existing Supabase backend, with secrets managed securely and CI/CD automated.
+
+> This phase is intentionally structured as a learning progression — each sub-phase introduces one GCP concept at a time.
+
+---
+
+### Architecture Overview
+
+```
+GitHub
+  └─ Cloud Build (CI/CD)
+        └─ Artifact Registry (Docker image)
+              └─ Cloud Run (Next.js app)
+                    ├─ Secret Manager (SUPABASE_URL, SUPABASE_ANON_KEY, etc.)
+                    └─ Supabase (unchanged — external managed DB)
+
+Optionally:
+  Cloud Load Balancer + Cloud CDN → Cloud Run
+  Cloud DNS → custom domain
+```
+
+---
+
+### Terraform Project Structure
+
+Add this at the root of the repo:
+
+```
+/infra
+  /terraform
+    /modules
+      /cloud_run/           ← Cloud Run service definition
+      /artifact_registry/   ← Docker image registry
+      /secret_manager/      ← Env var secrets
+      /cloud_build/         ← CI/CD pipeline
+      /load_balancer/       ← Optional: LB + CDN
+    main.tf                 ← Root module wiring
+    variables.tf
+    outputs.tf
+    terraform.tfvars        ← gitignored
+    backend.tf              ← GCS remote state
+  Dockerfile                ← Next.js container
+  .dockerignore
+```
+
+---
+
+### ─── PHASE 5.1 · GCP Project Bootstrap ─────────────────────────────────
+
+**GCP concepts**: Projects, IAM, APIs, Service Accounts, Terraform remote state on GCS.
+
+#### Steps
+
+**GS-001 — GCP Project & APIs**
+- Create a GCP project (via console or `gcloud`).
+- Enable APIs: `run.googleapis.com`, `artifactregistry.googleapis.com`, `secretmanager.googleapis.com`, `cloudbuild.googleapis.com`, `iam.googleapis.com`.
+- Create a Terraform service account with roles: `roles/run.admin`, `roles/artifactregistry.admin`, `roles/secretmanager.admin`, `roles/cloudbuild.builds.editor`, `roles/storage.admin`.
+- Download service account key → never commit it.
+
+**GS-002 — Terraform Remote State**
+
+Create a GCS bucket manually (bootstrap step) to hold Terraform state:
+
+```hcl
+# backend.tf
+terraform {
+  backend "gcs" {
+    bucket = "domainvault-tfstate"
+    prefix = "terraform/state"
+  }
+}
+```
+
+**GS-003 — Provider & Variables**
+
+```hcl
+# variables.tf
+variable "project_id"  { type = string }
+variable "region"      { type = string  default = "europe-west1" }
+variable "app_name"    { type = string  default = "domainvault" }
+```
+
+#### Definition of Done — Phase 5.1
+
+- [ ] `terraform init` succeeds with remote GCS backend
+- [ ] Service account authenticates Terraform without personal credentials
+- [ ] All required GCP APIs enabled via Terraform `google_project_service`
+- [ ] State file visible in GCS bucket
+
+---
+
+### ─── PHASE 5.2 · Dockerize the Next.js App ─────────────────────────────
+
+**GCP concepts**: Artifact Registry, Docker, container best practices.
+
+**GS-004 — Dockerfile**
+
+Use Next.js standalone output for minimal image size:
+
+```dockerfile
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+Add to `next.config.js`:
+
+```js
+output: 'standalone'
+```
+
+**GS-005 — Artifact Registry (Terraform)**
+
+```hcl
+# modules/artifact_registry/main.tf
+resource "google_artifact_registry_repository" "app" {
+  repository_id = var.app_name
+  format        = "DOCKER"
+  location      = var.region
+}
+```
+
+**GS-006 — Manual first push** (validate image before automating):
+
+```bash
+docker build -t europe-west1-docker.pkg.dev/PROJECT/domainvault/app:latest .
+docker push europe-west1-docker.pkg.dev/PROJECT/domainvault/app:latest
+```
+
+#### Definition of Done — Phase 5.2
+
+- [ ] `docker build` succeeds locally
+- [ ] Image pushed to Artifact Registry
+- [ ] Image runs locally with `docker run -p 3000:3000`
+- [ ] Artifact Registry repo created by Terraform
+
+---
+
+### ─── PHASE 5.3 · Secrets & Cloud Run Deployment ────────────────────────
+
+**GCP concepts**: Secret Manager, Cloud Run, environment variables, IAM bindings.
+
+**GS-007 — Secret Manager (Terraform)**
+
+Store Supabase credentials as secrets, never in code:
+
+```hcl
+# modules/secret_manager/main.tf
+resource "google_secret_manager_secret" "supabase_url" {
+  secret_id = "NEXT_PUBLIC_SUPABASE_URL"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "supabase_url_val" {
+  secret      = google_secret_manager_secret.supabase_url.id
+  secret_data = var.supabase_url   # populated from terraform.tfvars (gitignored)
+}
+# Repeat for: NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+```
+
+**GS-008 — Cloud Run Service (Terraform)**
+
+```hcl
+# modules/cloud_run/main.tf
+resource "google_cloud_run_v2_service" "app" {
+  name     = var.app_name
+  location = var.region
+
+  template {
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}/app:latest"
+
+      env {
+        name = "NEXT_PUBLIC_SUPABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.supabase_url.secret_id
+            version = "latest"
+          }
+        }
+      }
+      # Repeat for other secrets
+
+      resources {
+        limits = { cpu = "1", memory = "512Mi" }
+      }
+    }
+    scaling { min_instance_count = 0  max_instance_count = 3 }
+  }
+}
+
+# Make it publicly accessible
+resource "google_cloud_run_service_iam_member" "public" {
+  service  = google_cloud_run_v2_service.app.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+```
+
+#### Definition of Done — Phase 5.3
+
+- [ ] All secrets in Secret Manager (no secrets in env files or code)
+- [ ] Cloud Run service deployed via Terraform
+- [ ] App accessible via the Cloud Run generated URL
+- [ ] Supabase auth + DB queries work from Cloud Run
+- [ ] `terraform destroy` + `terraform apply` is fully reproducible
+
+---
+
+### ─── PHASE 5.4 · CI/CD with Cloud Build ────────────────────────────────
+
+**GCP concepts**: Cloud Build, triggers, build steps, GitHub integration.
+
+**GS-009 — cloudbuild.yaml**
+
+```yaml
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_IMAGE_TAG', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_IMAGE_TAG']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - domainvault
+      - --image=$_IMAGE_TAG
+      - --region=$_REGION
+
+substitutions:
+  _IMAGE_TAG: 'europe-west1-docker.pkg.dev/$PROJECT_ID/domainvault/app:$SHORT_SHA'
+  _REGION: 'europe-west1'
+```
+
+**GS-010 — Cloud Build Trigger (Terraform)**
+
+```hcl
+# modules/cloud_build/main.tf
+resource "google_cloudbuild_trigger" "main" {
+  name     = "${var.app_name}-deploy"
+  filename = "cloudbuild.yaml"
+
+  github {
+    owner = "DjarallahBrahim"
+    name  = "domainVault"
+    push  { branch = "^main$" }
+  }
+}
+```
+
+#### Definition of Done — Phase 5.4
+
+- [ ] Push to `main` triggers a Cloud Build run
+- [ ] Build → push → deploy all automated
+- [ ] Failed builds do NOT deploy (Cloud Run keeps last good revision)
+- [ ] Build history visible in GCP Console
+
+---
+
+### ─── PHASE 5.5 · Custom Domain & HTTPS (Optional) ──────────────────────
+
+**GCP concepts**: Cloud Load Balancer, Serverless NEG, Cloud CDN, Cloud DNS, managed SSL.
+
+**GS-011 — Load Balancer + Cloud Run**
+
+Cloud Run has HTTPS by default on its `*.run.app` URL. For a custom domain + CDN:
+
+```hcl
+# Serverless NEG pointing at Cloud Run
+resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
+  name                  = "${var.app_name}-neg"
+  network_endpoint_type = "SERVERLESS"
+  region                = var.region
+  cloud_run { service = google_cloud_run_v2_service.app.name }
+}
+
+# Backend service + CDN
+resource "google_compute_backend_service" "app" {
+  name       = "${var.app_name}-backend"
+  protocol   = "HTTPS"
+  enable_cdn = true
+
+  backend { group = google_compute_region_network_endpoint_group.cloudrun_neg.id }
+}
+
+# Global forwarding rule → HTTPS proxy → URL map → backend
+# + google_compute_managed_ssl_certificate for your domain
+```
+
+**GS-012 — Cloud DNS (if you own a domain)**
+
+```hcl
+resource "google_dns_managed_zone" "main" {
+  name     = "${var.app_name}-zone"
+  dns_name = "yourdomain.com."
+}
+
+resource "google_dns_record_set" "app" {
+  name         = "app.yourdomain.com."
+  type         = "A"
+  managed_zone = google_dns_managed_zone.main.name
+  rrdatas      = [google_compute_global_address.lb_ip.address]
+}
+```
+
+#### Definition of Done — Phase 5.5
+
+- [ ] App reachable at custom domain over HTTPS
+- [ ] Managed SSL certificate provisioned automatically
+- [ ] Cloud CDN caching static assets (`.next/static/*`)
+- [ ] LB IP and DNS record managed by Terraform
+
+---
+
+### Phase 5 — Full Definition of Done
+
+- [ ] All GCP infrastructure defined in Terraform (zero manual clicks after bootstrap)
+- [ ] `terraform plan` shows no drift after a fresh deploy
+- [ ] Secrets never appear in code, `.env` files, or Terraform state in plaintext
+- [ ] CI/CD pipeline runs on every push to `main`
+- [ ] App fully functional on GCP (auth, CSV import, dashboard, sales)
+- [ ] `README.md` updated with GCP deploy instructions and architecture diagram
+- [ ] Cost estimate documented (Cloud Run scales to 0 → near-zero idle cost)
+
+---
+
+### GCP Cost Expectations (free tier / learning)
+
+| Service | Cost at low traffic |
+|---|---|
+| Cloud Run | ~$0 (scales to 0, generous free tier) |
+| Artifact Registry | ~$0.10/GB/month |
+| Secret Manager | ~$0.06/10k accesses |
+| Cloud Build | 120 free build-minutes/day |
+| Cloud Load Balancer | ~$18/month (skip for learning, use `*.run.app`) |
+| GCS (tfstate) | Negligible |
+
+> 💡 **Recommended learning path**: Skip Phase 5.5 initially — the `*.run.app` URL with built-in HTTPS is enough to practice all core GCP concepts. Add the Load Balancer later once you're comfortable with the rest.
