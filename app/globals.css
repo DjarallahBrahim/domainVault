@@ -7,6 +7,8 @@
     --bg-primary: #ffffff;
     --bg-surface: #f8fafc;
     --bg-elevated: #f1f5f9;
+    --background: #ffffff;
+    --foreground: #0f172a;
     --accent-primary: #4f46e5;
     --accent-success: #059669;
     --accent-warning: #d97706;
@@ -29,6 +31,8 @@
     --bg-primary: #0a0a0f;
     --bg-surface: #111118;
     --bg-elevated: #1a1a24;
+    --background: #111118;
+    --foreground: #f1f5f9;
     --accent-primary: #6366f1;
     --accent-success: #10b981;
     --accent-warning: #f59e0b;
