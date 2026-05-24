@@ -25,6 +25,7 @@ interface DomainTableProps {
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   onDelete: (id: string) => void;
+  onEdit: (domain: DomainRow) => void;
 }
 
 export function DomainTable({
@@ -35,6 +36,7 @@ export function DomainTable({
   selectedIds,
   onSelectionChange,
   onDelete,
+  onEdit,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -113,6 +115,7 @@ export function DomainTable({
                 </button>
               </TableHead>
               <TableHead>TLD</TableHead>
+              <TableHead>Registrar</TableHead>
               <TableHead>
                 <button
                   onClick={() => updateSort("expiration_date")}
@@ -156,6 +159,11 @@ export function DomainTable({
                   <span className="text-xs text-text-muted">.{domain.tld}</span>
                 </TableCell>
                 <TableCell>
+                  <span className="text-sm">
+                    {domain.registrar || "\u2014"}
+                  </span>
+                </TableCell>
+                <TableCell>
                   <div className="flex items-center gap-2">
                     <span className="text-sm">
                       {new Date(domain.expiration_date).toLocaleDateString()}
@@ -176,6 +184,12 @@ export function DomainTable({
                       className="text-xs text-accent-primary hover:underline"
                     >
                       View
+                    </button>
+                    <button
+                      onClick={() => onEdit(domain)}
+                      className="text-xs text-accent-primary hover:underline"
+                    >
+                      Edit
                     </button>
                     <button
                       onClick={() => onDelete(domain.id)}

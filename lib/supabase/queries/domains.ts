@@ -1,5 +1,6 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
+import { addMonths } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -10,17 +11,21 @@ export interface DomainFilters {
   sort?: string;
   order?: string;
   page?: number;
+  pageSize?: number;
+  expiry?: string;
+  registrars?: string;
 }
 
-const PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 50;
 
 export async function fetchDomains(filters: DomainFilters) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
   const page = filters.page ?? 1;
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   let query = resolved
     .from("domains")
@@ -35,7 +40,34 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.search) {
-    query = query.ilike("domain", `%${filters.search}%`);
+    const tokens = filters.search.split(",").map(t => t.trim()).filter(Boolean);
+    if (tokens.length > 1) {
+      query = query.or(tokens.map(t => `domain.ilike.%${t}%`).join(","));
+    } else if (tokens.length === 1) {
+      query = query.ilike("domain", `%${tokens[0]}%`);
+    }
+  }
+
+  if (filters.expiry) {
+    const now = new Date();
+    if (filters.expiry === "1m") {
+      query = query.lte("expiration_date", addMonths(now, 1).toISOString().split("T")[0]);
+    } else if (filters.expiry === "3m") {
+      query = query.lte("expiration_date", addMonths(now, 3).toISOString().split("T")[0]);
+    } else if (filters.expiry === "6m") {
+      query = query.lte("expiration_date", addMonths(now, 6).toISOString().split("T")[0]);
+    } else if (filters.expiry === "9m") {
+      query = query.lte("expiration_date", addMonths(now, 9).toISOString().split("T")[0]);
+    }
+  }
+
+  if (filters.registrars) {
+    const regTokens = filters.registrars.split(",").map(r => r.trim()).filter(Boolean);
+    if (regTokens.length > 1) {
+      query = query.in("registrar", regTokens);
+    } else if (regTokens.length === 1) {
+      query = query.eq("registrar", regTokens[0]);
+    }
   }
 
   const sortColumn = (filters.sort ?? "expiration_date") as keyof DomainRow;
@@ -53,8 +85,8 @@ export async function fetchDomains(filters: DomainFilters) {
     domains: (data ?? []) as unknown as DomainRow[],
     total: count ?? 0,
     page,
-    pageSize: PAGE_SIZE,
-    totalPages: Math.ceil((count ?? 0) / PAGE_SIZE),
+    pageSize,
+    totalPages: Math.ceil((count ?? 0) / pageSize),
   };
 }
 
@@ -110,4 +142,23 @@ export async function checkExistingDomains(
     existing.add(row.domain.toLowerCase());
   }
   return existing;
+}
+
+export async function fetchAllRegistrars(): Promise<string[]> {
+  const supabase = createServerClient();
+  const resolved = await supabase;
+
+  const { data, error } = await resolved
+    .from("domains")
+    .select("registrar")
+    .not("registrar", "is", null)
+    .order("registrar");
+
+  if (error) throw error;
+
+  const registrars = new Set<string>();
+  for (const row of (data ?? []) as unknown as Array<{ registrar: string }>) {
+    if (row.registrar.trim()) registrars.add(row.registrar.trim());
+  }
+  return Array.from(registrars);
 }
