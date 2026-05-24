@@ -20,9 +20,9 @@ export function DashboardQuickStats({ stats }: DashboardQuickStatsProps) {
     return (
       <div className="rounded-xl border border-border bg-bg-surface p-6">
         <h3 className="text-sm font-semibold mb-4">Quick Stats</h3>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       </div>
@@ -41,11 +41,11 @@ export function DashboardQuickStats({ stats }: DashboardQuickStatsProps) {
   return (
     <div className="rounded-xl border border-border bg-bg-surface p-6">
       <h3 className="text-sm font-semibold mb-4">Quick Stats</h3>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-between text-xs">
+          <div key={item.label} className="flex items-center justify-between text-sm">
             <span className="text-text-muted">{item.label}</span>
-            <span className="font-medium font-mono text-right max-w-[140px] truncate">{item.value}</span>
+            <span className="font-medium font-mono text-right max-w-[160px] truncate">{item.value}</span>
           </div>
         ))}
       </div>

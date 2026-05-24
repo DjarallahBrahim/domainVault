@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,11 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  fetchCurrentPromotions,
-} from "@/lib/supabase/queries/dashboard-client";
+import { fetchCurrentPromotions } from "@/lib/supabase/queries/dashboard-client";
 import { updatePromotion, generatePromotionBatch } from "@/lib/supabase/queries/dashboard-client";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
+
+const POOL_OPTIONS = [
+  { value: "1m", label: "Expiring in 1 month" },
+  { value: "3m", label: "Expiring in 3 months" },
+  { value: "6m", label: "Expiring in 6 months" },
+  { value: "9m", label: "Expiring in 9 months" },
+  { value: "all", label: "All active domains" },
+];
 
 export function DashboardPromotionTable() {
   const queryClient = useQueryClient();
@@ -27,6 +34,19 @@ export function DashboardPromotionTable() {
     queryFn: fetchCurrentPromotions,
     staleTime: 60 * 1000,
   });
+
+  const hasData = promotions && promotions.length > 0;
+
+  useEffect(() => {
+    if (!isLoading && !hasData && pool !== "all") {
+      const nextIdx = POOL_OPTIONS.findIndex((o) => o.value === pool);
+      const wider = POOL_OPTIONS.slice(nextIdx + 1).find((o) => o.value !== pool);
+      if (wider) {
+        setPool(wider.value);
+        generatePromotionBatch(wider.value).catch(() => {});
+      }
+    }
+  }, [isLoading, hasData]);
 
   const poolMutation = useMutation({
     mutationFn: (newPool: string) => generatePromotionBatch(newPool),
@@ -60,16 +80,14 @@ export function DashboardPromotionTable() {
     return (
       <div className="rounded-xl border border-border bg-bg-surface p-6">
         <h3 className="text-sm font-semibold mb-4">Domains to Promote This Week</h3>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
       </div>
     );
   }
-
-  const hasData = promotions && promotions.length > 0;
 
   return (
     <div className="rounded-xl border border-border bg-bg-surface p-6">
@@ -82,44 +100,53 @@ export function DashboardPromotionTable() {
             poolMutation.mutate(v);
           }}
         >
-          <SelectTrigger className="w-40 h-7 text-xs">
+          <SelectTrigger className="w-40 h-8 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="1m">Expiring in 1 month</SelectItem>
-            <SelectItem value="3m">Expiring in 3 months</SelectItem>
-            <SelectItem value="6m">Expiring in 6 months</SelectItem>
-            <SelectItem value="9m">Expiring in 9 months</SelectItem>
-            <SelectItem value="all">All active domains</SelectItem>
+            {POOL_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       {!hasData ? (
-        <p className="text-sm text-text-muted">Not enough active domains to fill a promotion list.</p>
+        <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
+          <Sparkles className="h-8 w-8 text-text-muted/50" />
+          <p className="text-sm text-text-muted">
+            Not enough active domains to fill a promotion list.
+          </p>
+          <p className="text-xs text-text-muted/70">
+            Try switching to <span className="text-accent-primary">"All active domains"</span> above, or add more domains to your portfolio.
+          </p>
+        </div>
       ) : (
         <div className="space-y-1">
           {promotions.map((p) => {
             const promoted = !!p.promoted_at;
             const isConfirming = confirmingId === p.id;
+            const days = Math.ceil(
+              (new Date(p.expiration_date).getTime() - Date.now()) / 86400000
+            );
 
             return (
               <div key={p.id} className="text-sm">
-                <div className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
-                  <div className="min-w-0">
-                    <p className="font-mono text-xs truncate">{p.domain}</p>
-                    <p className="text-[10px] text-text-muted">
-                      {p.registrar ?? "—"} · Expires {new Date(p.expiration_date).toLocaleDateString()}
+                <div className="flex items-center justify-between gap-3 py-2 border-b border-border/50 last:border-0">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono truncate text-sm">{p.domain}</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      {p.registrar ?? "—"} · {days > 0 ? `${days}d` : "expired"}
                     </p>
                   </div>
                   <div className="shrink-0">
                     {promoted ? (
-                      <span className="text-xs text-accent-success font-medium">Promoted ✓</span>
+                      <span className="text-sm text-accent-success font-medium">Promoted ✓</span>
                     ) : poolMutation.isPending ? null : (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs"
+                        className="h-8 text-sm"
                         onClick={() => setConfirmingId(isConfirming ? null : p.id)}
                       >
                         Promote
@@ -128,11 +155,11 @@ export function DashboardPromotionTable() {
                   </div>
                 </div>
                 {isConfirming && !promoted && (
-                  <div className="flex items-center gap-1 py-1 px-2 -mt-1 mb-1 rounded bg-accent-success/10 border border-accent-success/20">
-                    <span className="text-xs text-accent-success">✓ Mark as promoted?</span>
+                  <div className="flex items-center gap-2 py-2 px-3 -mt-1 mb-1 rounded bg-accent-success/10 border border-accent-success/20">
+                    <span className="text-sm text-accent-success">✓ Mark as promoted?</span>
                     <Button
                       size="sm"
-                      className="h-6 text-xs ml-1"
+                      className="h-7 text-sm"
                       disabled={confirmMutation.isPending}
                       onClick={() => confirmMutation.mutate(p.id)}
                     >
@@ -141,7 +168,7 @@ export function DashboardPromotionTable() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-6 text-xs"
+                      className="h-7 text-sm"
                       onClick={() => setConfirmingId(null)}
                     >
                       Cancel
