@@ -10,7 +10,7 @@ import { DomainCard } from "@/components/domains/domain-card";
 import { DomainSearch } from "@/components/domains/domain-search";
 import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
-import { DomainAddSlideover } from "@/components/domains/domain-add-slideover";
+import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
@@ -147,11 +147,11 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
       <div className="space-y-6">
         <DomainSearch tlds={tlds} registrars={registrars} />
         <DomainEmptyState onAddDomain={handleAdd} />
-        <DomainAddSlideover
-          open={showSlideover}
-          onOpenChange={setShowSlideover}
-          domain={editDomain ?? undefined}
-        />
+        <DomainAddDialog
+        open={showSlideover}
+        onOpenChange={setShowSlideover}
+        domain={editDomain ?? undefined}
+      />
       </div>
     );
   }
@@ -206,7 +206,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         onConfirm={confirmDelete}
       />
 
-      <DomainAddSlideover
+      <DomainAddDialog
         open={showSlideover}
         onOpenChange={setShowSlideover}
         domain={editDomain ?? undefined}

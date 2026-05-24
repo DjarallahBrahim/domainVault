@@ -21,6 +21,7 @@ updates. Plus bug fix: dialog/slide-over transparency (z-index issue)."
 ### Session 2026-05-24
 
 - Q: Should the "Add Domain" form open as a modal dialog, inline form, or separate page? → A: Per master plan US-010 — slide-over panel from the Domains page; US-030 — inline tab on the Import page. Two distinct entry points.
+- Q: Slide-over panel vs centered modal dialog for "Add Domain"? → A: Centered modal dialog — full overlay, sidebar hidden, form centered on page with backdrop. Replaces the slide-over approach.
 - Q: What's the scope of this spec? → A: All Phase 2 stories defined in the master plan.md that are NOT yet complete.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -148,41 +149,42 @@ Navigate from dashboard chart click to `/domains?expiry=1m` — filter auto-appl
 
 ---
 
-### User Story 5 — Add / Edit Domain: Slide-Over Panel (Priority: P1) [UPDATED]
+### User Story 5 — Add / Edit Domain: Centered Modal Dialog (Priority: P1) [UPDATED]
 
-Per US-010 in the master plan, the domain add/edit form must be a **slide-over
-panel** (not a modal dialog). Fields: Domain*, Expiration Date*, Purchase Price,
-**Status** (dropdown), Registrar (text input with **autocomplete** from existing
-registrar values), Tags (**chip input** — add/remove individual tags), Notes.
-Domain name is validated on blur. Edit mode pre-populates all fields. Optimistic
-UI update on save.
+Per US-010 in the master plan, the domain add/edit form must be a **centered modal
+dialog** (overlay on the domains list page, sidebar hidden). Fields: Domain*,
+Expiration Date*, Purchase Price, **Status** (dropdown), Registrar (text input with
+**autocomplete** from existing registrar values), Tags (**chip input** — add/remove
+individual tags), Notes. Domain name is validated on blur. Edit mode pre-populates all
+fields. Optimistic UI update on save. Modal has entrance/exit animation.
 
-Additionally, fix the z-index/transparency issue: the slide-over panel must render
-above the domain list with a visible, opaque background.
+Additionally, fix the z-index/transparency issue: the modal dialog must render
+above the domain list with a visible, opaque backdrop. The sidebar must be hidden
+while the modal is open to give the form full attention.
 
-**Why this priority**: Our current implementation uses a modal dialog. The master
-plan specifies a slide-over panel with additional fields (Status, registrar
-autocomplete, tag chips). The z-index bug makes the panel unusable.
+**Why this priority**: The previous slide-over approach left the sidebar visible and
+was inconsistent with user expectations. A centered modal dialog provides better
+focus, matches the application's existing Dialog pattern, and hides distractions.
 
-**Independent Test**: Click "Add Domain" — slide-over panel appears from the right.
-Fill in Status dropdown — options: Active/Expired/Sold/Pending. Type in Registrar —
-autocomplete suggestions appear from existing registrar values. Add tags via chip
+**Independent Test**: Click "Add Domain" — modal dialog appears centered with opaque
+backdrop, sidebar hidden. Fill in Status dropdown — options: Active/Expired/Sold/
+Pending. Type in Registrar — autocomplete suggestions appear. Add tags via chip
 input — tags appear as removable chips. Edit an existing domain — all fields
-pre-populated except Domain (read-only). Save — panel closes, list updates.
+pre-populated except Domain (read-only). Save — modal closes, list updates.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user clicks "Add Domain", **When** the panel opens, **Then** a
-   slide-over panel animates in from the right with a visible opaque background
-   (no transparency issue).
-2. **Given** the add-domain form, **When** the user types in the Registrar field,
+1. **Given** a user clicks "Add Domain", **When** the modal opens, **Then** a
+   centered modal dialog appears with an opaque backdrop, the sidebar is hidden,
+   and the form is focused (no transparency issue).
+2. **Given** the add-domain modal, **When** the user types in the Registrar field,
    **Then** autocomplete suggestions appear showing existing registrar values from
    their portfolio (dropdown below the input).
-3. **Given** the add-domain form, **When** the user types tags and presses Enter
+3. **Given** the add-domain modal, **When** the user types tags and presses Enter
    or comma, **Then** a chip appears for each tag with an X to remove it.
-4. **Given** the edit-domain form, **When** opened for an existing domain,
+4. **Given** the edit-domain modal, **When** opened for an existing domain,
    **Then** all fields are pre-populated and the Domain field is read-only.
-5. **Given** the add-domain form, **When** the user tabs or clicks away from the
+5. **Given** the add-domain modal, **When** the user tabs or clicks away from the
    Domain field, **Then** validation happens on blur — invalid domain shows inline
    error; existing domain shows "Domain already exists" error.
 
@@ -277,7 +279,8 @@ These features are classified **[DONE]** and MUST NOT be modified:
 
 | Item | Status | Justification |
 |---|---|---|
-| `domain-add-dialog.tsx` (current modal dialog) | **[DELETED]** | Per US-010, replaced by slide-over panel (`domain-add-slideover.tsx`) |
+| `domain-add-dialog.tsx` (original modal) | **[DELETED]** | Superseded in previous iteration |
+| `domain-add-slideover.tsx` (slide-over) | **[DELETED]** | Per Q2 clarification — replaced by centered modal dialog (`domain-add-dialog.tsx`) |
 
 ## Requirements *(mandatory)*
 
@@ -313,10 +316,10 @@ These features are classified **[DONE]** and MUST NOT be modified:
 - **FR-011**: [NEW] Filter state MUST be serialized to URL query params so filtered
   views are shareable. Loading a URL with params auto-applies the filters.
 
-#### Add / Edit Domain — Slide-Over Panel [UPDATED]
+#### Add / Edit Domain — Centered Modal Dialog [UPDATED]
 
-- **FR-012**: [NEW] "Add Domain" MUST open a slide-over panel (from the right) instead
-  of a modal dialog. The panel overlays the domain list with a visible opaque backdrop.
+- **FR-012**: [NEW] "Add Domain" MUST open a centered modal dialog (overlay) on the
+  domains list page with the sidebar hidden. The modal uses a visible opaque backdrop.
 - **FR-013**: [UPDATED] Domain add form MUST include a Status field (dropdown:
   Active, Expired, Sold, Pending) in addition to existing fields.
 - **FR-014**: [NEW] Registrar field MUST include autocomplete, suggesting matching
@@ -325,8 +328,9 @@ These features are classified **[DONE]** and MUST NOT be modified:
   creates a removable chip per tag; individual chips have an X to remove.
 - **FR-016**: [UPDATED] Domain name MUST be validated on blur (client-side regex
   + server-side duplicate check), showing inline error if invalid.
-- **FR-017**: [NEW] The slide-over panel MUST correct the z-index/transparency issue
-  — the panel and backdrop must render fully opaque above the page content.
+- **FR-017**: [NEW] The modal dialog MUST correct the z-index/transparency issue —
+  the modal and backdrop must render fully opaque above the page content, and the
+  sidebar must be hidden while the modal is open.
 
 #### Manual Entry on Import Page [NEW]
 
@@ -370,8 +374,8 @@ These features are classified **[DONE]** and MUST NOT be modified:
 - **SC-004**: Filter state survives page refresh via URL params and auto-applies on
   load within 1 second.
 - **SC-005**: Export CSV downloads a complete file for 1000 domains within 3 seconds.
-- **SC-006**: Slide-over panel opens with full opacity (no transparency) and animates
-  within 300ms.
+- **SC-006**: Centered modal dialog opens with full opacity (no transparency), sidebar
+  hidden, and animates within 300ms.
 - **SC-007**: Registrar autocomplete shows suggestions within 300ms of typing in the
   input field.
 - **SC-008**: The manual entry inline form on Import page supports adding 5 domains
@@ -387,8 +391,9 @@ These features are classified **[DONE]** and MUST NOT be modified:
 
 ## Assumptions
 
-- The slide-over panel uses shadcn/ui Sheet component (already available if installed)
-  or can be built with existing Dialog/Drawer primitives.
+- The modal dialog uses shadcn/ui Dialog component (already installed) or can be built
+  with existing primitives. Entrance/exit animation uses the Dialog's built-in
+  transition.
 - Registrar autocomplete uses an existing query function that fetches distinct
   registrar values (already used by domain filters).
 - The chip input for tags can be built with controlled input + state array; no

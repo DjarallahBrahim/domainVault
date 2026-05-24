@@ -16,9 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { TagInput } from "@/components/domains/tag-input";
 import { queryKeys } from "@/lib/query-keys";
 import { manualEntrySchema, type ManualEntryInput } from "@/lib/validations/domain";
@@ -27,13 +30,13 @@ import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
-interface DomainAddSlideoverProps {
+interface DomainAddDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   domain?: DomainRow;
 }
 
-export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlideoverProps) {
+export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
@@ -144,21 +147,21 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
   );
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold">{isEdit ? "Edit Domain" : "Add Domain"}</h2>
-          <p className="text-sm text-text-muted mt-1">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Domain" : "Add Domain"}</DialogTitle>
+          <DialogDescription>
             {isEdit
               ? "Update the domain details below."
               : "Manually add a domain to your portfolio."}
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="slide-domain">Domain Name *</Label>
+            <Label htmlFor="dialog-domain">Domain Name *</Label>
             <Input
-              id="slide-domain"
+              id="dialog-domain"
               placeholder="example.com"
               disabled={isEdit}
               {...register("domain")}
@@ -172,9 +175,9 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slide-expiration">Expiration Date *</Label>
+            <Label htmlFor="dialog-expiration">Expiration Date *</Label>
             <Input
-              id="slide-expiration"
+              id="dialog-expiration"
               type="date"
               {...register("expiration_date")}
             />
@@ -186,9 +189,9 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slide-price">Purchase Price</Label>
+            <Label htmlFor="dialog-price">Purchase Price</Label>
             <Input
-              id="slide-price"
+              id="dialog-price"
               type="number"
               step="0.01"
               min="0"
@@ -203,9 +206,9 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slide-status">Status</Label>
+            <Label htmlFor="dialog-status">Status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-              <SelectTrigger id="slide-status">
+              <SelectTrigger id="dialog-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,10 +221,10 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slide-registrar">Registrar</Label>
+            <Label htmlFor="dialog-registrar">Registrar</Label>
             <div className="relative">
               <Input
-                id="slide-registrar"
+                id="dialog-registrar"
                 placeholder="GoDaddy, Namecheap..."
                 value={registrarInput}
                 onChange={(e) => {
@@ -254,9 +257,9 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slide-notes">Notes</Label>
+            <Label htmlFor="dialog-notes">Notes</Label>
             <Input
-              id="slide-notes"
+              id="dialog-notes"
               placeholder="Any notes about this domain"
               {...register("notes")}
             />
@@ -284,7 +287,7 @@ export function DomainAddSlideover({ open, onOpenChange, domain }: DomainAddSlid
             </Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
