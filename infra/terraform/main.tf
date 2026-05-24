@@ -25,3 +25,12 @@ module "cloud_run" {
 
   secrets = module.secret_manager.secret_names
 }
+
+# create our cloud_build module/cloud_build
+module "cloud_build" {
+  source       = "./modules/cloud_build"
+  project_id   = var.project_id
+  region       = var.region
+  app_name     = var.app_name
+  cloud_run_sa = var.cloud_run_service_account
+}
