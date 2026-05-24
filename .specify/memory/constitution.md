@@ -1,19 +1,21 @@
 <!--
 Sync Impact Report
 ==================
-Version change: none (template) → 1.0.0 (initial ratification)
-New principles (5): I. Data Integrity & Security, II. Architecture Discipline,
-  III. UX Excellence & Accessibility, IV. Code Quality & Performance,
-  V. Phased Delivery & Verification
-Added sections: Technical Standards, Development Workflow & Quality Gates
-Removed sections: none (all template placeholders replaced)
+Version change: 1.0.0 → 1.1.0 (MINOR)
+Modified principles:
+  I. Data Integrity & Security — added cross-table mutation integrity rule
+  II. Architecture Discipline — documented server/client query split pattern;
+      clarified that standard CRUD uses direct Supabase client (no Route Handlers)
+  V. Phased Delivery & Verification — marked v1 (4 phases) complete; expanded
+      to cover ongoing feature work beyond v1
+Added sections: none
+Removed sections: none
 Templates checked:
-  ✅ plan-template.md — "Constitution Check" gate is dynamic; no changes needed
+  ✅ plan-template.md — generic; no changes needed
   ✅ spec-template.md — no direct constitution references; no changes needed
   ✅ tasks-template.md — phase structure aligns; no changes needed
-  ✅ checklist-template.md — generic; no changes needed
-  ✅ commands/ — no command templates exist yet (glob returned empty)
-  ✅ AGENTS.md — references plan.md; consistent
+  ✅ constitution-template.md — not applicable (this IS the constitution)
+  ✅ README.md — features list matches constitution phases; no changes needed
 Follow-up TODOs: none
 -->
 
@@ -30,26 +32,49 @@ be traceable through the database (auditability via timestamps and user_id
 foreign keys). Row Level Security (RLS) MUST be enabled on every table
 with policies enforcing `user_id = auth.uid()`. The Supabase `service_role`
 key MUST never be exposed to the client; Route Handlers are the only
-permitted server-side secret boundary.
+permitted server-side secret boundary (used only when absolutely necessary,
+such as webhooks or signed URLs).
 
-**Rationale**: Domain portfolios are financial assets. Data corruption or
-unauthorized access directly harms the user's business.
+**Cross-table mutation integrity**: Mutations that span multiple tables MUST
+maintain referential integrity as a single logical operation. When a sale
+is created, the associated domain's status MUST be updated to "sold". When
+the last sale for a domain is deleted, the domain's status MUST revert to
+"active". These cross-table state transitions MUST occur within the same
+mutation flow and MUST NOT leave orphaned or inconsistent state.
+
+**Rationale**: Domain portfolios are financial assets. Data corruption,
+unauthorized access, or inconsistent cross-table state directly harms the
+user's business.
 
 ### II. Architecture Discipline
 
 Server Components are the default for all data fetching. Client Components
 (`"use client"`) MUST only be introduced when interactivity (state, effects,
 event handlers) is required. Standard CRUD operations MUST go through the
-Supabase client with RLS — never through Route Handlers. Route Handlers are
-reserved exclusively for server-side secrets (webhooks, signed URLs).
+Supabase client with RLS — never through Route Handlers. The application uses
+the direct Supabase client pattern: browser clients for client-side mutations,
+server clients for SSR data fetching.
+
+**Query file split pattern**: When a server-only dependency (e.g.,
+`next/headers` from `createServerClient`) would leak into the client bundle,
+queries MUST be split into two files:
+- `lib/supabase/queries/<feature>.ts` — server-safe queries (SSR hydration,
+  `fetch*` functions using the server client)
+- `lib/supabase/queries/<feature>-client.ts` — client-safe queries
+  (mutations, browser-side `fetch*` functions using the browser client)
+
+Client components that need fetch functions MUST import from the `-client`
+variant to prevent server-only code from reaching the browser bundle.
+
 TanStack Query MUST handle all client-side fetches with centralized query
 keys in `/lib/query-keys.ts`. All database calls MUST use typed helpers
 in `/lib/supabase/queries/`; raw Supabase calls inside components are not
 permitted. Optimistic updates MUST be applied on every mutation.
 
 **Rationale**: The separation between server-centric rendering, typed data
-access, and secret-aware routing prevents silent security regressions and
-ensures the codebase scales predictably across phases.
+access, and the query-file split pattern prevents silent security regressions
+and `next/headers` build failures while ensuring the codebase scales
+predictably across phases.
 
 ### III. UX Excellence & Accessibility
 
@@ -83,14 +108,27 @@ typing prevents runtime errors at scale.
 
 ### V. Phased Delivery & Verification
 
-Features MUST be delivered in 4 independent, shippable phases as defined
-in `plan.md`. Each phase MUST pass its full Definition of Done checklist
-before the next phase begins. Every push MUST produce a clean Vercel build
-with zero TypeScript errors. Phases are: (1) Foundation — auth, schema,
-shell, theme; (2) CSV Import & Domain Management; (3) Dashboard &
-Analytics; (4) Sales Tracking & Earnings. Non-goals for v1 (multi-user,
-registrar APIs, email alerts, native app) MUST NOT be implemented in any
-phase.
+Features MUST be delivered in independent, shippable phases as defined in
+each phase's `plan.md`. Each phase MUST pass its full Definition of Done
+checklist before the next phase begins. Every push MUST produce a clean
+Vercel build with zero TypeScript errors.
+
+**v1 phases (complete)**:
+1. Foundation — auth, schema, shell, theme
+2. CSV Import & Domain Management
+3. Dashboard & Analytics
+4. Sales Tracking & Earnings
+
+**Ongoing work**: Post-v1 feature work (updating existing features, creating
+new features) MUST follow the same phased delivery discipline. Each new
+feature or major update MUST have its own specification, plan, and tasks
+under `specs/`, with a dedicated feature branch following the same naming
+convention (`###-feature-name`). The Constitution Check gate in each plan
+MUST pass before implementation begins.
+
+Non-goals for v1 (multi-user, registrar APIs, email alerts, native app) MUST
+NOT be implemented without an explicit specification and plan that passes
+the Constitution Check.
 
 **Rationale**: Phased delivery ensures each increment is independently
 valuable, shippable, and verifiable — preventing the accumulation of
@@ -198,6 +236,7 @@ Domain table rules per breakpoint:
 - No `any` types, no unused imports
 - All Supabase errors mapped to human-readable strings before display
 - No `service_role` key exposed to client bundle
+- No `next/headers` or `createServerClient` imports in files that reach the browser bundle (enforce query file split pattern)
 
 ## Governance
 
@@ -205,7 +244,7 @@ This constitution supersedes all other project practices and conventions.
 Amendments require:
 
 1. Documentation of the proposed change with rationale
-2. Review against all affected phases and user stories in `plan.md`
+2. Review against all affected phases and user stories in the relevant `plan.md`
 3. Version increment per semantic versioning:
    - **MAJOR**: Principle removal or backward-incompatible redefinition
    - **MINOR**: New principle, section, or materially expanded guidance
@@ -216,4 +255,4 @@ All PRs and code reviews MUST verify compliance with the principles above.
 Any deviation from a principle MUST be explicitly justified in the
 implementation plan's "Complexity Tracking" section.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-21 | **Last Amended**: 2026-05-21
+**Version**: 1.1.0 | **Ratified**: 2026-05-21 | **Last Amended**: 2026-05-24

@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
 import { queryKeys } from "@/lib/query-keys";
 import { DomainTable } from "@/components/domains/domain-table";
 import { DomainCard } from "@/components/domains/domain-card";
 import { DomainSearch } from "@/components/domains/domain-search";
 import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
+import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
 import { toast } from "sonner";
 
@@ -42,6 +45,7 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const handleDelete = (id: string) => {
     if (id === "__bulk__") {
@@ -90,14 +94,30 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
     return (
       <div className="space-y-6">
         <DomainSearch tlds={tlds} />
-        <DomainEmptyState />
+        <DomainEmptyState onAddDomain={() => setShowAddDialog(true)} />
+        <DomainAddDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <DomainSearch tlds={tlds} />
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <DomainSearch tlds={tlds} />
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowAddDialog(true)}
+          className="shrink-0"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add Domain
+        </Button>
+      </div>
 
       {/* Desktop: Table (≥480px) */}
       <div className="hidden sm:block">
@@ -132,6 +152,11 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
           deleteTarget === "__bulk__" ? selectedIds.size : 1
         }
         onConfirm={confirmDelete}
+      />
+
+      <DomainAddDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
       />
     </div>
   );

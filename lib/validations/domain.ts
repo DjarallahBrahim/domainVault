@@ -120,3 +120,26 @@ export function parseTags(tagsString: string | undefined | null): string[] | nul
 }
 
 export { parseDate };
+
+export const manualEntrySchema = z.object({
+  domain: z
+    .string()
+    .min(1, "Domain name is required")
+    .max(253, "Domain name exceeds 253 characters")
+    .regex(/\./, "Domain must contain a dot")
+    .regex(/^\S+$/, "Domain must not contain spaces"),
+  expiration_date: z
+    .string()
+    .min(1, "Expiration date is required")
+    .refine((v) => !isNaN(Date.parse(v)), "Invalid date"),
+  purchase_price: z.coerce
+    .number()
+    .min(0, "Price must be non-negative")
+    .optional()
+    .nullable(),
+  registrar: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  tags: z.string().optional().nullable(),
+});
+
+export type ManualEntryInput = z.infer<typeof manualEntrySchema>;

@@ -157,3 +157,52 @@ export async function checkExistingDomains(
   }
   return existing;
 }
+
+export async function insertSingleDomain(input: {
+  domain: string;
+  expiration_date: string;
+  purchase_price?: number | null;
+  registrar?: string | null;
+  notes?: string | null;
+  tags?: string | null;
+}) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { data: existing } = await supabase
+    .from("domains")
+    .select("id")
+    .ilike("domain", input.domain)
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error("Domain already exists in your portfolio");
+  }
+
+  const { data: domain, error } = await supabase
+    .from("domains")
+    .insert({
+      user_id: user.id,
+      domain: input.domain,
+      expiration_date: input.expiration_date,
+      purchase_price: input.purchase_price ?? null,
+      registrar: input.registrar ?? null,
+      notes: input.notes ?? null,
+      tags: input.tags
+        ? input.tags.split(",").map((t: string) => t.trim()).filter((t: string) => t.length > 0)
+        : null,
+      status: "active",
+    } as never)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return domain as unknown as DomainRow;
+}

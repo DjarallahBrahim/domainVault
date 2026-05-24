@@ -114,15 +114,9 @@ variable "cloud_build_service_account" {
   default     = ""
 }
 # -----------------------------------------------------------------------------
-# Load Balancer
+# domain mapping
 # -----------------------------------------------------------------------------
-variable "enable_load_balancer" {
-  type    = bool
-  default = false
-}
 
 variable "domain" {
-  description = "Custom domain for the load balancer"
-  type        = string
-  default     = ""
+  type = string
 }
