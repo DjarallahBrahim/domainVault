@@ -36,9 +36,9 @@ steps:
 
 availableSecrets:
   secretManager:
-    - versionName: projects/domainvault-497310/secrets/SUPABASE_URL/versions/latest
+    - versionName: projects/domainvault-497310/secrets/NEXT_PUBLIC_SUPABASE_URL/versions/latest
       env: 'NEXT_PUBLIC_SUPABASE_URL'
-    - versionName: projects/domainvault-497310/secrets/SUPABASE_ANON_KEY/versions/latest
+    - versionName: projects/domainvault-497310/secrets/NEXT_PUBLIC_SUPABASE_ANON_KEY/versions/latest
       env: 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
 
