@@ -10,6 +10,7 @@ steps:
           --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=$$NEXT_PUBLIC_SUPABASE_ANON_KEY \
           -t us-central1-docker.pkg.dev/domainvault-497310/domainvault/domainvault:$SHORT_SHA \
           -t us-central1-docker.pkg.dev/domainvault-497310/domainvault/domainvault:latest \
+          -f infra/Dockerfile \
           .
     secretEnv:
       - 'NEXT_PUBLIC_SUPABASE_URL'
