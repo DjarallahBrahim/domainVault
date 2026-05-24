@@ -39,6 +39,7 @@ resource "google_service_account_iam_member" "cb_act_as_cloudrun_sa" {
 resource "google_cloudbuild_trigger" "main" {
   name     = "${var.app_name}-deploy"
   project  = var.project_id
+  location = var.region
   filename = "cloudbuild.yaml"
 
   github {
@@ -48,4 +49,5 @@ resource "google_cloudbuild_trigger" "main" {
       branch = "^main$"
     }
   }
+  service_account = "projects/${var.project_id}/serviceAccounts/${local.cb_sa}"
 }
