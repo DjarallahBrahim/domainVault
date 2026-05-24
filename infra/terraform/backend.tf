@@ -6,7 +6,7 @@ provider "google" {
 
 terraform {
   backend "gcs" {
-    bucket = "domainvault-tfstate"
+    bucket = "domain-vault-tfstate"
     prefix = "terraform/state"
   }
 }

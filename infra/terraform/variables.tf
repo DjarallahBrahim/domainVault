@@ -24,6 +24,17 @@ variable "repository_id" {
 # -----------------------------------------------------------------------------
 # Cloud Run
 # -----------------------------------------------------------------------------
+variable "image" {
+  description = "Container image to deploy (Artifact Registry URL)"
+  type        = string
+}
+
+variable "service_name" {
+  type    = string
+  default = "domainvault"
+}
+
+
 variable "container_port" {
   type    = number
   default = 3000
