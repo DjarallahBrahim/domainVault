@@ -36,3 +36,11 @@ module "cloud_build" {
   cloud_build_service_account = var.cloud_build_service_account
 
 }
+# create our cloud_build module/cloud_build
+module "domain_mapping" {
+  source                 = "./modules/domain_mapping"
+  project_id             = var.project_id
+  region                 = var.region
+  domain                 = var.domain
+  cloud_run_service_name = module.cloud_run.service_name
+}
