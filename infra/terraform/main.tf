@@ -32,5 +32,7 @@ module "cloud_build" {
   project_id   = var.project_id
   region       = var.region
   app_name     = var.app_name
-  cloud_run_sa = "cloudbuild-sa@domainvault-497310.iam.gserviceaccount.com"
+  cloud_run_sa = var.cloud_run_service_account
+  cloud_build_service_account = var.cloud_build_service_account
+
 }
