@@ -1,4 +1,4 @@
-# Implementation Plan: Phase 2 Refresh — Manual Domain Entry
+# Implementation Plan: Phase 2 Refresh — Full v2 Alignment
 
 **Branch**: `005-phase-2-refresh` | **Date**: 2026-05-24 | **Spec**: [spec.md](./spec.md)
 
@@ -6,46 +6,45 @@
 
 ## Summary
 
-Add manual single-domain entry to the existing Phase 2 domain management system.
-Currently, all domains must be imported via CSV. This refresh adds a modal dialog form
-("Add Domain") accessible from the Domains list page, allowing users to create
-individual domain records without preparing a CSV file.
+Align the existing Phase 2 codebase with the v2 master plan. This involves 7 user
+stories: 3 updates to existing components (CSV preview adding Registrar column,
+domain list adding Registrar + Enter-key search + pagination options + CSV export,
+domain add/edit converting from modal dialog to slide-over panel with Status field,
+registrar autocomplete, and tag chips), and 4 new features (multi-domain
+comma-separated search, improved filters with expiry window/registrar multi-select/
+status multi-select/URL sync, manual entry tab on Import page, CSV column reference
+banner).
 
-Technical approach: React Hook Form + Zod for the entry form, shadcn/ui Dialog for the
-modal, existing `domains-client.ts` queries extended with `insertSingleDomain()`.
-Domain name validation, TLD auto-derivation, and duplicate detection reuse the same
-logic as CSV import. The form integrates seamlessly into the existing domain list page
-with optimistic TanStack Query cache updates.
-
-**Supabase connection**: Uses the existing browser client (`createClient`) for the
-insert and the existing `domains` table with RLS from Phase 1. No new tables, no new
-migrations, no new Route Handlers. The `domains-client.ts` file gets one new function;
-all other files are new components.
+Technical approach: shadcn/ui Sheet for slide-over panel, custom chip input component,
+URL search params for filter state serialization, `ilike()` OR-logic for multi-domain
+search, client-side Blob for CSV export. No new npm dependencies, no new database
+migrations. One component deleted: `domain-add-dialog.tsx` replaced by
+`domain-add-slideover.tsx`.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x (strict mode), React 18+, Next.js 14+
 
 **Primary Dependencies**: Supabase JS client v2, TanStack Query v5, React Hook Form v7,
-Zod v3, shadcn/ui (Dialog — already installed), date-fns v3, Lucide React
+Zod v3, shadcn/ui (Sheet, Dialog, Table, Select, Badge, Input, Textarea — all already
+installed), PapaParse v5, date-fns v3, Lucide React
 
 **Storage**: Supabase PostgreSQL — `domains` table (Phase 1); no schema changes
 
 **Testing**: Manual E2E verification per spec acceptance scenarios
 
-**Target Platform**: Vercel (serverless), modern browsers (Chrome, Firefox, Safari,
-Edge — latest 2 versions)
+**Target Platform**: Vercel (serverless), modern browsers
 
 **Project Type**: Web application (Next.js App Router), single frontend project
 
-**Performance Goals**: Manual entry form submit → domain visible in list <2s,
-validation response <200ms
+**Performance Goals**: Preview table <2s for 1000 rows, filter apply <500ms,
+slide-over animate <300ms, export CSV <3s for 1000 domains, CSV reference copy <200ms
 
-**Constraints**: No `service_role` key on client, no Route Handlers, server components
-default, no new tables, no new npm dependencies, reuses all existing patterns
+**Constraints**: 0 new npm deps, 0 new DB migrations, no Route Handlers,
+server components default, all existing patterns preserved
 
-**Scale/Scope**: Single-domain entry, 1 new component, 2 updated components,
-1 new query function, 1 new Zod schema
+**Scale/Scope**: 1 deleted file, 12 changed files, 4 new files. Affects:
+Domains page, Import page, CSV import flow, domain list table, filter/search bar.
 
 ## Constitution Check
 
@@ -53,19 +52,18 @@ default, no new tables, no new npm dependencies, reuses all existing patterns
 
 | Principle | Requirement | Status |
 |---|---|---|
-| I. Data Integrity & Security | Zod validation on all inputs, RLS on all tables | ✅ New form reuses Zod schema patterns; RLS on domains unchanged |
-| I. Data Integrity & Security | Cross-table mutation integrity | ✅ Single-table insert (domains only); no cross-table concerns |
-| I. Data Integrity & Security | Service role never exposed | ✅ Uses anon key + RLS; no Route Handlers |
-| II. Architecture Discipline | Server Components default, typed helpers | ✅ Existing page structure unchanged; new query function in `-client.ts` |
-| II. Architecture Discipline | Query file split pattern | ✅ New `insertSingleDomain()` in `domains-client.ts` (browser client) |
-| II. Architecture Discipline | TanStack Query, optimistic updates | ✅ Insert mutation uses `useMutation` with optimistic cache update |
-| III. UX Excellence | Toast notifications, inline errors, responsive | ✅ Success toast; inline Zod errors; modal dialog responsive on mobile |
-| III. UX Excellence | Skeleton loaders on async fetches | ✅ Not applicable (form is instant; insert uses button loading state) |
+| I. Data Integrity & Security | Zod validation, RLS | ✅ All forms use Zod; RLS on domains unchanged |
+| I. Data Integrity & Security | Service role never exposed | ✅ Anon key + RLS; no Route Handlers |
+| II. Architecture Discipline | Server Components default, typed helpers | ✅ Page SSR + client queries split as before |
+| II. Architecture Discipline | Query file split pattern | ✅ New queries in `-client.ts` files only |
+| II. Architecture Discipline | TanStack Query, optimistic updates | ✅ All mutations use `useMutation` with cache invalidation |
+| III. UX Excellence | Toast, inline errors, responsive | ✅ Toasts on add/save; inline Zod errors; slide-over responsive |
+| III. UX Excellence | Skeleton loaders | ✅ Existing skeletons preserved; new slide-over loads instantly |
 | IV. Code Quality | TypeScript strict, zero `any` | ✅ Enforced |
-| IV. Code Quality | React Hook Form + Zod for forms | ✅ New form uses RHF + Zod manualEntrySchema |
-| V. Phased Delivery | Spec, plan, tasks required | ✅ Spec complete; this plan; tasks to follow |
+| IV. Code Quality | React Hook Form + Zod for forms | ✅ Slide-over form + Import tab form use RHF + Zod |
+| V. Phased Delivery | Spec, plan, tasks required | ✅ Spec updated; this plan; tasks to follow |
 
-**GATE RESULT**: PASS — zero violations, zero unjustified deviations.
+**GATE RESULT**: PASS — zero violations.
 
 ## Project Structure
 
@@ -74,36 +72,43 @@ default, no new tables, no new npm dependencies, reuses all existing patterns
 ```text
 specs/005-phase-2-refresh/
 ├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0 — technology decisions
-├── data-model.md        # Phase 1 — form schema & entity model
-├── quickstart.md        # Phase 1 — verification guide
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+├── spec.md              # Feature specification (updated)
+├── research.md          # Technology decisions (updated)
+├── data-model.md        # Form schemas & entity model (updated)
+├── quickstart.md        # Verification guide (updated)
+└── tasks.md             # Task list (to be regenerated)
 ```
 
 ### Source Code (repository root)
 
-New and modified files only. All existing files not listed remain untouched.
-
 ```text
 components/domains/
-├── domain-add-dialog.tsx           # NEW: Modal dialog with manual entry form (RHF + Zod)
-├── domain-list-client.tsx          # UPDATED: Add "Add Domain" button, wire dialog
-└── domain-empty-state.tsx          # UPDATED: Add "Add your first domain" CTA
+├── domain-add-dialog.tsx          # [DELETED] — remove; replaced by slide-over
+├── domain-add-slideover.tsx       # NEW: Slide-over panel (US-010, replaces dialog)
+├── domain-list-client.tsx         # UPDATED: Enter-key search, Registrar column, pagination 25/50/100, Export CSV, multi-domain search
+├── domain-empty-state.tsx         # UPDATED: Slide-over trigger (replaces dialog trigger)
+├── domain-search.tsx              # UPDATED: Enter-key only, multi-domain comma parsing, expiry window filter
+├── domain-table.tsx               # UPDATED: Add Registrar column
+├── tag-input.tsx                  # NEW: Chip input component (reusable for tags)
+
+components/import/
+├── csv-uploader.tsx               # UPDATED: Add CSV column reference banner (US-031)
+├── csv-summary.tsx                # UPDATED: Add Registrar column to preview (US-007)
+├── manual-entry-tab.tsx           # NEW: "Add Manually" tab form (US-030)
+
+app/(dashboard)/
+├── domains/page.tsx               # No change (server component)
+└── import/page.tsx                # UPDATED: Add tab UI (CSV Upload / Add Manually)
 
 lib/
-├── supabase/queries/
-│   └── domains-client.ts           # UPDATED: Add insertSingleDomain() function
-└── validations/
-    └── domain.ts                   # UPDATED: Add manualEntrySchema
+├── supabase/queries/domains-client.ts  # UPDATED: fetchRegistrarList() for autocomplete + multi-filter support
+└── validations/domain.ts               # No change (manualEntrySchema reused)
 ```
 
-**Structure Decision**: Single Next.js App Router project. Manual entry component goes
-in `components/domains/` alongside existing domain components. The query function is
-added to existing `domains-client.ts` (browser-side, follows query file split pattern).
-The Zod schema is added to existing `lib/validations/domain.ts` (co-located with other
-domain schemas). No new directories or route pages needed.
+**Structure Decision**: Single Next.js App Router project. New components in
+`components/domains/` and `components/import/`. Tab UI on Import page is a
+state-toggle pattern (no new dependency). Tag chip input is a reusable component.
 
 ## Complexity Tracking
 
-> No violations to justify — all constitution gates pass.
+> No violations to justify.

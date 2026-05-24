@@ -6,92 +6,243 @@
 
 **Status**: Draft
 
-**Input**: "Review Phase 2 implementation against original spec. Identify what stays
-[DONE], what needs [UPDATED], what should be [NEW], and what should be [DELETED].
-Key addition: Manual Entry (was explicitly excluded from original Phase 2)."
+**Input**: "Update existing codebase to match Phase 2 v2 master plan. Missing stories
+US-009b, US-009c, US-030, US-031 must be added. US-007 and US-009 need targeted
+updates. Plus bug fix: dialog/slide-over transparency (z-index issue)."
 
 **Tags legend**:
 - **[DONE]** — Don't touch. Fully implemented, stable, no changes needed.
-- **[NEW]** — Build from scratch. Was not implemented in original Phase 2.
-- **[UPDATED]** — Modify as described. Exists but needs improvement.
+- **[NEW]** — Build from scratch. Not yet implemented.
+- **[UPDATED]** — Modify as described. Exists but needs change.
 - **[DELETED]** — Remove from codebase. No longer needed.
 
 ## Clarifications
 
 ### Session 2026-05-24
 
-- Q: Should the "Add Domain" form open as a modal dialog, inline form, or separate page? → A: Modal dialog — overlay on the domain list; list dims underneath; closes on submit or cancel.
+- Q: Should the "Add Domain" form open as a modal dialog, inline form, or separate page? → A: Per master plan US-010 — slide-over panel from the Domains page; US-030 — inline tab on the Import page. Two distinct entry points.
+- Q: What's the scope of this spec? → A: All Phase 2 stories defined in the master plan.md that are NOT yet complete.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 — Manual Domain Entry (Priority: P1) [NEW]
+### User Story 1 — CSV Preview Table: Add Registrar Column (Priority: P1) [UPDATED]
 
-A domain investor acquires a single domain (e.g., through a private transaction or
-hand-registration) and wants to add it to their portfolio immediately without
-preparing a CSV file. From the Domains list page, they click "Add Domain", fill in
-the domain name, expiration date, purchase price, registrar, notes, and tags in a
-form, and submit. The domain is created instantly with status "active" and appears
-in the domain list. Validation rules mirror CSV import (domain name must have a dot,
-no spaces, ≤ 253 chars; expiration date required; price must be non-negative).
+The CSV preview table shown after parsing but before import currently displays
+columns: Domain, Expiration Date, Price, Status. Per US-007 in the master plan,
+it must also include the **Registrar** column so users can verify registrar data
+before importing.
 
-**Why this priority**: Manual entry is the #1 missing feature from Phase 2. Not every
-domain acquisition comes from a registrar CSV export. Private sales, hand-registrations,
-and one-off additions require single-entry capability. It is the primary blocker
-between Phase 2's "bulk import only" and production-ready portfolio management.
+**Why this priority**: The master plan explicitly changes US-007 from v1 to add the
+Registrar column. Without it, users can't verify registrar data in the preview.
 
-**Independent Test**: Navigate to Domains page, click "Add Domain", fill in valid
-data, submit. Verify the domain appears in the list with all fields correct. Attempt
-to submit with invalid domain name (no dot) — inline error shown. Attempt to submit
-with a domain that already exists — duplicate error shown. Delivers a new domain in
-the portfolio without CSV import.
+**Independent Test**: Upload a CSV with Registrar column filled. Verify Registrar
+appears in the preview table alongside Domain and Price. Upload a CSV without
+Registrar — column shows empty/blank in preview. No regressions to the existing
+preview flow.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user on the Domains page, **When** they click "Add Domain" and fill
-   in a valid domain name, expiration date, and optional fields, **Then** the domain
-   is created with status "active" and appears at the top of the domain list.
-2. **Given** a user filling in the manual entry form, **When** they submit a domain
-   name without a dot (e.g., "mydomain"), **Then** an inline validation error appears
-   ("Domain must contain a dot") and no domain is created.
-3. **Given** a user filling in the manual entry form, **When** they submit a domain
-   name that already exists in their portfolio (case-insensitive match), **Then** an
-   inline error appears ("Domain already exists in your portfolio") and no duplicate
-   is created.
-4. **Given** a user filling in the manual entry form, **When** they leave the
-   expiration date empty, **Then** an inline validation error appears ("Expiration
-   date is required").
-5. **Given** a user submitting the manual entry form, **When** the request succeeds,
-   **Then** a toast confirms "Domain added" and the form closes or resets.
+1. **Given** a CSV file with Domain, Price, and Registrar columns, **When** the
+   preview table renders, **Then** Registrar values appear in a dedicated column.
+2. **Given** a CSV file without a Registrar column, **When** the preview renders,
+   **Then** the Registrar column shows empty cells without errors.
 
 ---
 
-### User Story 2 — Domain List "Add Domain" Integration (Priority: P1) [UPDATED]
+### User Story 2 — Domain List: Add Registrar Column & Enter-Key Search (Priority: P1) [UPDATED]
 
-The Domains list page currently has no mechanism to add domains outside of CSV
-import. It must be updated to include a prominent "Add Domain" button that opens
-the manual entry form. The empty-state message (shown when the user has no domains)
-must be updated to offer both import and manual entry options.
+Per US-009 in the master plan, the domain list table must include a **Registrar**
+column between TLD and Expiration Date. Additionally, the search input must trigger
+only on **Enter key press or search button click** — not on every keystroke
+(as it currently does via debounce). Pagination options must include 25, 50, and
+100 per page. An "Export to CSV" button must be available.
 
-**Why this priority**: The manual entry form (US1) needs a discoverable entry point.
-Without this integration, the form exists but users can't find it.
+**Why this priority**: Registrar is a core data point for portfolio management.
+Real-time search on every keystroke generates excessive queries. Export enables
+users to move data out of the app.
 
-**Independent Test**: View the Domains page with domains present — "Add Domain" button
-visible. View the Domains page with zero domains — empty state shows both "Import CSV"
-and "Add Domain" CTAs. Click "Add Domain" — form opens. Navigate to Import page —
-import flow unchanged, no regression.
+**Independent Test**: Navigate to Domains page. Verify Registrar column appears.
+Type a search term and press Enter — search triggers. Type without pressing Enter —
+search does NOT trigger. Change page size to 25/100 — pagination adjusts. Click
+Export CSV — file downloads with current filtered/sorted view.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user with one or more domains, **When** they view the Domains page,
-   **Then** an "Add Domain" button is visible near the search/filter bar.
-2. **Given** a user with zero domains, **When** they view the Domains page, **Then**
-   the empty state shows both "Import your first CSV" and "Add your first domain"
-   options with distinct CTAs.
-3. **Given** a user on the Domains page, **When** they click "Add Domain", **Then**
-    a modal dialog opens with the manual entry form overlaid on the domain list.
-4. **Given** a user who adds a domain via manual entry,  **When** the domain is
-   created, **Then** the domain list immediately reflects the new domain without a
-   full page reload (optimistic update).
+1. **Given** the domain list table, **When** rendered, **Then** columns include:
+   Domain, TLD, Registrar, Expiration Date, Days Until Expiry, Price, Status, Actions.
+2. **Given** a user typing in the search input, **When** they type characters
+   without pressing Enter, **Then** the list does NOT re-filter on each keystroke.
+3. **Given** a user typing in the search input, **When** they press Enter or click
+   the search button, **Then** the list filters to matching domains.
+4. **Given** the pagination control, **When** the user selects 25, 50, or 100 per
+   page, **Then** the page size updates and the list re-fetches.
+5. **Given** the domain list with current filters/sort applied, **When** the user
+   clicks "Export CSV", **Then** a CSV file downloads containing only the
+   currently visible columns and filtered domains.
+
+---
+
+### User Story 3 — Multi-Domain Search (Priority: P2) [NEW]
+
+Per US-009b in the master plan, the search input supports comma-separated domain
+names. Each token is trimmed and matched independently against the domain column.
+Results show all domains matching ANY of the tokens. Placeholder text:
+"Search domains (comma-separate multiple)".
+
+**Why this priority**: Users often need to look up specific domains by name.
+Pasting a list of domain names (e.g., from a spreadsheet column) and finding
+matches is a key productivity feature.
+
+**Independent Test**: Enter "google.com, example.org, github.io" in the search bar
+and press Enter. All three domains (or subsets if not all exist) appear. Enter a
+single domain without commas — works as before. Enter commas with extra spaces —
+tokens are trimmed.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user enters "example.com, test.org" and presses Enter, **When** the
+   search triggers, **Then** all domains matching "example.com" OR "test.org" appear
+   (case-insensitive OR-match across tokens).
+2. **Given** a user enters "  example.com  ,   test.org  " with irregular spacing,
+   **When** the search triggers, **Then** leading/trailing whitespace on each token
+   is trimmed before matching.
+3. **Given** a user enters a single domain without commas, **When** the search
+   triggers, **Then** exact-match behavior is preserved (no regression).
+
+---
+
+### User Story 4 — Improved Filters (Priority: P2) [NEW]
+
+Per US-009c in the master plan, the filter bar is upgraded with:
+1. **Expiry window** — segmented control: `All` · `≤1 month` · `≤3 months` ·
+   `≤6 months` · `≤9 months`. Selecting immediately filters without Enter key.
+2. **Registrar** — dropdown populated dynamically from distinct registrar values
+   in the user's portfolio. Multi-select supported. Shows domain count per registrar.
+3. **Status** — multi-select: Active / Expired / Sold / Pending.
+4. **Clear all** link resets all filters.
+
+Filter state is serialized to URL query params so filtered views are shareable
+and deep-linkable (used by dashboard chart navigation).
+
+**Why this priority**: These filters are required by the dashboard's click-to-navigate
+behavior (chart segments → `/domains?expiry=1m`, etc.). Without URL-synced filters,
+the dashboard navigation is broken.
+
+**Independent Test**: Select expiry window "≤3 months" — list filters immediately.
+Add registrar "GoDaddy" — list narrows further. Select status "Active" — list narrows.
+Click "Clear all" — all filters reset. Refresh page — filters persist via URL params.
+Navigate from dashboard chart click to `/domains?expiry=1m` — filter auto-applied.
+
+**Acceptance Scenarios**:
+
+1. **Given** the expiry window filter set to "≤3 months", **When** selected,
+   **Then** only domains expiring within 3 months appear (immediate, no Enter).
+2. **Given** the registrar dropdown, **When** opened, **Then** it shows distinct
+   registrar names with domain counts, supports multi-select, and filters on select.
+3. **Given** the status multi-select with "Active" and "Sold" selected,
+   **When** applied, **Then** only domains with those statuses appear.
+4. **Given** multiple filters active, **When** the user clicks "Clear all",
+   **Then** all filters reset, URL params cleared, full list restored.
+5. **Given** the URL `/domains?expiry=3m&registrar=GoDaddy`, **When** loaded,
+   **Then** the expiry window and registrar filters are auto-applied.
+
+---
+
+### User Story 5 — Add / Edit Domain: Slide-Over Panel (Priority: P1) [UPDATED]
+
+Per US-010 in the master plan, the domain add/edit form must be a **slide-over
+panel** (not a modal dialog). Fields: Domain*, Expiration Date*, Purchase Price,
+**Status** (dropdown), Registrar (text input with **autocomplete** from existing
+registrar values), Tags (**chip input** — add/remove individual tags), Notes.
+Domain name is validated on blur. Edit mode pre-populates all fields. Optimistic
+UI update on save.
+
+Additionally, fix the z-index/transparency issue: the slide-over panel must render
+above the domain list with a visible, opaque background.
+
+**Why this priority**: Our current implementation uses a modal dialog. The master
+plan specifies a slide-over panel with additional fields (Status, registrar
+autocomplete, tag chips). The z-index bug makes the panel unusable.
+
+**Independent Test**: Click "Add Domain" — slide-over panel appears from the right.
+Fill in Status dropdown — options: Active/Expired/Sold/Pending. Type in Registrar —
+autocomplete suggestions appear from existing registrar values. Add tags via chip
+input — tags appear as removable chips. Edit an existing domain — all fields
+pre-populated except Domain (read-only). Save — panel closes, list updates.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user clicks "Add Domain", **When** the panel opens, **Then** a
+   slide-over panel animates in from the right with a visible opaque background
+   (no transparency issue).
+2. **Given** the add-domain form, **When** the user types in the Registrar field,
+   **Then** autocomplete suggestions appear showing existing registrar values from
+   their portfolio (dropdown below the input).
+3. **Given** the add-domain form, **When** the user types tags and presses Enter
+   or comma, **Then** a chip appears for each tag with an X to remove it.
+4. **Given** the edit-domain form, **When** opened for an existing domain,
+   **Then** all fields are pre-populated and the Domain field is read-only.
+5. **Given** the add-domain form, **When** the user tabs or clicks away from the
+   Domain field, **Then** validation happens on blur — invalid domain shows inline
+   error; existing domain shows "Domain already exists" error.
+
+---
+
+### User Story 6 — Manual Domain Entry on Import Page (Priority: P2) [NEW]
+
+Per US-030 in the master plan, the Import page (`/import`) has two tabs:
+**"CSV Upload"** and **"Add Manually"**. The Add Manually tab contains an inline
+form: Domain name* (validated on blur), Expiration Date* (date picker), Purchase
+Price (number input), Registrar (text input with autocomplete), Notes (textarea),
+Tags (chip input). Submit button: "Add Domain". On submit: insert domain, show
+success inline, reset form for next entry. No redirect — user can add multiple
+domains sequentially. Error shows inline.
+
+**Why this priority**: Provides an alternative manual entry flow on the Import page
+for users who prefer bulk single-entry. Complements the slide-over panel on the
+Domains page (US-010).
+
+**Independent Test**: Navigate to `/import`. See "CSV Upload" tab (default) and
+"Add Manually" tab. Switch to "Add Manually". Fill in domain, date, submit.
+Success message appears, form resets, domain appears in domain list. Fill in invalid
+domain — inline error, form not reset.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user on the Import page, **When** they click the "Add Manually"
+   tab, **Then** a form appears with: Domain*, Expiration Date*, Purchase Price,
+   Registrar, Notes (textarea), Tags (chip input), and a "Add Domain" button.
+2. **Given** a valid domain submitted via the Add Manually tab, **When** the
+   insert succeeds, **Then** a success message appears inline below the form,
+   the form resets to empty, and the domain appears in the portfolio.
+3. **Given** an invalid domain (no dot), **When** submitted, **Then** an inline
+   error appears, and the form retains the entered data (not reset).
+4. **Given** the Add Manually form, **When** the user submits multiple domains
+   sequentially, **Then** each is added without page redirect or tab switch.
+
+---
+
+### User Story 7 — CSV Column Reference Banner (Priority: P3) [NEW]
+
+Per US-031 in the master plan, the CSV Upload tab displays a styled info banner
+at the top showing the expected CSV format. A copy-to-clipboard button copies a
+header row. A downloadable sample CSV file is available.
+
+**Why this priority**: Reduces support friction for new users unfamiliar with the
+expected CSV format. Downloadable sample lets them test the import flow immediately.
+
+**Independent Test**: Navigate to `/import` → CSV Upload tab. Banner shows expected
+columns. Click copy button → header row copied to clipboard. Click sample download
+→ CSV file downloads with header row + 2 example rows.
+
+**Acceptance Scenarios**:
+
+1. **Given** the CSV Upload tab, **When** loaded, **Then** an info banner displays
+   "Required: Domain, Expiration Date / Optional: Price, Registrar, Notes, Tags".
+2. **Given** the copy button on the banner, **When** clicked, **Then** the text
+   `Domain,Expiration Date,Price,Registrar,Notes,Tags` is copied to clipboard.
+3. **Given** the download sample link on the banner, **When** clicked, **Then** a
+   CSV file downloads with a header row and 2 example data rows.
 
 ---
 
@@ -107,14 +258,9 @@ These features are classified **[DONE]** and MUST NOT be modified:
 | Import progress indicator | **[DONE]** | `csv-progress.tsx` shows parsing/importing/done phases |
 | Import summary (imported, skipped, errors) | **[DONE]** | `csv-summary.tsx` with per-row error detail |
 | Import log record creation | **[DONE]** | `createImportLog()` writes filename, counts, errors JSONB |
-| Paginated domain list (50/page) | **[DONE]** | Server component hydration + TanStack Query; page nav |
-| Domain search (case-insensitive substring) | **[DONE]** | Debounced; updates URL search params |
-| Domain filters (status, TLD) | **[DONE]** | Dropdowns; sync with URL search params |
-| Domain sort (name, date, status) | **[DONE]** | Column header click; asc/desc toggle; URL search params |
 | Domain status badge (active/expired/sold/pending) | **[DONE]** | Color-mapped per constitution |
 | Domain expiry badge (countdown + color) | **[DONE]** | 30/90/180 day thresholds per constitution |
 | Domain detail page (full record view) | **[DONE]** | `app/(dashboard)/domains/[id]/page.tsx` |
-| Domain edit form (status, registrar, price, notes, tags) | **[DONE]** | RHF + Zod `domainEditSchema`; name/TLD read-only |
 | Single domain delete (with confirmation) | **[DONE]** | `domain-delete-dialog.tsx`; optimistic removal |
 | Bulk domain delete (max 50, with confirmation) | **[DONE]** | Checkbox selection + bulk-delete button |
 | Import history list (filename, date, counts) | **[DONE]** | `import-log-list.tsx`; 50 most recent |
@@ -125,77 +271,133 @@ These features are classified **[DONE]** and MUST NOT be modified:
 | Zod validation (csvRowSchema, domainEditSchema, domainFiltersSchema) | **[DONE]** | `lib/validations/domain.ts` |
 | Typed database helpers (domains.ts, domains-client.ts, import-logs.ts) | **[DONE]** | Split server/client pattern per constitution v1.1.0 |
 | Per-user data isolation (RLS) | **[DONE]** | Enforced by Supabase; domains and import_logs scoped |
+| Insert domain function (`insertSingleDomain`) | **[DONE]** | `domains-client.ts`; case-insensitive dedup |
 
 ### No Longer Needed
 
 | Item | Status | Justification |
 |---|---|---|
-| Placeholder "Coming in Phase 2" pages | **[DELETED]** | Superseded by real pages; no placeholder code remains |
-| T042 (ESLint + Prettier check) in tasks.md | **[DELETED]** | Task was administrative; build already passes lint |
+| `domain-add-dialog.tsx` (current modal dialog) | **[DELETED]** | Per US-010, replaced by slide-over panel (`domain-add-slideover.tsx`) |
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-#### Manual Domain Entry [NEW]
+#### CSV Preview — Registrar Column [UPDATED]
 
-- **FR-001**: System MUST allow users to manually add a single domain from the
-  Domains page without uploading a CSV file.
-- **FR-002**: The manual entry form MUST collect: domain name (required), expiration
-  date (required), purchase price (optional, non-negative), registrar (optional),
-  notes (optional), tags (optional, comma-separated).
-- **FR-003**: Manual entry MUST apply the same validation rules as CSV import:
-  domain name must contain a dot, no spaces, ≤ 253 characters; expiration date
-  must be a valid date; purchase price must be non-negative.
-- **FR-004**: System MUST reject manual entry of a domain that already exists in the
-  user's portfolio (case-insensitive match) with an inline error "Domain already
-  exists in your portfolio".
-- **FR-005**: New domains created via manual entry MUST default to status "active".
-- **FR-006**: TLD MUST be auto-derived from the domain name (split on last dot) at
-  creation time.
-- **FR-007**: System MUST display a success toast ("Domain added") and immediately
-  show the new domain in the list after creation (optimistic update).
+- **FR-001**: [UPDATED] CSV preview table MUST include a Registrar column between
+  Price and Status columns.
 
-#### Domain List Page Updates [UPDATED]
+#### Domain List — Registrar, Search, Pagination, Export [UPDATED]
 
-- **FR-008**: [NEW] Domains page MUST display an "Add Domain" button visible when
-  the user has one or more domains.
-- **FR-009**: [UPDATED] Domain empty state MUST be updated to offer both "Import CSV"
-  and "Add Domain" CTAs (currently only offers import).
-- **FR-010**: [NEW] Clicking "Add Domain" MUST open the manual entry form as a modal dialog (overlay) on the domains list page.
+- **FR-002**: [UPDATED] Domain list table MUST include a Registrar column after TLD.
+- **FR-003**: [UPDATED] Domain search MUST trigger only on Enter key press or search
+  button click, NOT on keystroke.
+- **FR-004**: [NEW] Domain search MUST support comma-separated multi-domain tokens
+  (US-009b). Each token is trimmed and matched independently via OR-logic.
+- **FR-005**: [NEW] Pagination MUST support 25, 50, and 100 items per page options.
+- **FR-006**: [NEW] Domain list MUST include an "Export CSV" button that downloads a
+  CSV file of the currently filtered/sorted domains.
+
+#### Improved Filters [NEW]
+
+- **FR-007**: [NEW] Filter bar MUST include an expiry window segmented control:
+  All, ≤1 month, ≤3 months, ≤6 months, ≤9 months. Selecting applies filter immediately.
+- **FR-008**: [NEW] Filter bar MUST include a registrar dropdown populated dynamically
+  from distinct registrar values in the user's portfolio, with count per registrar and
+  multi-select support.
+- **FR-009**: [NEW] Filter bar MUST include a status multi-select: Active, Expired,
+  Sold, Pending.
+- **FR-010**: [NEW] Filter bar MUST include a "Clear all" link that resets all
+  filters to defaults.
+- **FR-011**: [NEW] Filter state MUST be serialized to URL query params so filtered
+  views are shareable. Loading a URL with params auto-applies the filters.
+
+#### Add / Edit Domain — Slide-Over Panel [UPDATED]
+
+- **FR-012**: [NEW] "Add Domain" MUST open a slide-over panel (from the right) instead
+  of a modal dialog. The panel overlays the domain list with a visible opaque backdrop.
+- **FR-013**: [UPDATED] Domain add form MUST include a Status field (dropdown:
+  Active, Expired, Sold, Pending) in addition to existing fields.
+- **FR-014**: [NEW] Registrar field MUST include autocomplete, suggesting matching
+  registrar values from the user's existing portfolio as the user types.
+- **FR-015**: [NEW] Tags field MUST use a chip input pattern — typing + Enter
+  creates a removable chip per tag; individual chips have an X to remove.
+- **FR-016**: [UPDATED] Domain name MUST be validated on blur (client-side regex
+  + server-side duplicate check), showing inline error if invalid.
+- **FR-017**: [NEW] The slide-over panel MUST correct the z-index/transparency issue
+  — the panel and backdrop must render fully opaque above the page content.
+
+#### Manual Entry on Import Page [NEW]
+
+- **FR-018**: [NEW] Import page MUST have two tabs: "CSV Upload" (default) and
+  "Add Manually".
+- **FR-019**: [NEW] "Add Manually" tab MUST contain an inline form with: Domain name*
+  (validated on blur), Expiration Date* (date picker), Purchase Price (number),
+  Registrar (autocomplete), Notes (textarea), Tags (chip input), and "Add Domain"
+  submit button.
+- **FR-020**: [NEW] On successful add via the inline form, a success message MUST
+  appear inline and the form MUST reset for the next entry. No page redirect.
+- **FR-021**: [NEW] On error (validation or duplicate), the error MUST appear inline
+  and the form MUST retain entered data (not reset).
+
+#### CSV Column Reference Banner [NEW]
+
+- **FR-022**: [NEW] CSV Upload tab MUST display an info banner showing required and
+  optional CSV columns.
+- **FR-023**: [NEW] Banner MUST include a copy-to-clipboard button that copies the
+  header row: `Domain,Expiration Date,Price,Registrar,Notes,Tags`.
+- **FR-024**: [NEW] Banner MUST include a downloadable sample CSV file with header
+  row and example data rows.
 
 ### Key Entities
 
-- **Domain** (existing): Domain name (immutable), TLD (auto-derived), expiration date,
-  purchase price, status (active/expired/sold/pending), registrar, notes, tags.
-  Previously only created via CSV import. **Now also creatable via manual entry form.**
+- **Domain** (existing): No schema changes. New UI fields surfaced: Registrar (already
+  in DB), Status (already in DB with check constraint). Tags field now uses chip input
+  pattern instead of comma-separated text input.
+- **Import Log** (existing): No changes.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: A user can manually add a domain to their portfolio in under 30 seconds
-  (from clicking "Add Domain" to seeing the domain in the list).
-- **SC-002**: Manual entry validation catches 100% of invalid domain names (no dot,
-  spaces, >253 chars) before submission.
-- **SC-003**: Duplicate domain detection via manual entry is case-insensitive —
-  "Example.com" is correctly rejected when "example.com" already exists.
-- **SC-004**: All existing Phase 2 features (CSV import, domain list, edit, delete,
-  import history) continue to function without regression after manual entry is added.
-- **SC-005**: The application builds with zero TypeScript errors and zero ESLint
+- **SC-001**: The CSV preview table renders the Registrar column for all rows within
+  the same parse performance (<2s for 1000 rows).
+- **SC-002**: Domain search triggers within 500ms of Enter key press; no queries occur
+  during typing.
+- **SC-003**: Comma-separated search with 5 domain tokens returns correct OR-matched
+  results within 2 seconds.
+- **SC-004**: Filter state survives page refresh via URL params and auto-applies on
+  load within 1 second.
+- **SC-005**: Export CSV downloads a complete file for 1000 domains within 3 seconds.
+- **SC-006**: Slide-over panel opens with full opacity (no transparency) and animates
+  within 300ms.
+- **SC-007**: Registrar autocomplete shows suggestions within 300ms of typing in the
+  input field.
+- **SC-008**: The manual entry inline form on Import page supports adding 5 domains
+  sequentially in under 60 seconds without page navigation.
+- **SC-009**: The copy-to-clipboard button copies the header row with a visible
+  feedback (toast or icon change) within 200ms.
+- **SC-010**: The sample CSV downloads as a valid `.csv` file with 1 header + 2 data
+  rows when clicked.
+- **SC-011**: All existing Phase 2 features listed in [DONE] continue to function
+  without regression after all changes are applied.
+- **SC-012**: The application builds with zero TypeScript errors and zero ESLint
   warnings after all changes are applied.
 
 ## Assumptions
 
-- Manual entry uses the same Supabase client, typed helpers, and Zod schemas as the
-  existing domain management features.
-- The manual entry form is a dialog (modal) opened from the Domains list page, not a
-  separate route — keeping it lightweight and inline with the list context.
-- Tags in manual entry are entered as comma-separated text (same format as CSV import)
-  and parsed client-side before storage.
-- Manual entry does NOT support bulk addition or CSV-style batch operations — it is
-  strictly single-domain entry.
-- The existing `upsertDomains()` helper in `domains-client.ts` can be extended with a
-  `insertSingleDomain()` function, or the existing function can handle single inserts.
-- TLD auto-derivation uses the same mechanism as CSV import (split on last dot via
-  database `GENERATED ALWAYS AS` column — no client-side logic needed).
+- The slide-over panel uses shadcn/ui Sheet component (already available if installed)
+  or can be built with existing Dialog/Drawer primitives.
+- Registrar autocomplete uses an existing query function that fetches distinct
+  registrar values (already used by domain filters).
+- The chip input for tags can be built with controlled input + state array; no
+  external library needed.
+- Tabs on the Import page use a simple tab pattern (e.g., shadcn/ui Tabs or
+  custom state-toggle component).
+- The CSV column reference banner is a static UI element with hardcoded column names.
+- The sample CSV file is a static asset or generated client-side as a Blob download.
+- URL query param serialization uses the existing URL search params pattern already
+  implemented for status/TLD/sort filters.
+- The export CSV feature uses a client-side Blob download approach (no server endpoint
+  needed) — same pattern as error-rows download in CSV import.

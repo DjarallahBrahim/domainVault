@@ -10,20 +10,24 @@ import { DomainCard } from "@/components/domains/domain-card";
 import { DomainSearch } from "@/components/domains/domain-search";
 import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
-import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
+import { DomainAddSlideover } from "@/components/domains/domain-add-slideover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
 import { toast } from "sonner";
+import type { Database } from "@/types/supabase";
+
+type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
 interface DomainListClientProps {
   initialData: Awaited<
     ReturnType<typeof fetchDomains>
   >;
   tlds: string[];
+  registrars: string[];
 }
 
-export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
+export function DomainListClient({ initialData, tlds, registrars }: DomainListClientProps) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const filters = Object.fromEntries(searchParams.entries());
@@ -38,6 +42,9 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
         sort: filters.sort,
         order: filters.order,
         page: filters.page ? Number(filters.page) : 1,
+        pageSize: filters.pageSize ? Number(filters.pageSize) : undefined,
+        expiry: filters.expiry,
+        registrars: filters.registrar,
       }),
     initialData,
     staleTime: 10 * 1000,
@@ -45,7 +52,18 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showSlideover, setShowSlideover] = useState(false);
+  const [editDomain, setEditDomain] = useState<DomainRow | null>(null);
+
+  function handleAdd() {
+    setEditDomain(null);
+    setShowSlideover(true);
+  }
+
+  function handleEdit(domain: DomainRow) {
+    setEditDomain(domain);
+    setShowSlideover(true);
+  }
 
   const handleDelete = (id: string) => {
     if (id === "__bulk__") {
@@ -81,6 +99,40 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
     }
   };
 
+  async function handleExport() {
+    try {
+      const params = new URLSearchParams(searchParams.toString());
+      const filters = Object.fromEntries(params.entries());
+      const { domains: allDomains } = await fetchDomains({
+        status: filters.status,
+        tld: filters.tld,
+        search: filters.search,
+        sort: filters.sort,
+        order: filters.order,
+        expiry: filters.expiry,
+        registrars: filters.registrar,
+        page: 1,
+        pageSize: 10000,
+      });
+      const csvHeader = ["Domain","TLD","Registrar","Expiration Date","Price","Status"];
+      const csvRows = allDomains.map((d) => {
+        const row = [d.domain, d.tld ?? "", d.registrar ?? "", d.expiration_date, d.purchase_price ?? "", d.status ?? ""];
+        return row.map((v) => (String(v).includes(",") ? `"${v}"` : String(v))).join(",");
+      });
+      const csv = [csvHeader.join(","), ...csvRows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "domains-export.csv";
+      a.click();
+      toast.success("CSV exported");
+    } catch (err: unknown) {
+      toast.error("Export failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -93,11 +145,12 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
   if (!data.domains.length) {
     return (
       <div className="space-y-6">
-        <DomainSearch tlds={tlds} />
-        <DomainEmptyState onAddDomain={() => setShowAddDialog(true)} />
-        <DomainAddDialog
-          open={showAddDialog}
-          onOpenChange={setShowAddDialog}
+        <DomainSearch tlds={tlds} registrars={registrars} />
+        <DomainEmptyState onAddDomain={handleAdd} />
+        <DomainAddSlideover
+          open={showSlideover}
+          onOpenChange={setShowSlideover}
+          domain={editDomain ?? undefined}
         />
       </div>
     );
@@ -107,11 +160,11 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <DomainSearch tlds={tlds} />
+          <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
         </div>
         <Button
           variant="outline"
-          onClick={() => setShowAddDialog(true)}
+          onClick={handleAdd}
           className="shrink-0"
         >
           <Plus className="h-4 w-4 mr-1" />
@@ -119,7 +172,6 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
         </Button>
       </div>
 
-      {/* Desktop: Table (≥480px) */}
       <div className="hidden sm:block">
         <DomainTable
           domains={data.domains}
@@ -129,10 +181,10 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onDelete={handleDelete}
+          onEdit={handleEdit}
         />
       </div>
 
-      {/* Mobile: Cards (<480px) */}
       <div className="sm:hidden space-y-3">
         {data.domains.map((domain) => (
           <DomainCard
@@ -154,9 +206,10 @@ export function DomainListClient({ initialData, tlds }: DomainListClientProps) {
         onConfirm={confirmDelete}
       />
 
-      <DomainAddDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
+      <DomainAddSlideover
+        open={showSlideover}
+        onOpenChange={setShowSlideover}
+        domain={editDomain ?? undefined}
       />
     </div>
   );

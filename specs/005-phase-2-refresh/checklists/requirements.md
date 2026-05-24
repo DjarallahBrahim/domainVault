@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Phase 2 Refresh — CSV Import, Manual Entry & Domain Management
+# Specification Quality Checklist: Phase 2 Refresh (v2)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-24
@@ -31,5 +31,7 @@
 
 ## Notes
 
-- All items pass. No [NEEDS CLARIFICATION] markers. Spec is ready for `/speckit.plan`.
-- The assumption about "dialog (modal)" vs "separate route" for manual entry is a UX decision that can be finalized during planning.
+- All items pass. No clarifications needed.
+- 7 user stories: 3 [UPDATED], 4 [NEW], plus 1 [DELETED] component.
+- 24 functional requirements across 24 FRs.
+- Scope is clearly bounded by master plan Phase 2 stories.

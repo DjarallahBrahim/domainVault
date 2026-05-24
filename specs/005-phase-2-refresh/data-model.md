@@ -1,102 +1,182 @@
-# Data Model: Phase 2 Refresh — Manual Domain Entry
+# Data Model: Phase 2 Refresh — Full v2 Alignment
 
 **Date**: 2026-05-24
 
 ## Overview
 
-No new database entities. The manual entry feature uses the existing `domains` table
-from Phase 1. This document defines the form schema and validation rules for the
-manual entry flow.
+No new database entities. This document defines updated form schemas, query
+functions, and UI data models for the new/updated features.
 
 ## Entities
 
 ### Domain (Existing — No Changes)
 
-The `public.domains` table remains unchanged. Manual entries are inserted as new rows
-with `status = 'active'` and `created_at = NOW()`.
+The `public.domains` table is unchanged. All new features work with existing columns.
 
-| Column | Type | Manual Entry Source | Notes |
-|---|---|---|---|
-| `id` | UUID PK | Auto-generated | `gen_random_uuid()` |
-| `user_id` | UUID FK | Auth session | RLS enforces `auth.uid()` |
-| `domain` | TEXT | Form input | Required; validated by Zod |
-| `tld` | TEXT | Auto-derived | `GENERATED ALWAYS AS (split_part(domain, '.', -1)) STORED` |
-| `expiration_date` | DATE | Form input | Required; date picker |
-| `purchase_price` | DECIMAL(10,2) | Form input | Optional; non-negative |
-| `status` | TEXT | Hardcoded `'active'` | All manual entries start as active |
-| `registrar` | TEXT | Form input | Optional |
-| `notes` | TEXT | Form input | Optional |
-| `tags` | TEXT[] | Form input | Optional; comma-separated string parsed to array |
-| `created_at` | TIMESTAMPTZ | Auto-generated | `NOW()` |
-| `updated_at` | TIMESTAMPTZ | Auto-generated | Trigger `update_updated_at_column()` |
+## Form Schemas
 
-## Form Schema
+### `manualEntrySchema` (Existing — Reused)
 
-### `manualEntrySchema` (Zod)
+Already defined in `lib/validations/domain.ts`. Used by both the slide-over panel
+(US-010) and the Import page manual entry tab (US-030). No changes needed.
 
-Derived from `csvRowSchema` but adapted for form `<input>` types:
+### `domainEditSchema` (Existing — Reused)
+
+Already defined. Used by the slide-over panel in edit mode. No changes needed.
+
+## New Query Functions
+
+### `fetchRegistrarList()`
 
 ```typescript
-// Added to lib/validations/domain.ts
+// Added to lib/supabase/queries/domains-client.ts
 
-export const manualEntrySchema = z.object({
-  domain: z
-    .string()
-    .min(1, "Domain name is required")
-    .max(253, "Domain name exceeds 253 characters")
-    .regex(/\./, "Domain must contain a dot")
-    .regex(/^\S+$/, "Domain must not contain spaces"),
-  expiration_date: z
-    .string()
-    .min(1, "Expiration date is required")
-    .refine((v) => !isNaN(Date.parse(v)), "Invalid date"),
-  purchase_price: z
-    .coerce
-    .number()
-    .min(0, "Price must be non-negative")
-    .optional()
-    .nullable(),
-  registrar: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  tags: z.string().optional().nullable(),
-});
+export async function fetchRegistrarList(): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("domains")
+    .select("registrar")
+    .not("registrar", "is", null)
+    .order("registrar");
 
-export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
+  if (error) throw error;
+
+  const registrars = new Set<string>();
+  for (const row of (data ?? []) as unknown as Array<{ registrar: string }>) {
+    if (row.registrar.trim()) registrars.add(row.registrar.trim());
+  }
+  return Array.from(registrars);
+}
 ```
 
-### Key differences from `csvRowSchema`:
-- `purchase_price` uses `z.coerce.number()` instead of string validation (form input
-  is a number type, not a string from CSV)
-- `expiration_date` uses `Date.parse()` validation instead of the `isValidDate()`
-  helper (form date input always produces ISO format strings)
-- No `parseDate()` needed — the `<input type="date">` value is already `YYYY-MM-DD`
+### Multi-Domain Search (In `fetchDomains`)
 
-## Validation Rules (Shared with CSV Import)
+The existing `fetchDomains()` in `domains-client.ts` is extended to support
+comma-separated search tokens:
 
-| Rule | Source | Error Message |
+```typescript
+if (filters.search) {
+  const tokens = filters.search.split(",").map(t => t.trim()).filter(Boolean);
+  if (tokens.length > 1) {
+    query = query.or(tokens.map(t => `domain.ilike.%${t}%`).join(","));
+  } else if (tokens.length === 1) {
+    query = query.ilike("domain", `%${tokens[0]}%`);
+  }
+}
+```
+
+### Expiry Window Filter (In `fetchDomains`)
+
+Added `expiry` filter parameter:
+
+```typescript
+if (filters.expiry === "1m") query = query.lte("expiration_date", addMonths(now, 1));
+if (filters.expiry === "3m") query = query.lte("expiration_date", addMonths(now, 3));
+if (filters.expiry === "6m") query = query.lte("expiration_date", addMonths(now, 6));
+if (filters.expiry === "9m") query = query.lte("expiration_date", addMonths(now, 9));
+```
+
+### Registrar Multi-Filter (In `fetchDomains`)
+
+Added `registrars` comma-separated filter:
+
+```typescript
+if (filters.registrars) {
+  const registrars = filters.registrars.split(",").map(r => r.trim()).filter(Boolean);
+  if (registrars.length > 1) {
+    query = query.in("registrar", registrars);
+  } else if (registrars.length === 1) {
+    query = query.eq("registrar", registrars[0]);
+  }
+}
+```
+
+## UI Component Props
+
+### `<DomainAddSlideover />`
+
+```typescript
+interface DomainAddSlideoverProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  domain?: DomainRow; // undefined = add mode, defined = edit mode
+}
+
+// Internal state:
+// - RHF form with manualEntrySchema (add) or domainEditSchema (edit)
+// - useMutation for insert/update
+// - Registrar autocomplete data from fetchRegistrarList()
+// - Tag chip array state
+```
+
+### `<TagInput />`
+
+```typescript
+interface TagInputProps {
+  value: string[];
+  onChange: (tags: string[]) => void;
+  placeholder?: string;
+}
+
+// Behavior:
+// - Enter or comma key splits current input into a new chip
+// - Backspace on empty input removes last chip
+// - X button on chip removes that chip
+// - Chips rendered as styled spans below the input
+```
+
+### `<ManualEntryTab />`
+
+```typescript
+interface ManualEntryTabProps {
+  // Self-contained; fetches registrar list internally
+}
+
+// Internal state:
+// - RHF form with manualEntrySchema
+// - useMutation for insertSingleDomain
+// - Success/error state for inline messaging
+// - Form reset on success
+```
+
+## URL Query Parameters
+
+Extended set of filter parameters serialized to URL:
+
+| Param | Values | Example |
 |---|---|---|
-| Domain required | `csvRowSchema` / `manualEntrySchema` | "Domain name is required" |
-| Domain max 253 chars | `csvRowSchema` / `manualEntrySchema` | "Domain name exceeds 253 characters" |
-| Domain must contain dot | `csvRowSchema` / `manualEntrySchema` | "Domain must contain a dot" |
-| Domain no spaces | `csvRowSchema` / `manualEntrySchema` | "Domain must not contain spaces" |
-| Expiration date required | `csvRowSchema` / `manualEntrySchema` | "Expiration date is required" |
-| Expiration date valid | `csvRowSchema` / `manualEntrySchema` | "Invalid date" |
-| Price non-negative | `csvRowSchema` / `manualEntrySchema` | "Price must be non-negative" |
-| Domain not duplicate | `insertSingleDomain()` pre-check | "Domain already exists in your portfolio" |
+| `search` | string | `google.com,%20amazon.com` |
+| `status` | comma-separated statuses | `active,sold` |
+| `tld` | string | `com` |
+| `registrar` | comma-separated registrar names | `GoDaddy,Namecheap` |
+| `expiry` | `1m` / `3m` / `6m` / `9m` | `3m` |
+| `sort` | `domain` / `expiration_date` / `status` | `domain` |
+| `order` | `asc` / `desc` | `asc` |
+| `page` | number | `1` |
+| `pageSize` | `25` / `50` / `100` | `50` |
 
 ## State Transitions
 
+### Slide-Over Panel
+
 ```
-[Form Open] → [User fills fields] → [Validate (Zod)] →
-  ├─ Fail → [Inline errors shown; form stays open]
-  └─ Pass → [Check duplicate via .ilike()] →
-       ├─ Duplicate → [Inline error "Domain already exists"; form stays open]
-       └─ Unique → [Insert row] → [Invalidate cache] → [Toast "Domain added"] → [Close dialog]
+[Closed] → user clicks "Add Domain" → [Open (add mode)]
+         → user clicks edit button → [Open (edit mode, pre-populated)]
+
+[Open] → user fills fields → [Validate on blur (domain)] → [Validate on submit (Zod)] →
+  ├─ Fail → [Inline errors; panel stays open]
+  └─ Pass → [Mutation] →
+       ├─ Error → [Toast error; panel stays open]
+       └─ Success → [Toast success] → [Cache invalidate] → [Close panel]
 ```
 
-## Relationships
+### Import Page Tabs
 
-- **Domain → User**: Many-to-one via `user_id` FK → `auth.users(id)`. RLS enforces.
-- **Domain → Sale**: One-to-many via `domain_id` FK on `sales.domain_id`.
-  ON DELETE SET NULL preserves sale records when domain is deleted.
-- No new relationships introduced by this feature.
+```
+[CSV Upload tab (default)] ↔ [Add Manually tab]
+
+Add Manually:
+[Form ready] → user fills → submit →
+  ├─ Fail → [Inline error; form retains data]
+  └─ Success → [Inline success message] → [Form resets empty]
+```

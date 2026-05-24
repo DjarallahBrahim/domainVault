@@ -10,6 +10,7 @@ import { CsvUploader } from "@/components/import/csv-uploader";
 import { CsvOptionToggle } from "@/components/import/csv-option-toggle";
 import { CsvProgress } from "@/components/import/csv-progress";
 import { CsvSummary } from "@/components/import/csv-summary";
+import { ManualEntryTab } from "@/components/import/manual-entry-tab";
 import { Card, CardContent } from "@/components/ui/card";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -24,6 +25,7 @@ import {
 import { csvRowSchema, parseDate, parseTags } from "@/lib/validations/domain";
 
 type ImportPhase = "select" | "parsing" | "importing" | "done";
+type ActiveTab = "csv" | "manual";
 
 interface ImportResult {
   filename: string;
@@ -43,6 +45,7 @@ export default function ImportPage() {
     totalRows: 0,
   });
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("csv");
 
   const importMutation = useMutation({
     mutationFn: async ({
@@ -204,11 +207,72 @@ export default function ImportPage() {
       <div>
         <h1 className="text-2xl font-bold font-display">Import</h1>
         <p className="text-text-muted mt-1">
-          Upload a CSV file to import your domain portfolio
+          Upload a CSV file or add domains manually
         </p>
       </div>
 
-      {phase === "select" && (
+      <div className="flex gap-2 border-b border-border">
+        <button
+          onClick={() => { setActiveTab("csv"); setPhase("select"); setResult(null); }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[1px] transition-colors ${
+            activeTab === "csv"
+              ? "border-accent-primary text-accent-primary"
+              : "border-transparent text-text-muted hover:text-text-primary"
+          }`}
+        >
+          CSV Upload
+        </button>
+        <button
+          onClick={() => { setActiveTab("manual"); setPhase("select"); setResult(null); }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[1px] transition-colors ${
+            activeTab === "manual"
+              ? "border-accent-primary text-accent-primary"
+              : "border-transparent text-text-muted hover:text-text-primary"
+          }`}
+        >
+          Add Manually
+        </button>
+      </div>
+
+      {activeTab === "csv" && (
+        <>
+          <div className="rounded-md bg-bg-elevated border border-border p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-text-primary">CSV Format</p>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Required: <span className="text-text-primary">Domain, Expiration Date</span>{" "}
+                  &middot; Optional: Price, Registrar, Notes, Tags
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText("Domain,Expiration Date,Price,Registrar,Notes,Tags");
+                    toast.success("Header row copied to clipboard");
+                  }}
+                  className="text-xs px-2 py-1 rounded bg-bg-surface border border-border text-text-muted hover:text-text-primary"
+                >
+                  Copy Header
+                </button>
+                <button
+                  onClick={() => {
+                    const csv = "Domain,Expiration Date,Price,Registrar,Notes,Tags\nexample.com,2026-12-31,1000,GoDaddy,premium\ntest.org,2027-06-15,500,Namecheap,brandable";
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "sample-domains.csv";
+                    a.click();
+                  }}
+                  className="text-xs px-2 py-1 rounded bg-bg-surface border border-border text-text-muted hover:text-text-primary"
+                >
+                  Download Sample
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {phase === "select" && (
         <Card>
           <CardContent className="space-y-6 pt-6">
             <CsvOptionToggle
@@ -264,6 +328,16 @@ export default function ImportPage() {
             </button>
           </div>
         </>
+      )}
+        </>
+      )}
+
+      {activeTab === "manual" && (
+        <Card>
+          <CardContent className="pt-6">
+            <ManualEntryTab />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
