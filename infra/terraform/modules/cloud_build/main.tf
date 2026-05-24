@@ -49,5 +49,5 @@ resource "google_cloudbuild_trigger" "main" {
       branch = "^main$"
     }
   }
-  service_account = var.cloud_build_service_account
+  service_account = "projects/${var.project_id}/serviceAccounts/cloudbuild-sa@${var.project_id}.iam.gserviceaccount.com"
 }
