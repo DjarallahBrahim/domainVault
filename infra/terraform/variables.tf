@@ -71,7 +71,6 @@ variable "env_vars" {
 variable "secrets" {
   description = "Map of secret name to secret value (will be stored in Secret Manager)"
   type        = map(string)
-  sensitive   = true
   default     = {}
 }
 
