@@ -1,5 +1,6 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
+import { addMonths } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -50,13 +51,13 @@ export async function fetchDomains(filters: DomainFilters) {
   if (filters.expiry) {
     const now = new Date();
     if (filters.expiry === "1m") {
-      query = query.lte("expiration_date", new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]);
+      query = query.lte("expiration_date", addMonths(now, 1).toISOString().split("T")[0]);
     } else if (filters.expiry === "3m") {
-      query = query.lte("expiration_date", new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString().split("T")[0]);
+      query = query.lte("expiration_date", addMonths(now, 3).toISOString().split("T")[0]);
     } else if (filters.expiry === "6m") {
-      query = query.lte("expiration_date", new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString().split("T")[0]);
+      query = query.lte("expiration_date", addMonths(now, 6).toISOString().split("T")[0]);
     } else if (filters.expiry === "9m") {
-      query = query.lte("expiration_date", new Date(now.getFullYear(), now.getMonth() + 9, 0).toISOString().split("T")[0]);
+      query = query.lte("expiration_date", addMonths(now, 9).toISOString().split("T")[0]);
     }
   }
 
