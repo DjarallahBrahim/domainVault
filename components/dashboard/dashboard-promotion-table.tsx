@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchCurrentPromotions, type PromotionWithDomain } from "@/lib/supabase/queries/dashboard-client";
+import { fetchCurrentPromotions } from "@/lib/supabase/queries/dashboard-client";
 import { updatePromotion, generatePromotionBatch } from "@/lib/supabase/queries/dashboard-client";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
