@@ -44,12 +44,6 @@ export async function generatePromotionBatch(pool: string) {
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
   const weekStartStr = weekStart.toISOString().split("T")[0];
 
-  await supabase
-    .from("promotions")
-    .delete()
-    .eq("user_id", user.id)
-    .eq("week_start", weekStartStr);
-
   let query = supabase
     .from("domains")
     .select("id, domain, registrar, expiration_date")
@@ -77,35 +71,64 @@ export async function generatePromotionBatch(pool: string) {
     expiration_date: string;
   }>;
 
-  if (rows.length < 10) return null;
+  if (rows.length === 0) return null;
 
-  const seed = `${user.id}_${weekStartStr}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  const shuffled = [...rows].sort((a, b) => {
-    const ha = Math.abs(hash ^ hashString(a.domain));
-    const hb = Math.abs(hash ^ hashString(b.domain));
-    return ha - hb;
-  }).slice(0, 10);
-
-  const payload = shuffled.map((d) => ({
-    user_id: user.id,
-    domain_id: d.id,
-    week_start: weekStartStr,
-    promoted_at: null,
-  }));
-
-  const { error: insertError } = await supabase
+  const { data: existing } = await supabase
     .from("promotions")
-    .insert(payload as never);
+    .select("id, domain_id, promoted_at")
+    .eq("user_id", user.id)
+    .eq("week_start", weekStartStr);
 
-  if (insertError) throw insertError;
+  const existingByDomain = new Map<string, { id: string; promoted_at: string | null }>();
+  for (const e of (existing ?? []) as unknown as Array<{ id: string; domain_id: string; promoted_at: string | null }>) {
+    existingByDomain.set(e.domain_id, { id: e.id, promoted_at: e.promoted_at });
+  }
 
-  return shuffled;
+  const eligibleIds = new Set(rows.map((r) => r.id));
+
+  const toKeep: Array<{ id: string; domain_id: string }> = [];
+  const toDelete: string[] = [];
+
+  for (const [domainId, entry] of existingByDomain) {
+    if (eligibleIds.has(domainId)) {
+      toKeep.push({ id: entry.id, domain_id: domainId });
+    } else {
+      toDelete.push(entry.id);
+    }
+  }
+
+  if (toDelete.length > 0) {
+    await supabase
+      .from("promotions")
+      .delete()
+      .in("id", toDelete);
+  }
+
+  const keptIds = new Set(toKeep.map((k) => k.domain_id));
+
+  const newDomains = rows
+    .filter((r) => !keptIds.has(r.id))
+    .sort((a, b) => hashString(a.domain + weekStartStr) - hashString(b.domain + weekStartStr));
+
+  const needed = Math.max(0, 10 - toKeep.length);
+  const toInsert = newDomains.slice(0, needed);
+
+  if (toInsert.length > 0) {
+    const payload = toInsert.map((d) => ({
+      user_id: user.id,
+      domain_id: d.id,
+      week_start: weekStartStr,
+      promoted_at: null,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("promotions")
+      .insert(payload as never);
+
+    if (insertError) throw insertError;
+  }
+
+  return rows;
 }
 
 function hashString(str: string): number {
