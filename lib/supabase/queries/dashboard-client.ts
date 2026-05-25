@@ -7,10 +7,18 @@ type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 export async function updatePromotion(promotionId: string, updates: { promoted_at: string }) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { error } = await supabase
     .from("promotions")
-    .update(updates as never)
-    .eq("id", promotionId);
+    .update({ promoted_at: updates.promoted_at } as never)
+    .eq("id", promotionId)
+    .eq("user_id", user.id);
 
   if (error) throw error;
 }

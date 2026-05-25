@@ -56,7 +56,7 @@ export function DashboardPromotionTable() {
       } else {
         toast.success("Promotion batch generated");
       }
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
+      queryClient.invalidateQueries({ queryKey: ["promotions", "current"] });
     },
     onError: (err: Error) => {
       toast.error("Failed to generate batch", { description: err.message });
@@ -68,7 +68,7 @@ export function DashboardPromotionTable() {
       updatePromotion(promotionId, { promoted_at: new Date().toISOString() }),
     onSuccess: () => {
       toast.success("Domain promoted ✓");
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
+      queryClient.invalidateQueries({ queryKey: ["promotions", "current"] });
       setConfirmingId(null);
     },
     onError: (err: Error) => {
