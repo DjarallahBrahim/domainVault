@@ -234,6 +234,8 @@ export interface PromotionWithDomain {
   domain: string;
   registrar: string | null;
   expiration_date: string;
+  total_promotions: number;
+  last_promoted_at: string | null;
 }
 
 export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
@@ -263,21 +265,51 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
 
   if (error) throw error;
 
-  return ((data ?? []) as unknown as Array<{
+  const rows = (data ?? []) as unknown as Array<{
     id: string;
     user_id: string;
     domain_id: string;
     week_start: string;
     promoted_at: string | null;
     domains: { domain: string; registrar: string | null; expiration_date: string } | null;
-  }>).map((p) => ({
-    id: p.id,
-    user_id: p.user_id,
-    domain_id: p.domain_id,
-    week_start: p.week_start,
-    promoted_at: p.promoted_at,
-    domain: p.domains?.domain ?? "",
-    registrar: p.domains?.registrar ?? null,
-    expiration_date: p.domains?.expiration_date ?? "",
-  }));
+  }>;
+
+  if (rows.length === 0) return [];
+
+  const domainIds = rows.map((r) => r.domain_id);
+
+  const { data: history, error: histError } = await supabase
+    .from("promotions")
+    .select("domain_id, promoted_at")
+    .in("domain_id", domainIds)
+    .not("promoted_at", "is", null)
+    .order("promoted_at", { ascending: false });
+
+  if (histError) throw histError;
+
+  const historyByDomain = new Map<string, { count: number; last: string | null }>();
+  for (const h of (history ?? []) as unknown as Array<{ domain_id: string; promoted_at: string | null }>) {
+    const entry = historyByDomain.get(h.domain_id) || { count: 0, last: null };
+    entry.count++;
+    if (h.promoted_at && (!entry.last || h.promoted_at > entry.last)) {
+      entry.last = h.promoted_at;
+    }
+    historyByDomain.set(h.domain_id, entry);
+  }
+
+  return rows.map((r) => {
+    const hist = historyByDomain.get(r.domain_id);
+    return {
+      id: r.id,
+      user_id: r.user_id,
+      domain_id: r.domain_id,
+      week_start: r.week_start,
+      promoted_at: r.promoted_at,
+      domain: r.domains?.domain ?? "",
+      registrar: r.domains?.registrar ?? null,
+      expiration_date: r.domains?.expiration_date ?? "",
+      total_promotions: hist?.count ?? 0,
+      last_promoted_at: hist?.last ?? null,
+    };
+  });
 }

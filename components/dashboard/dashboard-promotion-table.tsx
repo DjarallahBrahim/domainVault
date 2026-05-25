@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchCurrentPromotions } from "@/lib/supabase/queries/dashboard-client";
+import { fetchCurrentPromotions, type PromotionWithDomain } from "@/lib/supabase/queries/dashboard-client";
 import { updatePromotion, generatePromotionBatch } from "@/lib/supabase/queries/dashboard-client";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
@@ -128,11 +128,18 @@ export function DashboardPromotionTable() {
       ) : (
         <div className="space-y-1">
           {promotions.map((p) => {
-            const promoted = !!p.promoted_at;
+            const promotedThisWeek = !!p.promoted_at;
             const isConfirming = confirmingId === p.id;
             const days = Math.ceil(
               (new Date(p.expiration_date).getTime() - Date.now()) / 86400000
             );
+            const lastDate = p.last_promoted_at
+              ? new Date(p.last_promoted_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              : null;
+            const totalPromos = p.total_promotions;
 
             return (
               <div key={p.id} className="text-sm">
@@ -143,10 +150,8 @@ export function DashboardPromotionTable() {
                       {p.registrar ?? "—"} · {days > 0 ? `${days}d` : "expired"}
                     </p>
                   </div>
-                  <div className="shrink-0">
-                    {promoted ? (
-                      <span className="text-sm text-accent-success font-medium">Promoted ✓</span>
-                    ) : poolMutation.isPending ? null : (
+                  <div className="shrink-0 text-right">
+                    {poolMutation.isPending ? null : (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -158,9 +163,13 @@ export function DashboardPromotionTable() {
                     )}
                   </div>
                 </div>
-                {isConfirming && !promoted && (
+                {isConfirming && (
                   <div className="flex items-center gap-2 py-2 px-3 -mt-1 mb-1 rounded bg-accent-success/10 border border-accent-success/20">
-                    <span className="text-sm text-accent-success">✓ Mark as promoted?</span>
+                    <span className="text-sm text-accent-success">
+                      {promotedThisWeek
+                        ? "✓ Already promoted this week — promote again?"
+                        : "✓ Mark as promoted?"}
+                    </span>
                     <Button
                       size="sm"
                       className="h-7 text-sm"
@@ -177,6 +186,14 @@ export function DashboardPromotionTable() {
                     >
                       Cancel
                     </Button>
+                  </div>
+                )}
+                {totalPromos > 0 && (
+                  <div className="flex items-center gap-1 py-0.5 -mt-1 text-xs text-text-muted">
+                    <span className="text-accent-success/70">
+                      Promoted {totalPromos}×{lastDate ? ` (last: ${lastDate})` : ""}
+                      {promotedThisWeek ? " · this week ✓" : ""}
+                    </span>
                   </div>
                 )}
               </div>
