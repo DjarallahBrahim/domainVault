@@ -61,7 +61,6 @@ export async function generatePromotionBatch(pool: string) {
   }
 
   const { data: domains, error } = await query;
-
   if (error) throw error;
 
   const rows = (domains ?? []) as unknown as Array<{
@@ -71,73 +70,30 @@ export async function generatePromotionBatch(pool: string) {
     expiration_date: string;
   }>;
 
-  if (rows.length === 0) return null;
+  if (rows.length < 10) return null;
 
-  const { data: existing } = await supabase
+  await supabase
     .from("promotions")
-    .select("id, domain_id, promoted_at")
+    .delete()
     .eq("user_id", user.id)
     .eq("week_start", weekStartStr);
 
-  const existingByDomain = new Map<string, { id: string; promoted_at: string | null }>();
-  for (const e of (existing ?? []) as unknown as Array<{ id: string; domain_id: string; promoted_at: string | null }>) {
-    existingByDomain.set(e.domain_id, { id: e.id, promoted_at: e.promoted_at });
-  }
+  const shuffled = [...rows].sort(() => Math.random() - 0.5).slice(0, 10);
 
-  const eligibleIds = new Set(rows.map((r) => r.id));
+  const { error: insertError } = await supabase
+    .from("promotions")
+    .insert(
+      shuffled.map((d) => ({
+        user_id: user.id,
+        domain_id: d.id,
+        week_start: weekStartStr,
+        promoted_at: null,
+      })) as never
+    );
 
-  const toKeep: Array<{ id: string; domain_id: string }> = [];
-  const toDelete: string[] = [];
+  if (insertError) throw insertError;
 
-  for (const [domainId, entry] of existingByDomain) {
-    if (eligibleIds.has(domainId)) {
-      toKeep.push({ id: entry.id, domain_id: domainId });
-    } else {
-      toDelete.push(entry.id);
-    }
-  }
-
-  if (toDelete.length > 0) {
-    await supabase
-      .from("promotions")
-      .delete()
-      .in("id", toDelete);
-  }
-
-  const keptIds = new Set(toKeep.map((k) => k.domain_id));
-
-  const newDomains = rows
-    .filter((r) => !keptIds.has(r.id))
-    .sort((a, b) => hashString(a.domain + weekStartStr) - hashString(b.domain + weekStartStr));
-
-  const needed = Math.max(0, 10 - toKeep.length);
-  const toInsert = newDomains.slice(0, needed);
-
-  if (toInsert.length > 0) {
-    const payload = toInsert.map((d) => ({
-      user_id: user.id,
-      domain_id: d.id,
-      week_start: weekStartStr,
-      promoted_at: null,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("promotions")
-      .insert(payload as never);
-
-    if (insertError) throw insertError;
-  }
-
-  return { kept: toKeep.length, added: toInsert.length, total: toKeep.length + toInsert.length };
-}
-
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return hash;
+  return { count: 10 };
 }
 
 export interface DashboardStats {

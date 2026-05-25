@@ -40,9 +40,9 @@ export function DashboardPromotionTable() {
     mutationFn: (newPool: string) => generatePromotionBatch(newPool),
     onSuccess: (result) => {
       if (result === null) {
-        toast.info("Not enough active domains in the selected pool");
+        toast.info("Need at least 10 active domains in this pool");
       } else {
-        toast.success("Promotion batch generated");
+        toast.success(`${result.count} domains ready to promote`);
       }
       queryClient.invalidateQueries({ queryKey: ["promotions", "current"] });
       queryClient.refetchQueries({ queryKey: ["promotions", "current"] });
