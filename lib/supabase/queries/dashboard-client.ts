@@ -14,13 +14,20 @@ export async function updatePromotion(promotionId: string, updates: { promoted_a
 
   if (userError || !user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("promotions")
     .update({ promoted_at: updates.promoted_at } as never)
     .eq("id", promotionId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id, promoted_at");
 
   if (error) throw error;
+
+  if (!data || data.length === 0) {
+    throw new Error("Update blocked — you may not own this promotion");
+  }
+
+  return data;
 }
 
 export async function generatePromotionBatch(pool: string) {

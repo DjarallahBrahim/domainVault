@@ -32,7 +32,6 @@ export function DashboardPromotionTable() {
   const { data: promotions, isLoading } = useQuery({
     queryKey: ["promotions", "current"],
     queryFn: fetchCurrentPromotions,
-    staleTime: 60 * 1000,
   });
 
   const hasData = promotions && promotions.length > 0;
@@ -66,9 +65,14 @@ export function DashboardPromotionTable() {
   const confirmMutation = useMutation({
     mutationFn: (promotionId: string) =>
       updatePromotion(promotionId, { promoted_at: new Date().toISOString() }),
-    onSuccess: () => {
-      toast.success("Domain promoted ✓");
+    onSuccess: (data) => {
+      if (!data || data.length === 0) {
+        toast.error("Promotion not saved — refresh and try again");
+      } else {
+        toast.success("Domain promoted ✓");
+      }
       queryClient.invalidateQueries({ queryKey: ["promotions", "current"] });
+      queryClient.refetchQueries({ queryKey: ["promotions", "current"] });
       setConfirmingId(null);
     },
     onError: (err: Error) => {
