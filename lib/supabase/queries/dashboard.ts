@@ -161,6 +161,11 @@ export interface PromotionWithDomain {
 export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
   const supabase = await createServerClient();
 
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weekStart = monday.toISOString().split("T")[0];
+
   const { data, error } = await supabase
     .from("promotions")
     .select(`
@@ -175,12 +180,28 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
         expiration_date
       )
     `)
-    .eq("week_start", new Date().toISOString().split("T")[0])
+    .eq("week_start", weekStart)
     .order("domain_id");
 
   if (error) throw error;
 
-  return (data ?? []) as unknown as PromotionWithDomain[];
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    user_id: string;
+    domain_id: string;
+    week_start: string;
+    promoted_at: string | null;
+    domains: { domain: string; registrar: string | null; expiration_date: string } | null;
+  }>).map((p) => ({
+    id: p.id,
+    user_id: p.user_id,
+    domain_id: p.domain_id,
+    week_start: p.week_start,
+    promoted_at: p.promoted_at,
+    domain: p.domains?.domain ?? "",
+    registrar: p.domains?.registrar ?? null,
+    expiration_date: p.domains?.expiration_date ?? "",
+  }));
 }
 
 export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {

@@ -223,9 +223,27 @@ export interface PromotionWithDomain {
 
 export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
   const supabase = createClient();
+
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weekStart = monday.toISOString().split("T")[0];
+
   const { data, error } = await supabase
     .from("promotions")
-    .select("id, user_id, domain_id, week_start, promoted_at, domain:domain_id(domain, registrar, expiration_date)")
+    .select(`
+      id,
+      user_id,
+      domain_id,
+      week_start,
+      promoted_at,
+      domains!inner (
+        domain,
+        registrar,
+        expiration_date
+      )
+    `)
+    .eq("week_start", weekStart)
     .order("domain_id");
 
   if (error) throw error;
@@ -236,11 +254,15 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
     domain_id: string;
     week_start: string;
     promoted_at: string | null;
-    domain: Array<{ domain: string; registrar: string | null; expiration_date: string }>;
+    domains: { domain: string; registrar: string | null; expiration_date: string } | null;
   }>).map((p) => ({
-    ...p,
-    domain: p.domain?.[0]?.domain ?? "",
-    registrar: p.domain?.[0]?.registrar ?? null,
-    expiration_date: p.domain?.[0]?.expiration_date ?? "",
-  })) as unknown as PromotionWithDomain[];
+    id: p.id,
+    user_id: p.user_id,
+    domain_id: p.domain_id,
+    week_start: p.week_start,
+    promoted_at: p.promoted_at,
+    domain: p.domains?.domain ?? "",
+    registrar: p.domains?.registrar ?? null,
+    expiration_date: p.domains?.expiration_date ?? "",
+  }));
 }
