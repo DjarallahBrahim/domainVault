@@ -128,7 +128,7 @@ export async function generatePromotionBatch(pool: string) {
     if (insertError) throw insertError;
   }
 
-  return rows;
+  return { kept: toKeep.length, added: toInsert.length, total: toKeep.length + toInsert.length };
 }
 
 function hashString(str: string): number {

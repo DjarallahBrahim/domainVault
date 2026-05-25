@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,17 +36,6 @@ export function DashboardPromotionTable() {
 
   const hasData = promotions && promotions.length > 0;
 
-  useEffect(() => {
-    if (!isLoading && !hasData && pool !== "all") {
-      const nextIdx = POOL_OPTIONS.findIndex((o) => o.value === pool);
-      const wider = POOL_OPTIONS.slice(nextIdx + 1).find((o) => o.value !== pool);
-      if (wider) {
-        setPool(wider.value);
-        generatePromotionBatch(wider.value).catch(() => {});
-      }
-    }
-  }, [isLoading, hasData]);
-
   const poolMutation = useMutation({
     mutationFn: (newPool: string) => generatePromotionBatch(newPool),
     onSuccess: (result) => {
@@ -56,6 +45,7 @@ export function DashboardPromotionTable() {
         toast.success("Promotion batch generated");
       }
       queryClient.invalidateQueries({ queryKey: ["promotions", "current"] });
+      queryClient.refetchQueries({ queryKey: ["promotions", "current"] });
     },
     onError: (err: Error) => {
       toast.error("Failed to generate batch", { description: err.message });
