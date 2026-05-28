@@ -5,7 +5,7 @@ import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards";
 import { DashboardExpiryDonut } from "@/components/dashboard/dashboard-expiry-donut";
 import { DashboardRegistrarChart } from "@/components/dashboard/dashboard-registrar-chart";
 import { DashboardCriticalRenewals } from "@/components/dashboard/dashboard-critical-renewals";
-import { DashboardPromotionTable } from "@/components/dashboard/dashboard-promotion-table";
+import { PromotionSection } from "@/components/dashboard/dashboard-promotion-section";
 import { DashboardQuickStats } from "@/components/dashboard/dashboard-quick-stats";
 import {
   fetchDashboardStats,
@@ -81,7 +81,7 @@ export function DashboardClient({
             <DashboardExpiryDonut segments={segments ?? null} />
             <DashboardRegistrarChart data={registrarData ?? null} />
           </div>
-          <DashboardPromotionTable />
+          <PromotionSection />
         </div>
         <div className="space-y-6">
           <DashboardCriticalRenewals domains={expiringDomains ?? null} />
