@@ -1,0 +1,3 @@
+app_name: n8n
+app_port: 5678
+app_dir: /opt/n8n

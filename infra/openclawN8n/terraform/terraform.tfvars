@@ -1,0 +1,5 @@
+project_id          = "domainvault-497310"
+credentials_file    = "../../terraform-sa-key.json"
+ssh_public_key_path = "~/.ssh/gcp_ansible.pub"
+region              = "europe-west1"
+zone                = "europe-west1-b"
