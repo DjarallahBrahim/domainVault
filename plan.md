@@ -541,38 +541,39 @@ WHERE p.user_id = auth.uid()
 
 **Goal**: Log domain sales, calculate ROI, visualize revenue over time, platform breakdown.
 
-> **Status**: Not started. All stories below are to be implemented as written. No changes from v1.
+> **Status**: Will be update; not All stories below are new, only stories tagged with [DONE] need to be implemented as written.
 
 #### User Stories
 
-**US-021 — Log a Sale** `[NEW]`
+**US-021 — Log a Sale** `[DONE]`
 "Mark as Sold" in domain row Actions → slide-over: Sale Price*, Sale Date* (defaults today), Buyer, Platform (dropdown: Sedo / Afternic / Dan.com / Flippa / GoDaddy Auctions / Direct / Other), Notes. On save: domain status → `'sold'`, row inserted in `sales`. Sales can also be added manually from the Sales page.
 
-**US-022 — Sales List** `[NEW]`
+**US-022 — Sales List** `[DONE]`
 Table: Domain, Sale Price, Purchase Price, Profit, ROI %, Sale Date, Platform, Buyer, Actions.
 ROI = `((sale_price - purchase_price) / purchase_price) * 100` — green positive, red negative.
 Profit = `sale_price - purchase_price`. If purchase_price NULL → show "—".
 Sortable, searchable, filterable (platform, date range, min price). Export CSV. Edit + delete per row (delete does NOT delete the domain; sets status back to `'active'`).
 
-**US-023 — Sales KPI Cards** `[NEW]`
+**US-023 — Sales KPI Cards** `[DONE]`
 4 cards: Total Revenue · Total Profit · Average Sale Price · Domains Sold.
 Toggle: "This year" / "All time". Animate on mount.
 
+The next feature are new charts in in Dashbord page, you need to analyse before the Dashbord page to organize the size & position of each new stat view.
+
 **US-024 — Revenue Over Time Chart** `[NEW]`
-Bar chart: revenue per month. Toggle: 12M / 24M / All time. Overlaid cumulative line (secondary Y-axis). Tooltip: month, revenue, # of sales, cumulative. Zero-height bar (not gap) for months with no sales.
+in Dashbord page, Bar chart: revenue per month. Toggle: 12M / 24M / All time. Overlaid cumulative line (secondary Y-axis). Tooltip: month, revenue, # of sales, cumulative. Zero-height bar (not gap) for months with no sales.
 
 **US-025 — Top Sales Leaderboard** `[NEW]`
-Top 5 sales by sale price. Columns: rank, domain, sale price, ROI %, date. Expandable to top 10. "Best ROI" toggle re-sorts by ROI %.
+in Dashbord page, Top 5 sales by sale price. Columns: rank, domain, sale price, ROI %, date. Expandable to top 10. "Best ROI" toggle re-sorts by ROI %.
 
 **US-026 — Platform Performance** `[NEW]`
-Horizontal bar chart or table: platform, # of sales, total revenue, average sale price. Sorted by total revenue desc.
+in Dashbord page, Horizontal bar chart or table: platform, # of sales, total revenue, average sale price. Sorted by total revenue desc.
 
 **US-027 — ROI Analysis per Domain** `[NEW]`
-Detail view (expandable row / modal): domain, purchase price, sale price, gross profit, ROI %, hold duration ("Held for X days / Y months"), platform.
+in Dashbord page, Detail view (expandable row / modal): domain, purchase price, sale price, gross profit, ROI %, hold duration ("Held for X days / Y months"), platform.
 
 #### Dashboard Integration
 - "Sold This Year" KPI card links to Sales page filtered by current year.
-- Mini "Recent Sales" widget added to dashboard right column (last 3 sales).
 - Total earnings added to Quick Stats widget.
 
 #### Sales Supabase Queries
