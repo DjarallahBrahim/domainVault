@@ -1,3 +1,0 @@
-# Shared across all hosts
-docker_compose_dir: /opt
-app_user: ansible

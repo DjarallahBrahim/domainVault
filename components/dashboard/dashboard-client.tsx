@@ -7,6 +7,9 @@ import { DashboardRegistrarChart } from "@/components/dashboard/dashboard-regist
 import { DashboardCriticalRenewals } from "@/components/dashboard/dashboard-critical-renewals";
 import { PromotionSection } from "@/components/dashboard/dashboard-promotion-section";
 import { DashboardQuickStats } from "@/components/dashboard/dashboard-quick-stats";
+import { DashboardRevenueChart } from "@/components/dashboard/dashboard-revenue-chart";
+import { DashboardSalesLeaderboard } from "@/components/dashboard/dashboard-sales-leaderboard";
+import { DashboardPlatformBreakdown } from "@/components/dashboard/dashboard-platform-breakdown";
 import {
   fetchDashboardStats,
   fetchExpirySegments,
@@ -87,6 +90,13 @@ export function DashboardClient({
           <DashboardCriticalRenewals domains={expiringDomains ?? null} />
           <DashboardQuickStats stats={quickStatsData ?? null} />
         </div>
+      </div>
+
+      <DashboardRevenueChart />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardSalesLeaderboard />
+        <DashboardPlatformBreakdown />
       </div>
     </div>
   );

@@ -292,3 +292,60 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
     };
   });
 }
+
+export interface SalesAnalyticsRow {
+  id: string;
+  domain: string;
+  sale_price: number;
+  purchase_price: number | null;
+  sold_at: string;
+  platform: string | null;
+  buyer: string | null;
+  notes: string | null;
+  created_at: string | null;
+}
+
+export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("sales")
+    .select(`
+      id,
+      sale_price,
+      sold_at,
+      platform,
+      buyer,
+      notes,
+      domain_id,
+      domains!inner (
+        domain,
+        purchase_price,
+        created_at
+      )
+    `)
+    .order("sold_at", { ascending: false });
+
+  if (error) throw error;
+
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    sale_price: number;
+    sold_at: string;
+    platform: string | null;
+    buyer: string | null;
+    notes: string | null;
+    domain_id: string;
+    domains: { domain: string; purchase_price: number | null; created_at: string } | null;
+  }>).map((s) => ({
+    id: s.id,
+    domain: s.domains?.domain ?? "",
+    sale_price: s.sale_price,
+    purchase_price: s.domains?.purchase_price ?? null,
+    sold_at: s.sold_at,
+    platform: s.platform,
+    buyer: s.buyer,
+    notes: s.notes,
+    created_at: s.domains?.created_at ?? null,
+  }));
+}
