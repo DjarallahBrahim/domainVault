@@ -1,0 +1,3 @@
+app_name: clawbot
+app_port: 3001
+app_dir: /opt/clawbot

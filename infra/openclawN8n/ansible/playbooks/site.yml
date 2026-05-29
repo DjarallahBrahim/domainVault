@@ -1,0 +1,19 @@
+# Master playbook (calls all roles)
+---
+- name: Apply common configuration to all hosts
+  hosts: all
+  become: yes
+  roles:
+    - common
+
+- name: Deploy Clawbot
+  hosts: clawbot
+  become: yes
+  roles:
+    - clawbot
+
+- name: Deploy n8n
+  hosts: n8n
+  become: yes
+  roles:
+    - n8n

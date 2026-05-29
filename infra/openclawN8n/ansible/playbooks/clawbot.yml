@@ -1,0 +1,7 @@
+---
+- name: Deploy Clawbot only
+  hosts: clawbot
+  become: yes
+  roles:
+    - common
+    - clawbot

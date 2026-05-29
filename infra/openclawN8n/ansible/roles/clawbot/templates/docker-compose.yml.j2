@@ -1,0 +1,12 @@
+services:
+  clawbot:
+    image: ghcr.io/your-org/clawbot:latest
+    container_name: clawbot
+    restart: unless-stopped
+    ports:
+      - "{{ app_port }}:{{ app_port }}"
+    volumes:
+      - clawbot_data:/app/data
+
+volumes:
+  clawbot_data:
