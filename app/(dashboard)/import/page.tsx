@@ -31,6 +31,7 @@ interface ImportResult {
   filename: string;
   imported: number;
   skipped: number;
+  skippedErrors: ImportError[];
   errors: ImportError[];
 }
 
@@ -63,7 +64,7 @@ export default function ImportPage() {
 
       const toImport: UpsertRow[] = [];
       const errors: ImportError[] = [];
-      const skippedRows: number[] = [];
+      const skippedErrors: ImportError[] = [];
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -71,7 +72,11 @@ export default function ImportPage() {
 
         if (existing.has(norm)) {
           if (importMode === "skip") {
-            skippedRows.push(i + 1);
+            skippedErrors.push({
+              row: i + 1,
+              field: "domain",
+              message: `Duplicate — "${row.domain}" already exists in your portfolio`,
+            });
             continue;
           }
         }
@@ -87,16 +92,17 @@ export default function ImportPage() {
 
       await createImportLog({
         filename,
-        total_rows: rows.length - errors.length + errors.length,
+        total_rows: rows.length,
         imported: toImport.length,
-        skipped: skippedRows.length,
+        skipped: skippedErrors.length,
         errors: errors.length > 0 ? errors : null,
       });
 
       return {
         filename,
         imported: toImport.length,
-        skipped: skippedRows.length,
+        skipped: skippedErrors.length,
+        skippedErrors,
         errors,
       };
     },
@@ -308,6 +314,7 @@ export default function ImportPage() {
             filename={result.filename}
             imported={result.imported}
             skipped={result.skipped}
+            skippedErrors={result.skippedErrors}
             errors={result.errors}
           />
           <div className="flex gap-3">
