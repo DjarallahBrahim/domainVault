@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +9,11 @@ import {
   fetchCandidates,
   fetchPromotionStats,
   recordPromotion,
+  searchByKeywords,
   type BucketKey,
   BUCKETS,
 } from "@/lib/promotions";
-import { RefreshCw } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 
 type Domain = { id: string; domain: string; expiration_date: string };
 type Stats = Record<string, { count: number; lastAt: string }>;
@@ -25,6 +26,16 @@ export function PromotionSection() {
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [previousBucket, setPreviousBucket] = useState<BucketKey | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchMode) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchMode]);
 
   async function load(bucket: BucketKey) {
     setLoading(true);
@@ -43,6 +54,47 @@ export function PromotionSection() {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSearch(rawQuery: string) {
+    const normalized = rawQuery.replace(/,\s*/g, ",").replace(/\s+/g, ", ");
+    const keywords = normalized
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+
+    if (keywords.length === 0) return;
+
+    setLoading(true);
+    setConfirming(null);
+    try {
+      const data = await searchByKeywords(supabase, keywords);
+      const ids = data.map((c) => c.id);
+      const statsData = ids.length > 0
+        ? await fetchPromotionStats(supabase, ids)
+        : {};
+      setDomains(data);
+      setStats(statsData);
+      setActiveBucket(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Search failed";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function enterSearchMode() {
+    setPreviousBucket(activeBucket);
+    setSearchMode(true);
+  }
+
+  function exitSearchMode() {
+    setSearchMode(false);
+    setSearchQuery("");
+    if (previousBucket) {
+      load(previousBucket);
     }
   }
 
@@ -86,26 +138,71 @@ export function PromotionSection() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-4">
-        {BUCKETS.map((b) => (
+      <div className="flex gap-2 mb-4 items-center">
+        <div
+          className={`flex gap-2 transition-all duration-300 ease-in-out ${
+            searchMode
+              ? "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+              : "opacity-100 translate-x-0 w-auto"
+          }`}
+        >
+          {BUCKETS.map((b) => (
+            <button
+              key={b.key}
+              onClick={() => load(b.key)}
+              disabled={loading}
+              className={`px-3 py-1.5 rounded-md text-sm border transition whitespace-nowrap ${
+                activeBucket === b.key
+                  ? "bg-accent-primary text-white border-accent-primary"
+                  : "border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            searchMode
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 translate-x-2 pointer-events-none w-0 overflow-hidden"
+          }`}
+        >
+          <input
+            ref={searchInputRef}
+            className="px-3 py-1.5 rounded-md text-sm border border-border bg-bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary w-[260px]"
+            placeholder="Search domains (e.g. acme.com, store.io)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch(searchQuery);
+            }}
+            onBlur={exitSearchMode}
+          />
+        </div>
+
+        {!searchMode && (
           <button
-            key={b.key}
-            onClick={() => load(b.key)}
+            onClick={enterSearchMode}
             disabled={loading}
-            className={`px-3 py-1.5 rounded-md text-sm border transition ${
-              activeBucket === b.key
-                ? "bg-accent-primary text-white border-accent-primary"
-                : "border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary"
-            }`}
+            className="p-1.5 rounded-md border border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary transition shrink-0"
+            title="Search domains"
           >
-            {b.label}
+            <Search className="h-4 w-4" />
           </button>
-        ))}
+        )}
       </div>
 
-      {!activeBucket && (
+      {!activeBucket && !searchMode && domains.length === 0 && (
         <p className="text-sm text-text-muted py-4">
           Select a filter above to see domains to promote.
+        </p>
+      )}
+
+      {searchMode && !loading && domains.length === 0 && (
+        <p className="text-sm text-text-muted py-4">
+          No domains match your search.
         </p>
       )}
 
