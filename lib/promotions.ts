@@ -95,3 +95,26 @@ export async function recordPromotion(
 
   if (error) throw error;
 }
+
+export async function searchByKeywords(
+  supabase: ReturnType<typeof import("@/lib/supabase/client").createClient>,
+  keywords: string[]
+) {
+  if (keywords.length === 0) return [];
+
+  const ilikePatterns = keywords.map((k) => `%${k}%`);
+  const { data, error } = await supabase
+    .from("domains")
+    .select("id, domain, expiration_date")
+    .eq("status", "active")
+    .or(ilikePatterns.map((p) => `domain.ilike.${p}`).join(","))
+    .limit(50);
+
+  if (error) throw error;
+
+  return (data ?? []) as Array<{
+    id: string;
+    domain: string;
+    expiration_date: string;
+  }>;
+}
