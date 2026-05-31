@@ -59,7 +59,7 @@ export function DashboardRegistrarChart({ data }: DashboardRegistrarChartProps) 
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ left: 110, right: 20, top: 4, bottom: 4 }}
+          margin={{ left: 0, right: 16, top: 4, bottom: 4 }}
           onClick={(e) => {
             if (e?.activePayload?.length) {
               handleClick(e.activePayload[0].payload);
@@ -70,9 +70,9 @@ export function DashboardRegistrarChart({ data }: DashboardRegistrarChartProps) 
           <YAxis
             type="category"
             dataKey="registrar"
-            tick={{ fontSize: 12 }}
-            width={105}
-            tickFormatter={(v) => v.length > 14 ? `${v.slice(0, 13)}…` : v}
+            tick={{ fontSize: 11 }}
+            width={90}
+            tickFormatter={(v) => v.length > 12 ? `${v.slice(0, 11)}…` : v}
           />
           <Tooltip
             content={({ active, payload }) => {

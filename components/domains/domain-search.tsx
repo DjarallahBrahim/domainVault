@@ -71,8 +71,8 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-2 w-full">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
           <Input
             placeholder="Search domains (comma-separate multiple)"
@@ -101,6 +101,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           size="icon"
           onClick={triggerSearch}
           title="Search"
+          className="shrink-0"
         >
           <Search className="h-4 w-4" />
         </Button>
@@ -110,17 +111,18 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           size="icon"
           onClick={onExport}
           title="Export CSV"
+          className="shrink-0"
         >
           <Download className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
         <Select
           value={currentStatus}
           onValueChange={(value) => updateParam({ status: value === "all" ? "" : value })}
         >
-          <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -133,10 +135,26 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
         </Select>
 
         <Select
+          value={currentExpiry}
+          onValueChange={(value) => updateParam({ expiry: value === "all" ? "" : value })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Expiry" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Expiry</SelectItem>
+            <SelectItem value="1m">≤1 month</SelectItem>
+            <SelectItem value="3m">≤3 months</SelectItem>
+            <SelectItem value="6m">≤6 months</SelectItem>
+            <SelectItem value="9m">≤9 months</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
           value={currentTld}
           onValueChange={(value) => updateParam({ tld: value === "all" ? "" : value })}
         >
-          <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="TLD" />
           </SelectTrigger>
           <SelectContent>
@@ -150,26 +168,10 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
         </Select>
 
         <Select
-          value={currentExpiry}
-          onValueChange={(value) => updateParam({ expiry: value === "all" ? "" : value })}
-        >
-          <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs">
-            <SelectValue placeholder="Expiry" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Expiry</SelectItem>
-            <SelectItem value="1m">≤1 month</SelectItem>
-            <SelectItem value="3m">≤3 months</SelectItem>
-            <SelectItem value="6m">≤6 months</SelectItem>
-            <SelectItem value="9m">≤9 months</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
           value={currentRegistrars}
           onValueChange={(value) => updateParam({ registrar: value === "all" ? "" : value })}
         >
-          <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Registrar" />
           </SelectTrigger>
           <SelectContent>
@@ -186,7 +188,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           value={currentPageSize}
           onValueChange={(value) => updateParam({ pageSize: value })}
         >
-          <SelectTrigger className="w-full sm:w-[90px] h-8 text-xs">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -201,7 +203,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
             variant="ghost"
             size="sm"
             onClick={clearAll}
-            className="h-8 text-xs text-text-muted"
+            className="h-8 text-xs text-text-muted col-span-2 sm:col-span-1"
           >
             <RotateCcw className="h-3 w-3 mr-1" />
             Clear all

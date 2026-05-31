@@ -138,12 +138,12 @@ export function PromotionSection() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-4 items-center">
+      <div className="flex flex-wrap gap-2 mb-4 items-center">
         <div
-          className={`flex gap-2 transition-all duration-300 ease-in-out ${
+          className={`flex flex-wrap gap-2 transition-all duration-300 ease-in-out ${
             searchMode
               ? "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-              : "opacity-100 translate-x-0 w-auto"
+              : "opacity-100 translate-x-0"
           }`}
         >
           {BUCKETS.map((b) => (
@@ -151,7 +151,7 @@ export function PromotionSection() {
               key={b.key}
               onClick={() => load(b.key)}
               disabled={loading}
-              className={`px-3 py-1.5 rounded-md text-sm border transition whitespace-nowrap ${
+              className={`px-2.5 py-1.5 rounded-md text-xs sm:text-sm border transition whitespace-nowrap ${
                 activeBucket === b.key
                   ? "bg-accent-primary text-white border-accent-primary"
                   : "border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary"
@@ -163,16 +163,16 @@ export function PromotionSection() {
         </div>
 
         <div
-          className={`transition-all duration-300 ease-in-out ${
+          className={`transition-all duration-300 ease-in-out min-w-0 ${
             searchMode
-              ? "opacity-100 translate-x-0"
+              ? "opacity-100 translate-x-0 flex-1 sm:flex-none"
               : "opacity-0 translate-x-2 pointer-events-none w-0 overflow-hidden"
           }`}
         >
           <input
             ref={searchInputRef}
-            className="px-3 py-1.5 rounded-md text-sm border border-border bg-bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary w-[260px]"
-            placeholder="Search domains (e.g. acme.com, store.io)"
+            className="px-3 py-1.5 rounded-md text-sm border border-border bg-bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary w-full sm:w-[260px]"
+            placeholder="Search (e.g. acme.com, store.io)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -221,13 +221,14 @@ export function PromotionSection() {
       )}
 
       {!loading && domains.length > 0 && (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-6 px-6">
+          <table className="w-full text-sm min-w-[500px]">
           <thead>
             <tr className="text-left border-b border-border">
               <th className="pb-2 font-medium text-text-muted">Domain</th>
               <th className="pb-2 font-medium text-text-muted">Expires</th>
               <th className="pb-2 font-medium text-text-muted">Promoted</th>
-              <th className="pb-2 font-medium text-text-muted">Last promoted</th>
+              <th className="pb-2 font-medium text-text-muted">Last</th>
               <th className="pb-2 font-medium text-text-muted"></th>
             </tr>
           </thead>
@@ -245,6 +246,7 @@ export function PromotionSection() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

@@ -36,6 +36,12 @@ export function DomainCard({ domain, onDelete }: DomainCardProps) {
           <span>TLD</span>
           <span>.{domain.tld}</span>
         </div>
+        {domain.registrar && (
+          <div className="flex justify-between">
+            <span>Registrar</span>
+            <span>{domain.registrar}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span>Expires</span>
           <span className="flex items-center gap-1">
@@ -44,8 +50,12 @@ export function DomainCard({ domain, onDelete }: DomainCardProps) {
           </span>
         </div>
         <div className="flex justify-between">
-          <span>Price</span>
+          <span>Purchase</span>
           <span>{formatPrice(domain.purchase_price)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>BIN</span>
+          <span>{formatPrice((domain as Record<string, unknown>).bin as number | null)}</span>
         </div>
       </div>
       <div className="flex gap-2 pt-2 border-t border-border">
