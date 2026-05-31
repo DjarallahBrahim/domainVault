@@ -388,6 +388,12 @@ These features are classified **[DONE]** and MUST NOT be modified:
   without regression after all changes are applied.
 - **SC-012**: The application builds with zero TypeScript errors and zero ESLint
   warnings after all changes are applied.
+- **SC-013**: Pasted CSV text with valid rows imports successfully with zero errors on
+  first attempt.
+- **SC-014**: The BIN column migration applies idempotently and the column appears in
+  the CSV import, export, table, and edit form.
+- **SC-015**: Sorting by Added date toggles between ascending and descending in under
+  500ms for up to 1000 domains.
 
 ## Assumptions
 
@@ -406,3 +412,51 @@ These features are classified **[DONE]** and MUST NOT be modified:
   implemented for status/TLD/sort filters.
 - The export CSV feature uses a client-side Blob download approach (no server endpoint
   needed) — same pattern as error-rows download in CSV import.
+
+## US-032: Paste CSV Text Import
+
+**Status**: [NEW]
+
+As a user, I want to paste raw CSV rows directly into the upload page so I can quickly import a few domains without creating a file.
+
+### Acceptance Criteria
+
+- **AC-032-01**: The CsvUploader component is split into two side-by-side panels: "Paste CSV text" (left) and "Upload CSV file" (right), separated by a vertical "or" divider.
+- **AC-032-02**: The left panel has a `<textarea>` with placeholder example rows matching the accepted column format.
+- **AC-032-03**: A format hint above the textarea shows accepted columns: `domain, expiration_date, purchase_price, bin, registrar, notes, tags` with required columns highlighted.
+- **AC-032-04**: An "Import" button below the textarea is enabled only when content is non-empty.
+- **AC-032-05**: On click, the textarea value has the expected header row prepended, then `onContentReady(content, "pasted-data.csv")` is called.
+- **AC-032-06**: Each non-empty line is validated to contain at least one comma; otherwise a `toast.error` is shown.
+- **AC-032-07**: The right panel keeps the original drag-and-drop / click-to-browse behavior unchanged.
+- **AC-032-08**: Layout uses `grid-cols-[1fr_auto_1fr]` with equal-height sections (`items-stretch`).
+
+## US-033: BIN (Asking Price) Column
+
+**Status**: [NEW]
+
+As a domain investor, I want to store the asking (BIN) price for each domain separately from the purchase price, so I can track my desired sale price during the listing phase.
+
+### Acceptance Criteria
+
+- **AC-033-01**: A new `bin DECIMAL(10,2)` column exists on the `domains` table (migration `004_bin_column.sql`).
+- **AC-033-02**: CSV import supports the `bin` column (optional, strips `$`/`€`/`£` before parsing, non-negative number validation).
+- **AC-033-03**: The domain table displays a "BIN" column next to "Purchase" (renamed from "Price").
+- **AC-033-04**: The domain edit form includes a "BIN ($)" number input field.
+- **AC-033-05**: CSV export includes the BIN column.
+- **AC-033-06**: The paste-text format hint and placeholder include the `bin` column.
+
+## US-034: Sort by Added Date
+
+**Status**: [NEW]
+
+As a user, I want to sort my domains by when they were added (created_at date), so I can see my most recently imported domains first.
+
+### Acceptance Criteria
+
+- **AC-034-01**: A sortable "Added" column header exists in the domain table, toggling asc/desc on `created_at`.
+- **AC-034-02**: The column displays the formatted date from `created_at` for each row.
+- **AC-034-03**: Sort state is serialized in URL query params consistent with other sort columns.
+
+## Bug Fix — CSV purchase_price Currency Symbols
+
+**Fix**: `$`/`€`/`£` characters in `purchase_price` column values (e.g. `16.00$`, `$26.00`) caused validation failures — ~388 of 480 rows silently rejected. Added `.transform()` to strip currency symbols before `Number()` parsing in `csvRowSchema`.

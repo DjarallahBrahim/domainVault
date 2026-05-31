@@ -90,6 +90,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
       status: domain.status,
       registrar: domain.registrar,
       purchase_price: domain.purchase_price,
+      bin: (domain as Record<string, unknown>).bin as number | null | undefined,
       notes: domain.notes,
       tags: domain.tags,
     },
@@ -250,6 +251,12 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
                 <Label htmlFor="purchase_price">Purchase Price ($)</Label>
                 <Input id="purchase_price" type="number" step="0.01" min="0" {...register("purchase_price", { valueAsNumber: true })} placeholder="0.00" />
                 {errors.purchase_price && <p className="text-xs text-accent-danger">{errors.purchase_price.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bin">BIN ($)</Label>
+                <Input id="bin" type="number" step="0.01" min="0" {...register("bin", { valueAsNumber: true })} placeholder="0.00" />
+                {errors.bin && <p className="text-xs text-accent-danger">{errors.bin.message}</p>}
               </div>
             </div>
 

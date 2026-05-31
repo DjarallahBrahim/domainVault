@@ -74,6 +74,14 @@ export const csvRowSchema = z.object({
       (v) => !v || v.trim() === "" || (!isNaN(Number(v)) && Number(v) >= 0),
       "Price must be a non-negative number"
     ),
+  bin: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.replace(/^[$\u20AC\u00A3]/, "").replace(/[$\u20AC\u00A3]$/, "").trim() : v))
+    .refine(
+      (v) => !v || v.trim() === "" || (!isNaN(Number(v)) && Number(v) >= 0),
+      "BIN price must be a non-negative number"
+    ),
   registrar: z.string().optional(),
   notes: z.string().optional(),
   tags: z.string().optional(),
@@ -87,6 +95,11 @@ export const domainEditSchema = z.object({
   purchase_price: z
     .number()
     .min(0, "Price must be non-negative")
+    .nullable()
+    .optional(),
+  bin: z
+    .number()
+    .min(0, "BIN must be non-negative")
     .nullable()
     .optional(),
   notes: z.string().nullable().optional(),

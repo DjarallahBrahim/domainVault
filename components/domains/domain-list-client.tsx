@@ -114,9 +114,9 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         page: 1,
         pageSize: 10000,
       });
-      const csvHeader = ["Domain","TLD","Registrar","Expiration Date","Price","Status"];
+      const csvHeader = ["Domain","TLD","Registrar","Expiration Date","Purchase Price","BIN","Status"];
       const csvRows = allDomains.map((d) => {
-        const row = [d.domain, d.tld ?? "", d.registrar ?? "", d.expiration_date, d.purchase_price ?? "", d.status ?? ""];
+        const row = [d.domain, d.tld ?? "", d.registrar ?? "", d.expiration_date, d.purchase_price ?? "", (d as Record<string, unknown>).bin ?? "", d.status ?? ""];
         return row.map((v) => (String(v).includes(",") ? `"${v}"` : String(v))).join(",");
       });
       const csv = [csvHeader.join(","), ...csvRows].join("\n");

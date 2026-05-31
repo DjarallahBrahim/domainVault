@@ -12,7 +12,7 @@ interface CsvUploaderProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const CSV_HEADER = "domain,expiration_date,purchase_price,registrar,notes,tags";
+const CSV_HEADER = "domain,expiration_date,purchase_price,bin,registrar,notes,tags";
 
 export function CsvUploader({
   onFileReady,
@@ -122,7 +122,7 @@ export function CsvUploader({
           Expected format (no header needed):
           <br />
           <code className="text-[11px] bg-bg-elevated px-1 rounded">
-            domain, expiration_date, purchase_price, registrar, notes, tags
+            domain, expiration_date, purchase_price, bin, registrar, notes, tags
           </code>
           <br />
           <span className="text-[10px]">
@@ -133,15 +133,15 @@ export function CsvUploader({
           Example:
           <br />
           <code className="text-[11px] bg-bg-elevated px-1 rounded">
-            acme.com, 2025-12-31, 16.00, GoDaddy, client renewal, client1
+            acme.com, 2025-12-31, 16.00, 120, GoDaddy, client renewal, client1
             <br />
-            store.io, 2026-06-15, , Namecheap, ,
+            store.io, 2026-06-15, , , Namecheap, ,
           </code>
         </p>
         <textarea
           className="flex-1 min-h-[140px] w-full rounded-md border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y font-mono"
           placeholder={
-            "acme.com, 2025-12-31, 16.00, GoDaddy, client renewal, client1\nstore.io, 2026-06-15, , Namecheap, ,"
+            "acme.com, 2025-12-31, 16.00, 120, GoDaddy, client renewal, client1\nstore.io, 2026-06-15, , , Namecheap, ,"
           }
           value={pasteValue}
           onChange={(e) => setPasteValue(e.target.value)}
