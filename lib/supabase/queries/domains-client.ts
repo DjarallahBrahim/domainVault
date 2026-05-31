@@ -121,6 +121,7 @@ export interface UpsertRow {
   domain: string;
   expiration_date: string;
   purchase_price?: number | null;
+  bin?: number | null;
   registrar?: string | null;
   notes?: string | null;
   tags?: string[] | null;
@@ -144,6 +145,7 @@ export async function upsertDomains(
     domain: row.domain,
     expiration_date: row.expiration_date,
     purchase_price: row.purchase_price ?? null,
+    bin: row.bin ?? null,
     registrar: row.registrar ?? null,
     notes: row.notes ?? null,
     tags: row.tags ?? null,

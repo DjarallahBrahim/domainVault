@@ -164,6 +164,10 @@ export default function ImportPage() {
                 parsed.purchase_price && parsed.purchase_price.trim()
                   ? Number(parsed.purchase_price)
                   : null,
+              bin:
+                parsed.bin && parsed.bin.trim()
+                  ? Number(parsed.bin)
+                  : null,
               registrar: parsed.registrar?.trim() || null,
               notes: parsed.notes?.trim() || null,
               tags: parseTags(parsed.tags),

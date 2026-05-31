@@ -125,7 +125,8 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead>Purchase</TableHead>
+              <TableHead>BIN</TableHead>
               <TableHead>
                 <button
                   onClick={() => updateSort("status")}
@@ -182,6 +183,9 @@ export function DomainTable({
                 </TableCell>
                 <TableCell className="text-sm">
                   {formatPrice(domain.purchase_price)}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {formatPrice((domain as Record<string, unknown>).bin as number | null)}
                 </TableCell>
                 <TableCell>
                   <DomainStatusBadge status={domain.status} />

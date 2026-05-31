@@ -203,13 +203,53 @@ Task: "US4 — Update domain-search.tsx + domains page (filters)"
 3. US3 + US4 (P2) → Multi-search + improved filters
 4. US6 (P2) → Import page manual entry
 5. US7 (P3) → CSV banner
-6. Polish → Build + E2E verification
+6. US-032 (P3) → Paste CSV text import
+7. US-033 (P3) → BIN (asking price) column
+8. US-034 (P3) → Sort by added date
+9. Polish → Build + E2E verification
+
+---
+
+## Phase 8: US-032 — Paste CSV Text Import
+
+**Purpose**: Split CsvUploader into paste-text + upload file panels.
+
+- [x] T012 [US-032] Update `components/import/csv-uploader.tsx` — split into two-panel grid layout with "or" divider, add textarea, format hint, examples, Import button, paste validation, header prepend, `onContentReady("pasted-data.csv")` call.
+
+---
+
+## Phase 9: US-033 — BIN (Asking Price) Column
+
+**Purpose**: Add `bin` column to domains for tracking asking/sale price.
+
+- [x] T013 [US-033] Create `supabase/migrations/004_bin_column.sql` — add `bin DECIMAL(10,2)` column (idempotent).
+- [x] T014 [US-033] Update `lib/validations/domain.ts` — add `bin` to `csvRowSchema` (optional, strips $/€/£) and `domainEditSchema` (nullable number).
+- [x] T015 [US-033] Update `lib/supabase/queries/domains-client.ts` — add `bin` to `UpsertRow` interface and upsert payload.
+- [x] T016 [US-033] Update `app/(dashboard)/import/page.tsx` — parse `bin` in `handleContentReady`.
+- [x] T017 [US-033] Update `components/domains/domain-table.tsx` — rename "Price" to "Purchase", add "BIN" column with `formatPrice`.
+- [x] T018 [US-033] Update `components/domains/domain-detail-form.tsx` — add "BIN ($)" number input field and default value.
+- [x] T019 [US-033] Update `components/domains/domain-list-client.tsx` — add BIN to CSV export header and rows.
+- [x] T020 [US-033] Update `components/import/csv-uploader.tsx` — add `bin` to `CSV_HEADER`, format hint, placeholder, examples.
+
+---
+
+## Phase 10: US-034 — Sort by Added Date
+
+**Purpose**: Add sortable "Added" column (created_at) to domain table.
+
+- [x] T021 [US-034] Update `components/domains/domain-table.tsx` — add "Added" column header with sort toggle on `created_at`, display formatted date in row cells.
+
+---
+
+## Phase 11: Bug Fix — purchase_price Currency Symbols
+
+- [x] T022 Update `lib/validations/domain.ts` — add `.transform()` to strip `$`/`€`/`£` from `purchase_price` before `Number()` parsing in `csvRowSchema`.
 
 ---
 
 ## Notes
 
-- Total: 20 tasks across 10 phases
+- Total: 22 tasks across 11 phases
 - [P] tasks can run in parallel
 - [Story] label maps task to specific user story
 - Each user story independently testable
