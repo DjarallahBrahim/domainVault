@@ -135,6 +135,15 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => updateSort("created_at")}
+                  className="flex items-center gap-1 hover:text-text-primary"
+                >
+                  Added{sortLabel("created_at")}
+                  <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -176,6 +185,9 @@ export function DomainTable({
                 </TableCell>
                 <TableCell>
                   <DomainStatusBadge status={domain.status} />
+                </TableCell>
+                <TableCell className="text-sm text-text-muted">
+                  {new Date(domain.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
