@@ -81,10 +81,10 @@ export function DashboardClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="order-2 md:order-1">
+            <div className="max-md:order-2">
               <DashboardRegistrarChart data={registrarData ?? null} />
             </div>
-            <div className="order-1 md:order-2">
+            <div className="max-md:order-1">
               <DashboardExpiryDonut segments={segments ?? null} />
             </div>
           </div>
