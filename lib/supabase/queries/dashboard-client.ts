@@ -99,6 +99,7 @@ export async function generatePromotionBatch(pool: string) {
 export interface DashboardStats {
   total_active: number;
   portfolio_value: number;
+  total_sales: number;
   expiring_90d: number;
   expiring_30d: number;
   sold_this_year: number;
@@ -108,9 +109,9 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const supabase = createClient();
   const { data: domains, error } = await supabase.from("domains").select("purchase_price, status, expiration_date");
   if (error) throw error;
-  const { data: salesRaw, error: sErr } = await supabase.from("sales").select("sold_at");
+  const { data: salesRaw, error: sErr } = await supabase.from("sales").select("sold_at, sale_price");
   if (sErr) throw sErr;
-  const sales = (salesRaw ?? []) as unknown as Array<{ sold_at: string }>;
+  const sales = (salesRaw ?? []) as unknown as Array<{ sold_at: string; sale_price: number }>;
   const now = new Date();
   const yearStart = `${now.getFullYear()}-01-01`;
   const rows = (domains ?? []) as unknown as DomainRow[];
@@ -118,6 +119,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   return {
     total_active: active.length,
     portfolio_value: active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0),
+    total_sales: sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0),
     expiring_90d: active.filter((d) => {
       const diff = (new Date(d.expiration_date).getTime() - now.getTime()) / 86400000;
       return diff <= 90;

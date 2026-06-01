@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Globe, DollarSign, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { Globe, DollarSign, Clock, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DashboardStats } from "@/lib/supabase/queries/dashboard";
@@ -68,6 +68,16 @@ const CARD_CONFIG = [
     iconColor: "text-accent-success",
   },
   {
+    key: "total_sales" as const,
+    label: "Total Sales",
+    icon: ShoppingCart,
+    prefix: "$",
+    href: "/sales",
+    gradient: "from-ring/10 to-ring/4",
+    border: "border-l-ring",
+    iconColor: "text-accent-primary",
+  },
+  {
     key: "expiring_90d" as const,
     label: "Expiring in 90 Days",
     icon: Clock,
@@ -91,7 +101,7 @@ export function DashboardKpiCards({ stats, prevStats }: DashboardKpiCardsProps) 
   const isLoading = !stats;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {CARD_CONFIG.map((card) => {
         const value = stats?.[card.key] ?? 0;
         const prev = prevStats?.[card.key] ?? undefined;

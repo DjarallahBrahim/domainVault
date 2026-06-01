@@ -21,6 +21,7 @@ export async function autoTransitionExpired(): Promise<number> {
 export interface DashboardStats {
   total_active: number;
   portfolio_value: number;
+  total_sales: number;
   expiring_90d: number;
   expiring_30d: number;
   sold_this_year: number;
@@ -37,11 +38,11 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const { data: salesRaw, error: salesError } = await supabase
     .from("sales")
-    .select("sold_at");
+    .select("sold_at, sale_price");
 
   if (salesError) throw salesError;
 
-  const sales = (salesRaw ?? []) as unknown as Array<{ sold_at: string }>;
+  const sales = (salesRaw ?? []) as unknown as Array<{ sold_at: string; sale_price: number }>;
 
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
@@ -62,10 +63,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   }).length;
 
   const sold_this_year = sales.filter((s) => s.sold_at >= yearStart).length;
+  const total_sales = sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0);
 
   return {
     total_active: active.length,
     portfolio_value,
+    total_sales,
     expiring_90d,
     expiring_30d,
     sold_this_year,
