@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -42,8 +43,10 @@ export function DomainTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const currentSort = searchParams.get("sort") ?? "expiration_date";
-  const currentOrder = searchParams.get("order") ?? "asc";
+  const currentSort = searchParams.get("sort") ?? "created_at";
+  const currentOrder = searchParams.get("order") ?? "desc";
+
+  const [showAllColumns, setShowAllColumns] = useState(false);
 
   const toggleAll = () => {
     if (selectedIds.size === domains.length) {
@@ -95,6 +98,16 @@ export function DomainTable({
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
+          <Checkbox
+            checked={showAllColumns}
+            onCheckedChange={(c) => setShowAllColumns(!!c)}
+          />
+          Show all columns
+        </label>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <Table>
           <TableHeader>
@@ -114,7 +127,9 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
-              <TableHead>TLD</TableHead>
+              {showAllColumns && (
+                <TableHead>TLD</TableHead>
+              )}
               <TableHead>Registrar</TableHead>
               <TableHead>
                 <button
@@ -125,17 +140,21 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
-              <TableHead>Purchase</TableHead>
+              {showAllColumns && (
+                <TableHead>Purchase</TableHead>
+              )}
               <TableHead>BIN</TableHead>
-              <TableHead>
-                <button
-                  onClick={() => updateSort("status")}
-                  className="flex items-center gap-1 hover:text-text-primary"
-                >
-                  Status{sortLabel("status")}
-                  <ArrowUpDown className="h-3 w-3" />
-                </button>
-              </TableHead>
+              {showAllColumns && (
+                <TableHead>
+                  <button
+                    onClick={() => updateSort("status")}
+                    className="flex items-center gap-1 hover:text-text-primary"
+                  >
+                    Status{sortLabel("status")}
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
+              )}
               <TableHead>
                 <button
                   onClick={() => updateSort("created_at")}
@@ -165,9 +184,11 @@ export function DomainTable({
                     {domain.domain}
                   </button>
                 </TableCell>
-                <TableCell>
-                  <span className="text-xs text-text-muted">.{domain.tld}</span>
-                </TableCell>
+                {showAllColumns && (
+                  <TableCell>
+                    <span className="text-xs text-text-muted">.{domain.tld}</span>
+                  </TableCell>
+                )}
                 <TableCell>
                   <span className="text-sm">
                     {domain.registrar || "\u2014"}
@@ -181,15 +202,19 @@ export function DomainTable({
                     <DomainExpiryBadge expirationDate={domain.expiration_date} />
                   </div>
                 </TableCell>
-                <TableCell className="text-sm">
-                  {formatPrice(domain.purchase_price)}
-                </TableCell>
+                {showAllColumns && (
+                  <TableCell className="text-sm">
+                    {formatPrice(domain.purchase_price)}
+                  </TableCell>
+                )}
                 <TableCell className="text-sm">
                   {formatPrice((domain as Record<string, unknown>).bin as number | null)}
                 </TableCell>
-                <TableCell>
-                  <DomainStatusBadge status={domain.status} />
-                </TableCell>
+                {showAllColumns && (
+                  <TableCell>
+                    <DomainStatusBadge status={domain.status} />
+                  </TableCell>
+                )}
                 <TableCell className="text-sm text-text-muted">
                   {new Date(domain.created_at).toLocaleDateString()}
                 </TableCell>

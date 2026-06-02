@@ -1,6 +1,5 @@
 "use client";
 
-import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import type { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
@@ -22,20 +21,14 @@ export function DomainCard({ domain, onDelete }: DomainCardProps) {
 
   return (
     <div className="rounded-lg border border-border bg-bg-surface p-4 space-y-2">
-      <div className="flex items-start justify-between">
-        <button
-          onClick={() => router.push(`/domains/${domain.id}`)}
-          className="font-mono font-medium text-accent-primary hover:underline text-left"
-        >
-          {domain.domain}
-        </button>
-        <DomainStatusBadge status={domain.status} />
-      </div>
+      <button
+        onClick={() => router.push(`/domains/${domain.id}`)}
+        className="font-mono font-medium text-accent-primary hover:underline text-left"
+      >
+        {domain.domain}
+      </button>
+
       <div className="text-xs text-text-muted space-y-1">
-        <div className="flex justify-between">
-          <span>TLD</span>
-          <span>.{domain.tld}</span>
-        </div>
         {domain.registrar && (
           <div className="flex justify-between">
             <span>Registrar</span>
@@ -50,12 +43,12 @@ export function DomainCard({ domain, onDelete }: DomainCardProps) {
           </span>
         </div>
         <div className="flex justify-between">
-          <span>Purchase</span>
-          <span>{formatPrice(domain.purchase_price)}</span>
-        </div>
-        <div className="flex justify-between">
           <span>BIN</span>
           <span>{formatPrice((domain as Record<string, unknown>).bin as number | null)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Added</span>
+          <span>{new Date(domain.created_at).toLocaleDateString()}</span>
         </div>
       </div>
       <div className="flex gap-2 pt-2 border-t border-border">
