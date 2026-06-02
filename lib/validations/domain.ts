@@ -77,7 +77,15 @@ export const csvRowSchema = z.object({
   bin: z
     .string()
     .optional()
-    .transform((v) => (v ? v.replace(/^[$\u20AC\u00A3]/, "").replace(/[$\u20AC\u00A3]$/, "").trim() : v))
+    .transform((v) =>
+      v
+        ? v
+            .replace(/^[$\u20AC\u00A3]/, "")
+            .replace(/[$\u20AC\u00A3]$/, "")
+            .replace(/,/g, "")
+            .trim()
+        : v
+    )
     .refine(
       (v) => !v || v.trim() === "" || (!isNaN(Number(v)) && Number(v) >= 0),
       "BIN price must be a non-negative number"

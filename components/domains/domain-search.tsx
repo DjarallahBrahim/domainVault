@@ -11,6 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Search, X, Download, RotateCcw } from "lucide-react";
 
 interface DomainSearchProps {
@@ -32,6 +35,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentPageSize = searchParams.get("pageSize") ?? "50";
 
   const [searchValue, setSearchValue] = useState(urlSearch);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const updateParam = useCallback(
     (updates: Record<string, string>) => {
@@ -68,148 +72,190 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
   const hasFilters =
     urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars;
+  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars].filter(
+    Boolean
+  ).length;
+
+  const filterGridCols = showAdvanced
+    ? "grid-cols-1 sm:grid-cols-3 lg:grid-cols-6"
+    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 w-full">
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-          <Input
-            placeholder="Search domains (comma-separate multiple)"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") triggerSearch();
-            }}
-            className="pl-9 pr-9"
-          />
-          {searchValue && (
-            <button
-              onClick={() => {
-                setSearchValue("");
-                updateParam({ search: "" });
+    <Card className="max-w-7xl mx-auto rounded-xl border shadow-sm">
+      <CardContent className="p-4 md:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 lg:max-w-2xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+            <Input
+              placeholder="Search domains..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") triggerSearch();
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+              className="pl-9 pr-9 h-11 rounded-lg"
+            />
+            {searchValue && (
+              <button
+                onClick={() => {
+                  setSearchValue("");
+                  updateParam({ search: "" });
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            <Button onClick={triggerSearch} className="h-11 flex-1 sm:flex-none">
+              <Search className="h-4 w-4 mr-1.5" />
+              Search
+            </Button>
+            <Button variant="outline" onClick={onExport} className="h-11 flex-1 sm:flex-none">
+              <Download className="h-4 w-4 mr-1.5" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={triggerSearch}
-          title="Search"
-          className="shrink-0"
-        >
-          <Search className="h-4 w-4" />
-        </Button>
+        <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
+          <Checkbox
+            checked={showAdvanced}
+            onCheckedChange={(c) => setShowAdvanced(!!c)}
+          />
+          Show advanced filters
+        </label>
 
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onExport}
-          title="Export CSV"
-          className="shrink-0"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-      </div>
+        <div className={`grid ${filterGridCols} gap-3 items-end`}>
+          {showAdvanced && (
+            <div className="space-y-1">
+              <Label className="text-xs text-text-muted font-medium">Status</Label>
+              <Select
+                value={currentStatus}
+                onValueChange={(value) => updateParam({ status: value === "all" ? "" : value })}
+              >
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
-        <Select
-          value={currentStatus}
-          onValueChange={(value) => updateParam({ status: value === "all" ? "" : value })}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-            <SelectItem value="sold">Sold</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-          </SelectContent>
-        </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Expiry</Label>
+            <Select
+              value={currentExpiry}
+              onValueChange={(value) => updateParam({ expiry: value === "all" ? "" : value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="1m">≤1 month</SelectItem>
+                <SelectItem value="3m">≤3 months</SelectItem>
+                <SelectItem value="6m">≤6 months</SelectItem>
+                <SelectItem value="9m">≤9 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Select
-          value={currentExpiry}
-          onValueChange={(value) => updateParam({ expiry: value === "all" ? "" : value })}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Expiry" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Expiry</SelectItem>
-            <SelectItem value="1m">≤1 month</SelectItem>
-            <SelectItem value="3m">≤3 months</SelectItem>
-            <SelectItem value="6m">≤6 months</SelectItem>
-            <SelectItem value="9m">≤9 months</SelectItem>
-          </SelectContent>
-        </Select>
+          {showAdvanced && (
+            <div className="space-y-1">
+              <Label className="text-xs text-text-muted font-medium">TLD</Label>
+              <Select
+                value={currentTld}
+                onValueChange={(value) => updateParam({ tld: value === "all" ? "" : value })}
+              >
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {tlds.map((tld) => (
+                    <SelectItem key={tld} value={tld}>
+                      .{tld}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        <Select
-          value={currentTld}
-          onValueChange={(value) => updateParam({ tld: value === "all" ? "" : value })}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="TLD" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All TLDs</SelectItem>
-            {tlds.map((tld) => (
-              <SelectItem key={tld} value={tld}>
-                .{tld}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Registrar</Label>
+            <Select
+              value={currentRegistrars}
+              onValueChange={(value) => updateParam({ registrar: value === "all" ? "" : value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {registrars.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Select
-          value={currentRegistrars}
-          onValueChange={(value) => updateParam({ registrar: value === "all" ? "" : value })}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Registrar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Registrars</SelectItem>
-            {registrars.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Page Size</Label>
+            <Select
+              value={currentPageSize}
+              onValueChange={(value) => updateParam({ pageSize: value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Select
-          value={currentPageSize}
-          onValueChange={(value) => updateParam({ pageSize: value })}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="25">25</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-            <SelectItem value="100">100</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAll}
-            className="h-8 text-xs text-text-muted col-span-2 sm:col-span-1"
-          >
-            <RotateCcw className="h-3 w-3 mr-1" />
-            Clear all
-          </Button>
-        )}
-      </div>
-    </div>
+          {hasFilters ? (
+            <div className="space-y-1">
+              <Label className="text-xs text-text-muted font-medium invisible">Actions</Label>
+              <Button
+                variant="ghost"
+                size="default"
+                onClick={clearAll}
+                className="h-10 rounded-lg text-text-muted hover:text-text-primary w-full justify-start"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                Reset Filters
+                <span className="ml-1 text-xs opacity-60">
+                  ({activeFilterCount} active)
+                </span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label className="text-xs text-text-muted font-medium invisible">Actions</Label>
+              <span className="inline-flex items-center h-10 text-xs text-text-muted">
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5 opacity-40" />
+                No filters
+              </span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

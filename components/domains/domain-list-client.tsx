@@ -145,6 +145,12 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   if (!data.domains.length) {
     return (
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Domain
+          </Button>
+        </div>
         <DomainSearch tlds={tlds} registrars={registrars} />
         <DomainEmptyState onAddDomain={handleAdd} />
         <DomainAddDialog
@@ -158,19 +164,13 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
-        </div>
-        <Button
-          variant="outline"
-          onClick={handleAdd}
-          className="shrink-0"
-        >
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-1" />
           Add Domain
         </Button>
       </div>
+      <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
 
       <div className="hidden sm:block">
         <DomainTable

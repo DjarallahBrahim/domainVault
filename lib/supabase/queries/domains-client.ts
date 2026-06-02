@@ -70,8 +70,8 @@ export async function fetchDomains(filters: DomainFilters) {
     }
   }
 
-  const sortColumn = (filters.sort ?? "expiration_date") as keyof DomainRow;
-  const sortOrder = filters.order === "desc" ? false : true;
+  const sortColumn = (filters.sort ?? "created_at") as keyof DomainRow;
+  const sortOrder = filters.order === "asc" ? true : false;
 
   query = query
     .order(sortColumn, { ascending: sortOrder })
