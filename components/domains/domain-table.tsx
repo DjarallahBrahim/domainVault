@@ -12,7 +12,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
+import { SedoCell } from "@/components/domains/SedoCell";
 import type { Database } from "@/types/supabase";
+import type { SedoListing } from "@/types/sedo";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ArrowUpDown } from "lucide-react";
 
@@ -27,6 +29,9 @@ interface DomainTableProps {
   onSelectionChange: (ids: Set<string>) => void;
   onDelete: (id: string) => void;
   onEdit: (domain: DomainRow) => void;
+  sedoListings: Map<string, SedoListing>;
+  onSedoEdit: (domain: DomainRow, listing: SedoListing) => void;
+  onSedoCreate: (domain: DomainRow) => void;
 }
 
 export function DomainTable({
@@ -38,6 +43,9 @@ export function DomainTable({
   onSelectionChange,
   onDelete,
   onEdit,
+  sedoListings,
+  onSedoEdit,
+  onSedoCreate,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -144,6 +152,7 @@ export function DomainTable({
                 <TableHead>Purchase</TableHead>
               )}
               <TableHead>BIN</TableHead>
+              <TableHead>Sedo</TableHead>
               {showAllColumns && (
                 <TableHead>
                   <button
@@ -209,6 +218,13 @@ export function DomainTable({
                 )}
                 <TableCell className="text-sm">
                   {formatPrice((domain as Record<string, unknown>).bin as number | null)}
+                </TableCell>
+                <TableCell>
+                  <SedoCell
+                    listing={sedoListings.get(domain.id)}
+                    onEdit={(listing) => onSedoEdit(domain, listing)}
+                    onCreate={() => onSedoCreate(domain)}
+                  />
                 </TableCell>
                 {showAllColumns && (
                   <TableCell>

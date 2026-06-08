@@ -11,11 +11,15 @@ import { DomainSearch } from "@/components/domains/domain-search";
 import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
 import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
+import { SedoOverlay } from "@/components/domains/SedoOverlay";
+import { SedoSyncButton } from "@/components/domains/SedoSyncButton";
+import { useSedoListings } from "@/lib/hooks/useSedoListings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
 import { toast } from "sonner";
 import type { Database } from "@/types/supabase";
+import type { SedoListing } from "@/types/sedo";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -45,6 +49,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         pageSize: filters.pageSize ? Number(filters.pageSize) : undefined,
         expiry: filters.expiry,
         registrars: filters.registrar,
+        notListed: filters.notListed,
       }),
     initialData,
     staleTime: 10 * 1000,
@@ -54,6 +59,25 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [showSlideover, setShowSlideover] = useState(false);
   const [editDomain, setEditDomain] = useState<DomainRow | null>(null);
+  const [sedoOverlayDomain, setSedoOverlayDomain] = useState<DomainRow | null>(null);
+  const [sedoExistingListing, setSedoExistingListing] = useState<SedoListing | null>(null);
+
+  const { listings: sedoListings } = useSedoListings();
+
+  function handleSedoEdit(domain: DomainRow, listing: SedoListing) {
+    setSedoOverlayDomain(domain);
+    setSedoExistingListing(listing);
+  }
+
+  function handleSedoCreate(domain: DomainRow) {
+    setSedoOverlayDomain(domain);
+    setSedoExistingListing(null);
+  }
+
+  function handleSedoClose() {
+    setSedoOverlayDomain(null);
+    setSedoExistingListing(null);
+  }
 
   function handleAdd() {
     setEditDomain(null);
@@ -111,6 +135,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         order: filters.order,
         expiry: filters.expiry,
         registrars: filters.registrar,
+        notListed: filters.notListed,
         page: 1,
         pageSize: 10000,
       });
@@ -164,11 +189,12 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
         <Button variant="outline" onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-1" />
           Add Domain
         </Button>
+        <SedoSyncButton />
       </div>
       <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
 
@@ -182,6 +208,9 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           onSelectionChange={setSelectedIds}
           onDelete={handleDelete}
           onEdit={handleEdit}
+          sedoListings={sedoListings}
+          onSedoEdit={handleSedoEdit}
+          onSedoCreate={handleSedoCreate}
         />
       </div>
 
@@ -191,6 +220,9 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
             key={domain.id}
             domain={domain}
             onDelete={handleDelete}
+            sedoListings={sedoListings}
+            onSedoEdit={handleSedoEdit}
+            onSedoCreate={handleSedoCreate}
           />
         ))}
       </div>
@@ -210,6 +242,27 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         open={showSlideover}
         onOpenChange={setShowSlideover}
         domain={editDomain ?? undefined}
+      />
+
+      <SedoOverlay
+        open={sedoOverlayDomain !== null}
+        onClose={handleSedoClose}
+        domain={
+          sedoOverlayDomain
+            ? {
+                id: sedoOverlayDomain.id,
+                domain: sedoOverlayDomain.domain,
+                registrar: sedoOverlayDomain.registrar,
+                expiration_date: sedoOverlayDomain.expiration_date,
+                bin: (sedoOverlayDomain as Record<string, unknown>).bin as number | null,
+              }
+            : null
+        }
+        existingListing={sedoExistingListing}
+        onSuccess={() => {
+          setSedoOverlayDomain(null);
+          setSedoExistingListing(null);
+        }}
       />
     </div>
   );

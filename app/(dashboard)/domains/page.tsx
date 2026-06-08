@@ -41,6 +41,8 @@ export default async function DomainsPage({
       typeof params.expiry === "string" ? params.expiry : undefined,
     registrars:
       typeof params.registrar === "string" ? params.registrar : undefined,
+    notListed:
+      typeof params.notListed === "string" ? params.notListed : undefined,
   };
 
   const [initialData, tlds, registrars] = await Promise.all([

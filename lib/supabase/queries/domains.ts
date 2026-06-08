@@ -14,7 +14,12 @@ export interface DomainFilters {
   pageSize?: number;
   expiry?: string;
   registrars?: string;
+  notListed?: string;
 }
+
+const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
+  sedo: "sedo_listings",
+};
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -67,6 +72,21 @@ export async function fetchDomains(filters: DomainFilters) {
       query = query.in("registrar", regTokens);
     } else if (regTokens.length === 1) {
       query = query.eq("registrar", regTokens[0]);
+    }
+  }
+
+  if (filters.notListed) {
+    const table = PLATFORM_LISTINGS_TABLE[filters.notListed];
+    if (table) {
+      const { data: listed } = await resolved
+        .from(table as "domains")
+        .select("domain_id");
+
+      const listedIds = ((listed ?? []) as unknown as Array<{ domain_id: string }>).map(r => r.domain_id);
+
+      if (listedIds.length > 0) {
+        query = query.not("id", "in", `(${listedIds.join(",")})`);
+      }
     }
   }
 

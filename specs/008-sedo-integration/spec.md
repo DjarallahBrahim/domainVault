@@ -8,6 +8,12 @@
 
 **Input**: Phase 5 of DomainVault Master Plan — integrate Sedo marketplace so users can list, update, and remove domain listings directly from the platform, with cached pricing in the domains table and a global sync capability.
 
+## Clarifications
+
+### Session 2026-06-08
+
+- Q: Should the cache auto-populate on first visit or is manual sync the only trigger? → A: Purely manual — user must click "Sync Sedo" to populate the cache at any time, including first visit. No automatic sync on page load.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Configure Sedo Credentials (Priority: P1)
@@ -142,6 +148,7 @@ A user needs a Settings page where they can view their account details (email, m
 - How does the system handle concurrent edits (user edits a listing while another sync is running)? The last write wins — sync upserts cache rows, and manual edits also upsert.
 - What happens on mobile for the Sedo overlay? It renders as a full-screen bottom sheet (`fixed bottom-0`, rounded top corners) at 375px width.
 - How does the system handle very large portfolios (users with many Sedo listings)? Sync paginates in batches of 100 listings per request.
+- What happens when a user with saved credentials visits the Domains page for the first time (empty cache)? All domains show "Not Listed" — the user must manually click "Sync Sedo" to populate the cache. No automatic sync occurs on page load.
 
 ## Requirements *(mandatory)*
 
