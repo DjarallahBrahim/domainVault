@@ -11,6 +11,7 @@ export interface Database {
           tld: string;
           expiration_date: string;
           purchase_price: number | null;
+          bin: number | null;
           status: "active" | "expired" | "sold" | "pending";
           registrar: string | null;
           notes: string | null;
@@ -24,6 +25,7 @@ export interface Database {
           domain: string;
           expiration_date: string;
           purchase_price?: number | null;
+          bin?: number | null;
           status?: "active" | "expired" | "sold" | "pending";
           registrar?: string | null;
           notes?: string | null;
@@ -37,6 +39,7 @@ export interface Database {
           domain?: string;
           expiration_date?: string;
           purchase_price?: number | null;
+          bin?: number | null;
           status?: "active" | "expired" | "sold" | "pending";
           registrar?: string | null;
           notes?: string | null;
@@ -115,6 +118,84 @@ export interface Database {
           skipped?: number;
           errors?: Json | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_settings: {
+        Row: {
+          id: string;
+          user_id: string;
+          sedo_partner_id: number | null;
+          sedo_signkey: string | null;
+          sedo_username: string | null;
+          sedo_password: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          sedo_partner_id?: number | null;
+          sedo_signkey?: string | null;
+          sedo_username?: string | null;
+          sedo_password?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          sedo_partner_id?: number | null;
+          sedo_signkey?: string | null;
+          sedo_username?: string | null;
+          sedo_password?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      sedo_listings: {
+        Row: {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          sedo_price: number;
+          sedo_minprice: number;
+          sedo_fixedprice: number;
+          sedo_currency: number;
+          sedo_forsale: number;
+          last_synced_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          sedo_price: number;
+          sedo_minprice?: number;
+          sedo_fixedprice?: number;
+          sedo_currency?: number;
+          sedo_forsale?: number;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          domain_id?: string;
+          domain_name?: string;
+          sedo_price?: number;
+          sedo_minprice?: number;
+          sedo_fixedprice?: number;
+          sedo_currency?: number;
+          sedo_forsale?: number;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

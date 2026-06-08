@@ -4,6 +4,7 @@ const nextConfig = {
     remotePatterns: [],
   },
   output: 'standalone',
+    allowedDevOrigins: ['local.domainbags.com'],
 };
 
 export default nextConfig;

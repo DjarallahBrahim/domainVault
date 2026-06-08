@@ -15,4 +15,10 @@ export const queryKeys = {
     details: () => [...queryKeys.importLogs.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.importLogs.details(), id] as const,
   },
+  sedoListings: {
+    all: ["sedo-listings"] as const,
+  },
+  userSettings: {
+    all: ["user-settings"] as const,
+  },
 };

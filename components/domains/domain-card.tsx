@@ -1,7 +1,9 @@
 "use client";
 
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
+import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import type { Database } from "@/types/supabase";
+import type { SedoListing } from "@/types/sedo";
 import { useRouter } from "next/navigation";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -9,6 +11,9 @@ type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 interface DomainCardProps {
   domain: DomainRow;
   onDelete: (id: string) => void;
+  sedoListings: Map<string, SedoListing>;
+  onSedoEdit: (domain: DomainRow, listing: SedoListing) => void;
+  onSedoCreate: (domain: DomainRow) => void;
 }
 
 const formatPrice = (price: number | null): string => {
@@ -16,7 +21,7 @@ const formatPrice = (price: number | null): string => {
   return `$${price.toLocaleString()}`;
 };
 
-export function DomainCard({ domain, onDelete }: DomainCardProps) {
+export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate }: DomainCardProps) {
   const router = useRouter();
 
   return (
@@ -45,6 +50,13 @@ export function DomainCard({ domain, onDelete }: DomainCardProps) {
         <div className="flex justify-between">
           <span>BIN</span>
           <span>{formatPrice((domain as Record<string, unknown>).bin as number | null)}</span>
+        </div>
+        <div className="border-t border-border pt-2">
+          <SedoCardRow
+            listing={sedoListings.get(domain.id)}
+            onEdit={(listing) => onSedoEdit(domain, listing)}
+            onCreate={() => onSedoCreate(domain)}
+          />
         </div>
         <div className="flex justify-between">
           <span>Added</span>

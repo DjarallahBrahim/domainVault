@@ -32,6 +32,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
+  const currentNotListed = searchParams.get("notListed") ?? "";
   const currentPageSize = searchParams.get("pageSize") ?? "50";
 
   const [searchValue, setSearchValue] = useState(urlSearch);
@@ -71,8 +72,8 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   }
 
   const hasFilters =
-    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars;
-  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars].filter(
+    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars || currentNotListed;
+  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars, currentNotListed].filter(
     Boolean
   ).length;
 
@@ -212,6 +213,23 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
             </Select>
           </div>
 
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Not Listed On</Label>
+            <Select
+              value={currentNotListed}
+              onValueChange={(value) => updateParam({ notListed: value === "all" ? "" : value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="sedo">Not listed on Sedo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Existing filter grid continues */}
           <div className="space-y-1">
             <Label className="text-xs text-text-muted font-medium">Page Size</Label>
             <Select
