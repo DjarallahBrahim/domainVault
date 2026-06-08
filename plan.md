@@ -619,22 +619,524 @@ The following components from v1 **must be removed** from the codebase before im
 | TLD Distribution Donut Chart | US-017 v1 | `[DELETED]` — remove component + query |
 
 ---
+# DomainVault — Phase 5 · Sedo Integration
 
-## 10. Non-Goals (v1 — unchanged)
-
-- No multi-user / team features
-- No registrar API integrations (manual CSV only)
-- No email / SMS renewal alerts
-- No mobile native app
+> Extracted spec for Phase 5 only. Build order is top-to-bottom:
+> **Step 1 — Migrations → Step 2 — Settings Page → Step 3 — API Routes → Step 4 — Domains Page**
+>
+> ### Tags
+> - `[NEW]` — does not exist yet, must be built from scratch
+> - `[UPDATED]` — exists but must be modified as described
 
 ---
 
-## 11. Future Backlog (Phase 5+)
+## Goal
 
-- Email renewal alerts via Supabase Edge Functions + Resend
-- Domain watchlist with WHOIS polling
-- Registrar API integration (Namecheap, GoDaddy, Spaceship)
-- Portfolio valuation via external APIs
-- Team / multi-user with role-based access
-- React Native mobile companion app
-- Auction tracker with bid history
+Users can list, edit price, and delist their domains on Sedo directly from DomainVault.
+The Sedo column in the Domains page shows cached prices. A global Sync button refreshes
+all listings at once. Credentials are configured in the Settings page.
+
+---
+
+## Sedo API Overview
+
+- **Protocol**: HTTP GET with `output_method=xml`
+- **Base URL**: `https://api.sedo.com/api/v1/`
+- **Auth params** (every call): `partnerid` · `signkey` · `username` · `password`
+- **Functions used**: `DomainList` · `DomainInsert` · `DomainEdit` · `DomainDelete` · `CheckMember`
+- **Sync strategy**: `DomainList` with no `$domain` filter returns all domains listed on the
+  account. Paginate via `startfrom` in batches of 100. This also catches domains the user
+  listed directly on Sedo's website (not via DomainVault).
+
+## Pricing Rules
+
+- Currency: always USD (`currency = 1`)
+- Fixed price: user-controlled toggle (`Fixed` / `Negotiable`), defaults to `Fixed` (`fixedprice = 1`)
+- Asking price: user-entered. Suggestion chips pre-filled from `domains.bin`: `BIN` · `BIN −20%` · `BIN −30%`. Chips only shown if `bin` is not null. Defaults to `bin` value if set.
+- Min offer: user-entered. Suggestion chips computed from current asking price: `20%` · `30%` · `40%` · `50%`. Chips recalculate live as asking price changes.
+
+## How to get Sedo credentials
+
+Users must register at `https://sedo.com/services/sedos-partner-program/` and email
+`[email protected]` to request a `partnerid` and `signkey`. `username` and `password`
+are their regular Sedo login credentials.
+
+---
+
+## Step 1 — Migrations
+
+### Migration 004 — BIN column `[NEW]`
+
+```sql
+-- purchase_price = what the user paid (do not touch)
+-- bin = asking / Buy It Now price when listing for sale
+ALTER TABLE domains ADD COLUMN bin DECIMAL(10,2);
+```
+
+### Migration 005 — User Settings `[NEW]`
+
+```sql
+CREATE TABLE user_settings (
+  id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id          UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  sedo_partner_id  INTEGER,
+  sedo_signkey     TEXT,
+  sedo_username    TEXT CHECK (char_length(sedo_username) <= 25),
+  sedo_password    TEXT CHECK (char_length(sedo_password) <= 16),
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own settings" ON user_settings FOR ALL USING (auth.uid() = user_id);
+```
+
+> `sedo_password` stored plain text, protected by RLS. Upgrade path: `pgcrypto` if needed.
+
+### Migration 006 — Sedo Listings Cache `[NEW]`
+
+```sql
+CREATE TABLE sedo_listings (
+  id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id          UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  domain_id        UUID REFERENCES domains(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  domain_name      TEXT NOT NULL,
+  sedo_price       DECIMAL(10,2) NOT NULL,
+  sedo_minprice    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  sedo_fixedprice  INTEGER NOT NULL DEFAULT 1,
+  sedo_currency    INTEGER NOT NULL DEFAULT 1,
+  sedo_forsale     INTEGER NOT NULL DEFAULT 1,
+  last_synced_at   TIMESTAMPTZ DEFAULT NOW(),
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_sedo_listings_user_id   ON sedo_listings(user_id);
+CREATE INDEX idx_sedo_listings_domain_id ON sedo_listings(domain_id);
+
+ALTER TABLE sedo_listings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own sedo_listings" ON sedo_listings FOR ALL USING (auth.uid() = user_id);
+```
+
+---
+
+## Step 2 — Settings Page `[NEW]`
+
+**File**: `app/(dashboard)/settings/page.tsx`
+**Components**: `components/settings/SettingsPage.tsx` · `components/settings/SedoCredentialsForm.tsx`
+
+Build this first — credentials must exist before any Sedo API call can work.
+
+### Section 1 — Account
+
+| Field | Source | Editable |
+|---|---|---|
+| Email | `supabase.auth.getUser()` | No — read-only |
+| Member since | `user.created_at` | No — read-only |
+| Change Password | — | Yes — inline sub-form |
+
+**Change Password sub-form**:
+- New password (min 8 chars, 1 number)
+- Confirm new password
+- `Save Password` → `supabase.auth.updateUser({ password })`
+- Success/error toast
+
+### Section 2 — Sedo API Credentials
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Sedo API Credentials                               │
+│  ─────────────────────────────────────────────────  │
+│  Partner ID      [________________]                 │
+│  Sign Key        [________________]                 │
+│  Username        [________________]  (max 25 chars) │
+│  Password        [••••••••]  👁        (max 16 chars) │
+│  ─────────────────────────────────────────────────  │
+│  [Test Connection]              [Save Credentials]  │
+│                                                     │
+│  ✅ Connected  /  ❌ Invalid credentials             │
+└─────────────────────────────────────────────────────┘
+```
+
+Helper text below the form:
+> "Partner ID and Sign Key are provided by Sedo upon request.
+> Register at sedo.com/services/sedos-partner-program/ then email [email protected]."
+
+**On page load**: fetch `user_settings` for current user, pre-fill all fields.
+Password field shows `••••••••` placeholder if a value exists — never exposes the actual value.
+
+**Test Connection**: `GET /api/sedo/check` → inline ✅ `Connected` or ❌ `Invalid credentials` badge below buttons. Does NOT save.
+
+**Save Credentials**: validates all 4 fields required + length constraints → upsert `user_settings` → success toast `"Sedo credentials saved"`.
+
+---
+
+## Step 3 — API Routes + Lib `[NEW]`
+
+### Folder additions
+
+```
+app/api/sedo/
+  list/route.ts
+  insert/route.ts
+  edit/route.ts
+  delete/route.ts
+  check/route.ts
+
+lib/sedo/
+  client.ts
+  pricing.ts
+```
+
+### `lib/sedo/client.ts` — `callSedo(fn, params)`
+
+- Build URL: `${SEDO_BASE}/${fn}?output_method=xml&${flattenedParams}`
+- Fetch with `node-fetch` or native `fetch` (Next.js 14 supports it)
+- Parse XML with `@xmldom/xmldom` → `npm install @xmldom/xmldom`
+- Root tag `SEDOFAULT` → throw `{ faultcode, faultstring }`
+- Root tag `SEDODOMAINLIST` or other → map `<item>` children to plain objects and return
+
+### `lib/sedo/pricing.ts`
+
+```ts
+export function computeSedoPricing(
+  price: number,
+  minprice: number,
+  fixedprice: 0 | 1
+) {
+  return { price, minprice, fixedprice, currency: 1 as const, forsale: 1 as const }
+}
+
+// Chips for Asking Price field — only shown when bin is set
+export function askingPriceSuggestions(bin: number | null) {
+  if (!bin) return []
+  return [
+    { label: 'BIN',      value: bin },
+    { label: 'BIN −20%', value: Math.round(bin * 0.80 * 100) / 100 },
+    { label: 'BIN −30%', value: Math.round(bin * 0.70 * 100) / 100 },
+  ]
+}
+
+// Chips for Min Offer field — recomputed whenever asking price changes
+export function minPriceSuggestions(askingPrice: number) {
+  return [
+    { label: '20%', value: Math.round(askingPrice * 0.20 * 100) / 100 },
+    { label: '30%', value: Math.round(askingPrice * 0.30 * 100) / 100 },
+    { label: '40%', value: Math.round(askingPrice * 0.40 * 100) / 100 },
+    { label: '50%', value: Math.round(askingPrice * 0.50 * 100) / 100 },
+  ]
+}
+```
+
+### Shared pattern in every route
+
+```ts
+// 1. Get authenticated user via Supabase server client
+// 2. Fetch user_settings — return 401 if credentials missing/incomplete
+// 3. Call callSedo() — return { error: faultstring } on Sedo fault, 500 on network error
+// 4. Return { data } on success
+```
+
+### Route table
+
+| Method | Route | Sedo fn | Body / Params |
+|---|---|---|---|
+| GET | `/api/sedo/list` | `DomainList` | — (no filter; returns all account listings) |
+| POST | `/api/sedo/insert` | `DomainInsert` | `{ domain, price, minprice, fixedprice }` |
+| POST | `/api/sedo/edit` | `DomainEdit` | `{ domain, price, minprice, fixedprice }` |
+| POST | `/api/sedo/delete` | `DomainDelete` | `{ domain }` |
+| GET | `/api/sedo/check` | `CheckMember` | — |
+
+`insert` and `edit` both call `computeSedoPricing(price, minprice, fixedprice)` server-side
+to build the final Sedo payload.
+
+---
+
+## Step 4 — Domains Page `[UPDATED]`
+
+### New files
+
+```
+components/domains/
+  SedoCell.tsx       ← desktop table cell
+  SedoCardRow.tsx    ← mobile card row
+  SedoOverlay.tsx    ← unified create / edit / delete overlay
+
+lib/hooks/
+  useSedoListings.ts
+  useSedoSync.ts
+
+types/
+  sedo.ts
+```
+
+### TypeScript Types — `types/sedo.ts`
+
+```ts
+export interface SedoCredentials {
+  partnerid: number
+  signkey: string
+  username: string
+  password: string
+}
+
+export interface SedoListing {
+  id: string
+  user_id: string
+  domain_id: string
+  domain_name: string
+  sedo_price: number
+  sedo_minprice: number
+  sedo_fixedprice: 0 | 1
+  sedo_currency: 0 | 1 | 2
+  sedo_forsale: 0 | 1
+  last_synced_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SedoInsertPayload {
+  domain: string
+  price: number       // user-chosen asking price
+  minprice: number    // user-chosen min offer
+  fixedprice: 0 | 1  // 1 = fixed, 0 = negotiable
+  currency: 1         // always USD
+  forsale: 1
+}
+
+export interface SedoUserSettings {
+  sedo_partner_id: number | null
+  sedo_signkey: string | null
+  sedo_username: string | null
+  sedo_password: string | null
+}
+```
+
+### Hooks
+
+**`lib/hooks/useSedoListings.ts`**
+```ts
+// TanStack Query key: ['sedo-listings']
+// Reads sedo_listings from Supabase for the current user.
+// Returns Map<domain_id, SedoListing> for O(1) lookup per table row.
+export function useSedoListings(): {
+  listings: Map<string, SedoListing>
+  isLoading: boolean
+}
+```
+
+**`lib/hooks/useSedoSync.ts`**
+```ts
+// Mutation: GET /api/sedo/list → upsert results into sedo_listings
+// → delete rows for domains Sedo no longer returns (delisted externally).
+// On success: invalidates ['sedo-listings'].
+export function useSedoSync(): {
+  sync: () => Promise<void>
+  isSyncing: boolean
+  lastSyncedAt: Date | null   // MAX(last_synced_at) from sedo_listings
+  error: string | null
+}
+```
+
+---
+
+### US-041 — Sedo Column in Desktop Table `[NEW]`
+
+Column position: immediately after `BIN`.
+
+Column header: `Sedo` with a small `RefreshCw` icon → tooltip `"Last synced: X min ago"`.
+
+Data source: `useSedoListings()` map — no API call on page load.
+
+**State A — not listed** (`listing === undefined`)
+```
+Not Listed     ← text-muted
+```
+
+**State B — listed** (`listing` exists)
+```
+$[sedo_price]   ✏️
+```
+- Price: `accent-success` color, JetBrains Mono
+- `sedo_price` is from `sedo_listings` cache — NOT `domains.bin`
+- ✏️ opens `SedoOverlay` in edit mode
+
+---
+
+### US-042 — Sedo Row in Mobile Cards `[NEW]`
+
+Each domain card gets a Sedo row at the bottom separated by `border-t`:
+
+```
+State A:   Sedo   Not Listed
+State B:   Sedo   $[price]   ✏️
+```
+
+Tapping ✏️ opens `SedoOverlay` as a full-screen bottom sheet.
+
+---
+
+### US-043 — SedoOverlay `[NEW]`
+
+**File**: `components/domains/SedoOverlay.tsx`
+
+Single component for both **create** (listing a domain) and **edit** (updating an existing listing).
+
+**Triggers**:
+- Desktop: ✏️ in Sedo column (edit mode) · "List on Sedo" in Actions menu (create mode)
+- Mobile: same, rendered as bottom sheet (`fixed bottom-0 w-full rounded-t-2xl`)
+
+**Data on open**: pre-populated from the domain row already loaded in the table — **no extra DB fetch**.
+
+#### Form layout
+
+```
+┌─────────────────────────────────────────────────────┐
+│  List on Sedo — example.com               ✕         │  ← title changes for edit mode
+│  ─────────────────────────────────────────────────  │
+│  Domain          example.com    (read-only)         │
+│  Registrar       GoDaddy        (read-only)         │
+│  Expires         2026-08-15     (read-only)         │
+│  ─────────────────────────────────────────────────  │
+│  Asking Price *                                     │
+│  [ $500.00 __________________ ] USD                 │
+│  [ BIN $500 ] [ BIN−20% $400 ] [ BIN−30% $350 ]    │  ← chips hidden if bin is null
+│                                                     │
+│  Min Offer *                                        │
+│  [ $200.00 __________________ ] USD                 │
+│  [ 20% $100 ] [ 30% $150 ] [ 40% $200 ] [ 50% $250]│  ← recalculate on asking price change
+│                                                     │
+│  Fixed Price                                        │
+│  [ Fixed  ●──────────○  Negotiable ]                │
+│  ─────────────────────────────────────────────────  │
+│  [Cancel]                     [List on Sedo →]      │  ← create mode footer
+└─────────────────────────────────────────────────────┘
+
+Edit mode footer:
+│  [🗑 Remove from Sedo]     [Cancel]    [Update →]   │
+│                                                     │
+│  "Remove from Sedo? [Yes] [Cancel]"  ← inline       │  ← shown on 🗑 click
+```
+
+#### Field spec
+
+| Field | Source | Editable | Required |
+|---|---|---|---|
+| Domain | `domains.domain` | No | — |
+| Registrar | `domains.registrar` | No | — |
+| Expiration Date | `domains.expiration_date` | No | — |
+| Asking Price | `domains.bin` (default) or `sedo_listings.sedo_price` (edit) | **Yes** | ✅ |
+| Min Offer | blank by default, or `sedo_listings.sedo_minprice` (edit) | **Yes** | ✅ |
+| Fixed Price | `Fixed` by default, or existing value (edit) | **Yes** — toggle | ✅ |
+| Currency | always USD | No | — |
+
+#### On submit (create or update)
+1. If `bin` was null and user entered an asking price → `PATCH domains` to save `bin`.
+2. `POST /api/sedo/insert` or `POST /api/sedo/edit` with `{ domain, price, minprice, fixedprice }`.
+3. On success → upsert row in `sedo_listings` via Supabase client.
+4. Invalidate `['sedo-listings']` + `['domains']`.
+5. Close overlay. Toast: `"[domain] listed on Sedo"` or `"Sedo price updated"`.
+
+#### On remove
+1. Inline confirm in footer: `"Remove from Sedo? [Yes] [Cancel]"`
+2. `Yes` → `POST /api/sedo/delete` with `{ domain }`.
+3. Delete `sedo_listings` row.
+4. Invalidate `['sedo-listings']`.
+5. Close overlay. Toast: `"[domain] removed from Sedo"`.
+6. Cell reverts to State A.
+
+**Loading**: CTA spinner + inputs disabled during call.
+**Error**: Sedo fault shown inline above footer — not a toast.
+
+---
+
+### US-044 — Sedo Sync Button `[NEW]`
+
+**File**: `components/domains/SedoSyncButton.tsx`
+
+Placed in the Domains page toolbar, right of existing controls.
+
+```
+<RefreshCw />  Sync Sedo
+               Last synced: 4 min ago
+```
+
+**On click**:
+1. `GET /api/sedo/list` — no `$domain` filter, returns all listings in the account.
+   Paginate: `startfrom=0`, `startfrom=100`, … until empty result.
+2. Upsert all returned domains into `sedo_listings`.
+3. Delete `sedo_listings` rows for domains Sedo did not return (delisted externally) → cells revert to State A.
+4. Invalidate `['sedo-listings']` → table re-renders.
+
+**UI states**:
+- Syncing: `RefreshCw` spins (`animate-spin`), button disabled.
+- "Last synced" reads `MAX(last_synced_at)` from `sedo_listings`.
+- Success: toast `"Sedo listings synced"`.
+- Error: toast with `faultstring`.
+- No credentials: button disabled + tooltip `"Add Sedo credentials in Settings"`.
+
+---
+
+## Error Handling Matrix
+
+| Scenario | Where | Behavior |
+|---|---|---|
+| No credentials saved | Domains page | Sync button disabled + tooltip pointing to Settings |
+| No credentials saved | SedoOverlay | Inline error: "Add Sedo credentials in Settings first" |
+| `bin` is NULL | SedoOverlay | Asking Price input empty — user must fill before submit |
+| Sedo API fault | SedoOverlay | Error inline above footer (not toast) |
+| Sedo API fault | Sync | Error toast with `faultstring` |
+| Domain gone from Sedo on sync | useSedoSync | Delete row → cell shows `Not Listed` |
+| Network error | Any route | `500` → toast `"Could not reach Sedo. Try again."` |
+| Supabase write failure | Any mutation | Toast with error, no UI change |
+| Invalid credentials | Settings | Inline badge `❌ Invalid credentials` |
+
+---
+
+## Definition of Done — Phase 5
+
+### Step 1 — Migrations
+- [ ] Migration 004 applied (`bin` column on `domains`)
+- [ ] Migration 005 applied (`user_settings` table + RLS)
+- [ ] Migration 006 applied (`sedo_listings` table + RLS)
+
+### Step 2 — Settings Page
+- [ ] Account section: email read-only, member since, change password flow
+- [ ] Sedo section: all 4 fields visible, show/hide password toggle works
+- [ ] Page loads existing credentials pre-filled (password masked)
+- [ ] Test Connection shows inline ✅ / ❌ without saving
+- [ ] Save Credentials upserts + success toast
+- [ ] Helper text with link to Sedo partner program
+
+### Step 3 — API Routes
+- [ ] `GET /api/sedo/check` — credential validation
+- [ ] `GET /api/sedo/list` — returns all account listings as JSON, paginated
+- [ ] `POST /api/sedo/insert` — lists domain, pricing computed server-side
+- [ ] `POST /api/sedo/edit` — updates price, pricing computed server-side
+- [ ] `POST /api/sedo/delete` — delists domain
+- [ ] All routes return `401` when credentials missing, `{ error }` on Sedo fault, `500` on network error
+
+### Step 4 — Domains Page
+- [ ] `BIN` column visible (desktop table + mobile card)
+- [ ] `Sedo` column visible immediately after `BIN` (desktop table + mobile card)
+- [ ] State A: `Not Listed` shown for unlisted domains
+- [ ] State B: `$price ✏️` shown for listed domains (price from cache, not `bin`)
+- [ ] SedoOverlay opens in create mode from Actions menu
+- [ ] SedoOverlay opens in edit mode from ✏️
+- [ ] Overlay pre-fills all data from existing table row — zero extra DB fetch
+- [ ] Asking price chips shown only when `bin` is set, pre-computed correctly
+- [ ] Min offer chips recalculate live as asking price changes
+- [ ] Fixed/Negotiable toggle works
+- [ ] Create flow: insert → upsert cache → cell switches to State B
+- [ ] Edit flow: edit → update cache → cell re-renders with new price
+- [ ] Remove flow: inline confirm → delete from Sedo + cache → State A
+- [ ] Mobile: SedoOverlay renders as bottom sheet at 375px
+- [ ] Sync button fetches all listings, paginates correctly, cleans stale rows
+- [ ] Sync button shows last synced time, disabled state when no credentials
+
+### Quality
+- [ ] No credentials → no crashes anywhere, disabled states with tooltips
+- [ ] All loading states: spinners on CTAs, no layout shift
+- [ ] All error states: inline in overlay, toasts for sync
+- [ ] Zero TypeScript errors
+- [ ] Works correctly at 375px (mobile) and 1440px+ (desktop)
