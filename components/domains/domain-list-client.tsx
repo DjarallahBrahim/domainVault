@@ -14,6 +14,7 @@ import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { SedoOverlay } from "@/components/domains/SedoOverlay";
 import { SedoSyncButton } from "@/components/domains/SedoSyncButton";
 import { useSedoListings } from "@/lib/hooks/useSedoListings";
+import { useSedoRefreshOne } from "@/lib/hooks/useSedoRefreshOne";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
@@ -63,6 +64,11 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   const [sedoExistingListing, setSedoExistingListing] = useState<SedoListing | null>(null);
 
   const { listings: sedoListings } = useSedoListings();
+  const { refreshOne, isRefreshing } = useSedoRefreshOne();
+
+  function handleSedoRefresh(domain: DomainRow) {
+    refreshOne(domain.domain, domain.id);
+  }
 
   function handleSedoEdit(domain: DomainRow, listing: SedoListing) {
     setSedoOverlayDomain(domain);
@@ -211,6 +217,8 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           sedoListings={sedoListings}
           onSedoEdit={handleSedoEdit}
           onSedoCreate={handleSedoCreate}
+          onSedoRefresh={handleSedoRefresh}
+          sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
         />
       </div>
 
@@ -223,6 +231,8 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
             sedoListings={sedoListings}
             onSedoEdit={handleSedoEdit}
             onSedoCreate={handleSedoCreate}
+            onSedoRefresh={handleSedoRefresh}
+            sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
           />
         ))}
       </div>

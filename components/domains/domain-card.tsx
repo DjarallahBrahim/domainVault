@@ -14,6 +14,8 @@ interface DomainCardProps {
   sedoListings: Map<string, SedoListing>;
   onSedoEdit: (domain: DomainRow, listing: SedoListing) => void;
   onSedoCreate: (domain: DomainRow) => void;
+  onSedoRefresh: (domain: DomainRow) => void;
+  sedoRefreshingIds: Set<string>;
 }
 
 const formatPrice = (price: number | null): string => {
@@ -21,7 +23,7 @@ const formatPrice = (price: number | null): string => {
   return `$${price.toLocaleString()}`;
 };
 
-export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate }: DomainCardProps) {
+export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds }: DomainCardProps) {
   const router = useRouter();
 
   return (
@@ -56,6 +58,8 @@ export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoC
             listing={sedoListings.get(domain.id)}
             onEdit={(listing) => onSedoEdit(domain, listing)}
             onCreate={() => onSedoCreate(domain)}
+            onRefresh={() => onSedoRefresh(domain)}
+            refreshing={sedoRefreshingIds.has(domain.id)}
           />
         </div>
         <div className="flex justify-between">

@@ -32,6 +32,8 @@ interface DomainTableProps {
   sedoListings: Map<string, SedoListing>;
   onSedoEdit: (domain: DomainRow, listing: SedoListing) => void;
   onSedoCreate: (domain: DomainRow) => void;
+  onSedoRefresh: (domain: DomainRow) => void;
+  sedoRefreshingIds: Set<string>;
 }
 
 export function DomainTable({
@@ -46,6 +48,8 @@ export function DomainTable({
   sedoListings,
   onSedoEdit,
   onSedoCreate,
+  onSedoRefresh,
+  sedoRefreshingIds,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -178,7 +182,7 @@ export function DomainTable({
           </TableHeader>
           <TableBody>
             {domains.map((domain) => (
-              <TableRow key={domain.id}>
+              <TableRow key={domain.id} className="hover:bg-bg-elevated">
                 <TableCell>
                   <Checkbox
                     checked={selectedIds.has(domain.id)}
@@ -224,6 +228,8 @@ export function DomainTable({
                     listing={sedoListings.get(domain.id)}
                     onEdit={(listing) => onSedoEdit(domain, listing)}
                     onCreate={() => onSedoCreate(domain)}
+                    onRefresh={() => onSedoRefresh(domain)}
+                    refreshing={sedoRefreshingIds.has(domain.id)}
                   />
                 </TableCell>
                 {showAllColumns && (

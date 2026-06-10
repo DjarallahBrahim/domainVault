@@ -28,50 +28,45 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const credentials = {
+    const { searchParams } = new URL(request.url);
+    const domain = searchParams.get("domain");
+
+    if (!domain) {
+      return NextResponse.json({ error: "Missing domain parameter" }, { status: 400 });
+    }
+
+    const items = await callSedo("DomainStatus", {
       partnerid: settings.sedo_partner_id,
       signkey: settings.sedo_signkey,
       username: settings.sedo_username,
       password: settings.sedo_password,
+      "domainlist[0]": domain,
+    });
+
+    if (items.length === 0) {
+      return NextResponse.json({
+        data: { domain, listed: false, price: null, currency: null },
+      });
+    }
+
+    const item = items[0] as {
+      domain?: string;
+      forsale?: string | boolean;
+      price?: string | number;
+      currency?: string | number;
+      domainstatus?: string | number;
     };
 
-    const { searchParams } = new URL(request.url);
-    const domainFilter = searchParams.get("domain");
-
-    const allListings: Record<string, string | number>[] = [];
-    let startfrom = 0;
-    const pageSize = 100;
-
-    while (true) {
-      try {
-        const items = await callSedo("DomainList", {
-          partnerid: credentials.partnerid,
-          signkey: credentials.signkey,
-          username: credentials.username,
-          password: credentials.password,
-          startfrom,
-          ...(domainFilter ? { "$domain": domainFilter } : {}),
-        });
-
-        if (items.length === 0) break;
-
-        allListings.push(...items);
-
-        if (domainFilter) break;
-        startfrom += pageSize;
-      } catch (err: unknown) {
-        const faultstring = (err as { faultstring?: string }).faultstring;
-        if (faultstring && /no data|no domains|no listings/i.test(faultstring)) {
-          break;
-        }
-        throw err;
-      }
-    }
+    const isListed =
+      (item.forsale === "true" || item.forsale === true) &&
+      (item.domainstatus === "1" || item.domainstatus === 1);
 
     return NextResponse.json({
       data: {
-        listings: allListings,
-        total: allListings.length,
+        domain: item.domain ?? domain,
+        listed: isListed,
+        price: isListed ? Number(item.price) || 0 : null,
+        currency: isListed ? Number(item.currency) || 1 : null,
       },
     });
   } catch (err: unknown) {
