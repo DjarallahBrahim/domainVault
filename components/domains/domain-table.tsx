@@ -13,8 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
+import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
+import type { SpaceshipListing } from "@/types/spaceship";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ArrowUpDown } from "lucide-react";
 
@@ -34,6 +36,11 @@ interface DomainTableProps {
   onSedoCreate: (domain: DomainRow) => void;
   onSedoRefresh: (domain: DomainRow) => void;
   sedoRefreshingIds: Set<string>;
+  spaceshipListings: Map<string, SpaceshipListing>;
+  onSpaceshipEdit: (domain: DomainRow, listing: SpaceshipListing) => void;
+  onSpaceshipCreate: (domain: DomainRow) => void;
+  onSpaceshipRefresh: (domain: DomainRow) => void;
+  spaceshipRefreshingIds: Set<string>;
 }
 
 export function DomainTable({
@@ -50,6 +57,11 @@ export function DomainTable({
   onSedoCreate,
   onSedoRefresh,
   sedoRefreshingIds,
+  spaceshipListings,
+  onSpaceshipEdit,
+  onSpaceshipCreate,
+  onSpaceshipRefresh,
+  spaceshipRefreshingIds,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -157,6 +169,7 @@ export function DomainTable({
               )}
               <TableHead>BIN</TableHead>
               <TableHead>Sedo</TableHead>
+              <TableHead>Spaceship</TableHead>
               {showAllColumns && (
                 <TableHead>
                   <button
@@ -230,6 +243,15 @@ export function DomainTable({
                     onCreate={() => onSedoCreate(domain)}
                     onRefresh={() => onSedoRefresh(domain)}
                     refreshing={sedoRefreshingIds.has(domain.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <SpaceshipCell
+                    listing={spaceshipListings.get(domain.id)}
+                    onEdit={(listing) => onSpaceshipEdit(domain, listing)}
+                    onCreate={() => onSpaceshipCreate(domain)}
+                    onRefresh={() => onSpaceshipRefresh(domain)}
+                    refreshing={spaceshipRefreshingIds.has(domain.id)}
                   />
                 </TableCell>
                 {showAllColumns && (

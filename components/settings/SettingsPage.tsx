@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { SedoCredentialsForm } from "@/components/settings/SedoCredentialsForm";
+import { SpaceshipCredentialsForm } from "@/components/settings/SpaceshipCredentialsForm";
 
 export function SettingsPage() {
   const router = useRouter();
@@ -136,6 +137,8 @@ export function SettingsPage() {
       </Card>
 
       <SedoCredentialsForm />
+
+      <SpaceshipCredentialsForm />
 
       <Card>
         <CardContent className="pt-6">

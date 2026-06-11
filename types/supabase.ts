@@ -129,6 +129,8 @@ export interface Database {
           sedo_signkey: string | null;
           sedo_username: string | null;
           sedo_password: string | null;
+          spaceship_api_key: string | null;
+          spaceship_api_secret: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +141,8 @@ export interface Database {
           sedo_signkey?: string | null;
           sedo_username?: string | null;
           sedo_password?: string | null;
+          spaceship_api_key?: string | null;
+          spaceship_api_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -149,6 +153,8 @@ export interface Database {
           sedo_signkey?: string | null;
           sedo_username?: string | null;
           sedo_password?: string | null;
+          spaceship_api_key?: string | null;
+          spaceship_api_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -193,6 +199,48 @@ export interface Database {
           sedo_fixedprice?: number;
           sedo_currency?: number;
           sedo_forsale?: number;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      spaceship_listings: {
+        Row: {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          spaceship_domain_id: string | null;
+          spaceship_price: number;
+          spaceship_minprice: number;
+          spaceship_currency: string;
+          last_synced_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          spaceship_domain_id?: string | null;
+          spaceship_price: number;
+          spaceship_minprice?: number;
+          spaceship_currency?: string;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          domain_id?: string;
+          domain_name?: string;
+          spaceship_domain_id?: string | null;
+          spaceship_price?: number;
+          spaceship_minprice?: number;
+          spaceship_currency?: string;
           last_synced_at?: string;
           created_at?: string;
           updated_at?: string;

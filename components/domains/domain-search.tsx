@@ -225,6 +225,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="sedo">Not listed on Sedo</SelectItem>
+                <SelectItem value="spaceship">Not listed on Spaceship</SelectItem>
               </SelectContent>
             </Select>
           </div>

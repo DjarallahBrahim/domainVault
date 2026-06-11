@@ -13,14 +13,19 @@ import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
 import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { SedoOverlay } from "@/components/domains/SedoOverlay";
 import { SedoSyncButton } from "@/components/domains/SedoSyncButton";
+import { SpaceshipOverlay } from "@/components/domains/SpaceshipOverlay";
+import { SpaceshipSyncButton } from "@/components/domains/SpaceshipSyncButton";
 import { useSedoListings } from "@/lib/hooks/useSedoListings";
 import { useSedoRefreshOne } from "@/lib/hooks/useSedoRefreshOne";
+import { useSpaceshipListings } from "@/lib/hooks/useSpaceshipListings";
+import { useSpaceshipRefreshOne } from "@/lib/hooks/useSpaceshipRefreshOne";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
 import { toast } from "sonner";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
+import type { SpaceshipListing } from "@/types/spaceship";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -66,6 +71,12 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   const { listings: sedoListings } = useSedoListings();
   const { refreshOne, isRefreshing } = useSedoRefreshOne();
 
+  const [spaceshipOverlayDomain, setSpaceshipOverlayDomain] = useState<DomainRow | null>(null);
+  const [spaceshipExistingListing, setSpaceshipExistingListing] = useState<SpaceshipListing | null>(null);
+
+  const { listings: spaceshipListings } = useSpaceshipListings();
+  const { refreshOne: refreshSpaceshipOne, isRefreshing: isSpaceshipRefreshing } = useSpaceshipRefreshOne();
+
   function handleSedoRefresh(domain: DomainRow) {
     refreshOne(domain.domain, domain.id);
   }
@@ -83,6 +94,25 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   function handleSedoClose() {
     setSedoOverlayDomain(null);
     setSedoExistingListing(null);
+  }
+
+  function handleSpaceshipRefresh(domain: DomainRow) {
+    refreshSpaceshipOne(domain.domain, domain.id);
+  }
+
+  function handleSpaceshipEdit(domain: DomainRow, listing: SpaceshipListing) {
+    setSpaceshipOverlayDomain(domain);
+    setSpaceshipExistingListing(listing);
+  }
+
+  function handleSpaceshipCreate(domain: DomainRow) {
+    setSpaceshipOverlayDomain(domain);
+    setSpaceshipExistingListing(null);
+  }
+
+  function handleSpaceshipClose() {
+    setSpaceshipOverlayDomain(null);
+    setSpaceshipExistingListing(null);
   }
 
   function handleAdd() {
@@ -200,8 +230,9 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           <Plus className="h-4 w-4 mr-1" />
           Add Domain
         </Button>
-        <SedoSyncButton />
-      </div>
+          <SedoSyncButton />
+          <SpaceshipSyncButton />
+        </div>
       <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
 
       <div className="hidden sm:block">
@@ -219,6 +250,11 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           onSedoCreate={handleSedoCreate}
           onSedoRefresh={handleSedoRefresh}
           sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
+          spaceshipListings={spaceshipListings}
+          onSpaceshipEdit={handleSpaceshipEdit}
+          onSpaceshipCreate={handleSpaceshipCreate}
+          onSpaceshipRefresh={handleSpaceshipRefresh}
+          spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
         />
       </div>
 
@@ -233,6 +269,11 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
             onSedoCreate={handleSedoCreate}
             onSedoRefresh={handleSedoRefresh}
             sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
+            spaceshipListings={spaceshipListings}
+            onSpaceshipEdit={handleSpaceshipEdit}
+            onSpaceshipCreate={handleSpaceshipCreate}
+            onSpaceshipRefresh={handleSpaceshipRefresh}
+            spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
           />
         ))}
       </div>
@@ -272,6 +313,27 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         onSuccess={() => {
           setSedoOverlayDomain(null);
           setSedoExistingListing(null);
+        }}
+      />
+
+      <SpaceshipOverlay
+        open={spaceshipOverlayDomain !== null}
+        onClose={handleSpaceshipClose}
+        domain={
+          spaceshipOverlayDomain
+            ? {
+                id: spaceshipOverlayDomain.id,
+                domain: spaceshipOverlayDomain.domain,
+                registrar: spaceshipOverlayDomain.registrar,
+                expiration_date: spaceshipOverlayDomain.expiration_date,
+                bin: (spaceshipOverlayDomain as Record<string, unknown>).bin as number | null,
+              }
+            : null
+        }
+        existingListing={spaceshipExistingListing}
+        onSuccess={() => {
+          setSpaceshipOverlayDomain(null);
+          setSpaceshipExistingListing(null);
         }}
       />
     </div>
