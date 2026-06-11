@@ -2,8 +2,10 @@
 
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
+import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
+import type { SpaceshipListing } from "@/types/spaceship";
 import { useRouter } from "next/navigation";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -16,6 +18,11 @@ interface DomainCardProps {
   onSedoCreate: (domain: DomainRow) => void;
   onSedoRefresh: (domain: DomainRow) => void;
   sedoRefreshingIds: Set<string>;
+  spaceshipListings: Map<string, SpaceshipListing>;
+  onSpaceshipEdit: (domain: DomainRow, listing: SpaceshipListing) => void;
+  onSpaceshipCreate: (domain: DomainRow) => void;
+  onSpaceshipRefresh: (domain: DomainRow) => void;
+  spaceshipRefreshingIds: Set<string>;
 }
 
 const formatPrice = (price: number | null): string => {
@@ -23,7 +30,7 @@ const formatPrice = (price: number | null): string => {
   return `$${price.toLocaleString()}`;
 };
 
-export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds }: DomainCardProps) {
+export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds, spaceshipListings, onSpaceshipEdit, onSpaceshipCreate, onSpaceshipRefresh, spaceshipRefreshingIds }: DomainCardProps) {
   const router = useRouter();
 
   return (
@@ -61,6 +68,18 @@ export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoC
             onRefresh={() => onSedoRefresh(domain)}
             refreshing={sedoRefreshingIds.has(domain.id)}
           />
+        </div>
+        <div className="border-t border-border pt-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-text-muted">Spaceship</span>
+            <SpaceshipCell
+              listing={spaceshipListings.get(domain.id)}
+              onEdit={(listing) => onSpaceshipEdit(domain, listing)}
+              onCreate={() => onSpaceshipCreate(domain)}
+              onRefresh={() => onSpaceshipRefresh(domain)}
+              refreshing={spaceshipRefreshingIds.has(domain.id)}
+            />
+          </div>
         </div>
         <div className="flex justify-between">
           <span>Added</span>

@@ -22,6 +22,7 @@ export interface DomainFilters {
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
   sedo: "sedo_listings",
+  spaceship: "spaceship_listings",
 };
 
 export async function fetchDomains(filters: DomainFilters) {

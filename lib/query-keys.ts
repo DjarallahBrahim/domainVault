@@ -18,6 +18,9 @@ export const queryKeys = {
   sedoListings: {
     all: ["sedo-listings"] as const,
   },
+  spaceshipListings: {
+    all: ["spaceship-listings"] as const,
+  },
   userSettings: {
     all: ["user-settings"] as const,
   },
