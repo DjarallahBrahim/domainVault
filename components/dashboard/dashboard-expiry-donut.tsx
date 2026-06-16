@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { ExpirySegments } from "@/lib/supabase/queries/dashboard";
 
-const COLORS = ["#ef4444", "#f59e0b", "#eab308", "#10b981"];
-const LABELS = ["≤1 month", "≤3 months", "≤6 months", "≤9 months"];
+const COLORS = ["#ef4444", "#f59e0b", "#eab308", "#10b981", "#94a3b8"];
+const LABELS = ["≤1 month", "≤3 months", "≤6 months", "≤9 months", ">9 months"];
 
 interface DashboardExpiryDonutProps {
   segments: ExpirySegments | null;
@@ -30,9 +30,10 @@ export function DashboardExpiryDonut({ segments }: DashboardExpiryDonutProps) {
     { name: "≤3 months", value: segments.exp_3m },
     { name: "≤6 months", value: segments.exp_6m },
     { name: "≤9 months", value: segments.exp_9m },
+    { name: ">9 months", value: segments.exp_over_9m },
   ];
 
-  const total = rawData.reduce((sum, d) => sum + d.value, 0);
+  const total = segments.total_active;
   const allZero = total === 0;
 
   const chartData = allZero ? [{ name: "Empty", value: 1 }] : rawData.filter((d) => d.value > 0);
@@ -53,7 +54,7 @@ export function DashboardExpiryDonut({ segments }: DashboardExpiryDonutProps) {
       <h3 className="text-sm font-semibold mb-4">Expiry Overview</h3>
       {allZero ? (
         <div className="h-64 flex items-center justify-center text-sm text-text-muted">
-          No expiring domains — your portfolio is in great shape
+          No active domains in your portfolio
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row items-center gap-6">
@@ -101,7 +102,7 @@ export function DashboardExpiryDonut({ segments }: DashboardExpiryDonutProps) {
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
                 <p className="text-3xl font-bold">{total}</p>
-                <p className="text-xs text-text-muted">total</p>
+                <p className="text-xs text-text-muted">active</p>
               </div>
             </div>
           </div>

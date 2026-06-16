@@ -80,6 +80,8 @@ export interface ExpirySegments {
   exp_3m: number;
   exp_6m: number;
   exp_9m: number;
+  exp_over_9m: number;
+  total_active: number;
 }
 
 export async function fetchExpirySegments(): Promise<ExpirySegments> {
@@ -93,6 +95,7 @@ export async function fetchExpirySegments(): Promise<ExpirySegments> {
 
   const rows = (data ?? []) as unknown as DomainRow[];
   const active = rows.filter((d) => d.status === "active");
+  const total_active = active.length;
 
   const now = new Date();
   let exp_1m = 0;
@@ -115,7 +118,9 @@ export async function fetchExpirySegments(): Promise<ExpirySegments> {
     }
   }
 
-  return { exp_1m, exp_3m, exp_6m, exp_9m };
+  const exp_over_9m = total_active - exp_1m - exp_3m - exp_6m - exp_9m;
+
+  return { exp_1m, exp_3m, exp_6m, exp_9m, exp_over_9m, total_active };
 }
 
 export interface RegistrarBreakdown {
