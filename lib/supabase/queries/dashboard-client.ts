@@ -133,7 +133,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 }
 
 export interface ExpirySegments {
-  exp_1m: number; exp_3m: number; exp_6m: number; exp_9m: number;
+  exp_1m: number; exp_3m: number; exp_6m: number; exp_9m: number; exp_over_9m: number; total_active: number;
 }
 
 export async function fetchExpirySegments(): Promise<ExpirySegments> {
@@ -141,6 +141,7 @@ export async function fetchExpirySegments(): Promise<ExpirySegments> {
   const { data, error } = await supabase.from("domains").select("expiration_date, status");
   if (error) throw error;
   const active = ((data ?? []) as unknown as DomainRow[]).filter((d) => d.status === "active");
+  const total_active = active.length;
   const now = new Date();
   let e1 = 0, e3 = 0, e6 = 0, e9 = 0;
   for (const d of active) {
@@ -150,7 +151,8 @@ export async function fetchExpirySegments(): Promise<ExpirySegments> {
     else if (days <= 180) e6++;
     else if (days <= 270) e9++;
   }
-  return { exp_1m: e1, exp_3m: e3, exp_6m: e6, exp_9m: e9 };
+  const eOver = total_active - e1 - e3 - e6 - e9;
+  return { exp_1m: e1, exp_3m: e3, exp_6m: e6, exp_9m: e9, exp_over_9m: eOver, total_active };
 }
 
 export interface RegistrarBreakdown {
