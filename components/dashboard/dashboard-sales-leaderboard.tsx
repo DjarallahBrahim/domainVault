@@ -110,7 +110,7 @@ export function DashboardSalesLeaderboard() {
                       <span className="text-text-muted w-8 text-center">{i + 1}</span>
                       <span className="font-mono truncate flex-1">{s.domain}</span>
                       <span className="text-right w-20">
-                        ${s.sale_price.toLocaleString()}
+                        ${s.sale_price.toLocaleString("en-US")}
                       </span>
                       <span
                         className={`text-right w-16 ${
@@ -135,13 +135,13 @@ export function DashboardSalesLeaderboard() {
                           <span className="text-text-muted">Purchase Price</span>
                           <span>
                             {s.purchase_price
-                              ? `$${s.purchase_price.toLocaleString()}`
+                              ? `$${s.purchase_price.toLocaleString("en-US")}`
                               : "—"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-text-muted">Sale Price</span>
-                          <span>${s.sale_price.toLocaleString()}</span>
+                          <span>${s.sale_price.toLocaleString("en-US")}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-text-muted">Profit</span>
@@ -155,7 +155,7 @@ export function DashboardSalesLeaderboard() {
                             }
                           >
                             {s.purchase_price
-                              ? `$${(s.sale_price - s.purchase_price).toLocaleString()}`
+                              ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
                               : "—"}
                           </span>
                         </div>

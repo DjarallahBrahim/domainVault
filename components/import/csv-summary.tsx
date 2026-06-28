@@ -23,7 +23,7 @@ export function CsvSummary({
         <CardTitle className="text-base">Import Results: {filename}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex items-center gap-2 p-3 rounded-md bg-accent-success/10">
             <CheckCircle2 className="h-5 w-5 text-accent-success" />
             <div>

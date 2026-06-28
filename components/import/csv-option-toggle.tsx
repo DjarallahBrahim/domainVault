@@ -12,7 +12,7 @@ export function CsvOptionToggle({
   disabled = false,
 }: CsvOptionToggleProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       <span className="text-sm text-text-muted">Duplicate handling:</span>
       <button
         type="button"

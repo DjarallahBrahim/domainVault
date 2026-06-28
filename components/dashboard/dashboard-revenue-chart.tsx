@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
@@ -84,14 +84,10 @@ export function DashboardRevenueChart() {
       ? allMonths
       : allMonths.slice(-(range === "12M" ? 12 : 24));
 
-  const chartData = useMemo(
-    () =>
-      filtered.map((d) => ({
-        ...d,
-        countScaled: d.count * COUNT_SCALE,
-      })),
-    [filtered]
-  );
+  const chartData = filtered.map((d) => ({
+    ...d,
+    countScaled: d.count * COUNT_SCALE,
+  }));
 
   return (
     <div className="rounded-xl border border-border bg-bg-surface p-6">
@@ -152,13 +148,13 @@ export function DashboardRevenueChart() {
                   <div className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-sm shadow-lg">
                     <p className="font-medium">{d.month}</p>
                     <p className="text-accent-primary font-medium">
-                      ${d.revenue.toLocaleString()}
+                      ${d.revenue.toLocaleString("en-US")}
                     </p>
                     <p style={{ color: "#f59e0b" }}>
                       {d.count} sale{d.count !== 1 ? "s" : ""}
                     </p>
                     <p className="text-accent-success text-xs">
-                      Cumulative: ${d.cumulative.toLocaleString()}
+                      Cumulative: ${d.cumulative.toLocaleString("en-US")}
                     </p>
                   </div>
                 );

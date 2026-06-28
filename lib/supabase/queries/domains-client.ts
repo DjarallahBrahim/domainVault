@@ -79,15 +79,7 @@ export async function fetchDomains(filters: DomainFilters) {
   if (filters.notListed) {
     const table = PLATFORM_LISTINGS_TABLE[filters.notListed];
     if (table) {
-      const { data: listed } = await supabase
-        .from(table as "domains")
-        .select("domain_id");
-
-      const listedIds = ((listed ?? []) as unknown as Array<{ domain_id: string }>).map(r => r.domain_id);
-
-      if (listedIds.length > 0) {
-        query = query.not("id", "in", `(${listedIds.join(",")})`);
-      }
+      query = query.not("id", "in", `(select "domain_id" from "${table}")`);
     }
   }
 

@@ -99,10 +99,10 @@ export function DashboardPlatformBreakdown() {
                       {d.sales_count} sale{d.sales_count !== 1 ? "s" : ""}
                     </p>
                     <p className="text-accent-primary font-medium">
-                      ${d.total_revenue.toLocaleString()}
+                      ${d.total_revenue.toLocaleString("en-US")}
                     </p>
                     <p className="text-xs text-text-muted">
-                      Avg: ${d.avg_sale_price.toLocaleString()}
+                      Avg: ${d.avg_sale_price.toLocaleString("en-US")}
                     </p>
                   </div>
                 );

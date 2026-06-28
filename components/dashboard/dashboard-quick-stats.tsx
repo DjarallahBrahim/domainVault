@@ -30,12 +30,12 @@ export function DashboardQuickStats({ stats }: DashboardQuickStatsProps) {
   }
 
   const items = [
-    { label: "Avg Price", value: `$${stats.avg_price.toLocaleString()}` },
+    { label: "Avg Price", value: `$${stats.avg_price.toLocaleString("en-US")}` },
     { label: "Top Registrar", value: stats.most_common_registrar },
     { label: "Oldest Domain", value: stats.oldest_domain },
     { label: "Newest Domain", value: stats.newest_domain },
     { label: "Total Expired", value: String(stats.total_expired) },
-    { label: "Total Earnings", value: `$${stats.total_earnings.toLocaleString()}` },
+    { label: "Total Earnings", value: `$${stats.total_earnings.toLocaleString("en-US")}` },
   ];
 
   return (

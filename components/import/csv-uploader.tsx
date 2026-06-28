@@ -112,7 +112,7 @@ export function CsvUploader({
   }, [pasteValue, onContentReady]);
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-0">
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-stretch gap-0">
       {/* ── Left: Paste CSV text ── */}
       <div className="rounded-lg border border-border bg-bg-surface p-6 flex flex-col">
         <p className="text-sm font-medium text-text-primary mb-2">
@@ -121,18 +121,18 @@ export function CsvUploader({
         <p className="text-xs text-text-muted mb-2">
           Expected format (no header needed):
           <br />
-          <code className="text-[11px] bg-bg-elevated px-1 rounded">
+          <code className="text-xs bg-bg-elevated px-1 rounded break-all">
             domain, expiration_date, purchase_price, bin, registrar, notes, tags
           </code>
           <br />
-          <span className="text-[10px]">
+          <span className="text-xs">
             Required: <strong>domain</strong>, <strong>expiration_date</strong>. Other columns are optional.
           </span>
         </p>
         <p className="text-xs text-text-muted mb-3">
           Example:
           <br />
-          <code className="text-[11px] bg-bg-elevated px-1 rounded">
+          <code className="text-xs bg-bg-elevated px-1 rounded break-all">
             acme.com, 2025-12-31, 16.00, 120, GoDaddy, client renewal, client1
             <br />
             store.io, 2026-06-15, , , Namecheap, ,
@@ -157,7 +157,7 @@ export function CsvUploader({
       </div>
 
       {/* ── Center: Divider ── */}
-      <div className="flex flex-col items-center justify-center px-4">
+      <div className="hidden sm:flex flex-col items-center justify-center px-4">
         <div className="w-px flex-1 bg-border" />
         <span className="text-xs text-text-muted font-medium py-3">or</span>
         <div className="w-px flex-1 bg-border" />

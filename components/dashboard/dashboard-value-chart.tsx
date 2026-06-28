@@ -52,7 +52,7 @@ export function DashboardValueChart({ data }: { data: TldValue[] }) {
             borderRadius: "8px",
             color: "#f1f5f9",
           }}
-          formatter={(value: number) => [`$${value.toLocaleString()}`, "Value"]}
+          formatter={(value: number) => [`$${value.toLocaleString("en-US")}`, "Value"]}
         />
         <Bar
           dataKey="value"

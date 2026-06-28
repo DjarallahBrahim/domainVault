@@ -241,7 +241,7 @@ export default function ImportPage() {
       {activeTab === "csv" && (
         <>
           <div className="rounded-md bg-bg-elevated border border-border p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex flex-col gap-3">
               <div>
                 <p className="text-sm font-medium text-text-primary">CSV Format</p>
                 <p className="text-xs text-text-muted mt-0.5">
@@ -249,7 +249,7 @@ export default function ImportPage() {
                   &middot; Optional: Price, Registrar, Notes, Tags
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText("Domain,Expiration Date,Price,Registrar,Notes,Tags");

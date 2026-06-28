@@ -30,7 +30,7 @@ function AnimatedCounter({ value, prefix }: { value: number; prefix?: string }) 
     return () => clearInterval(timer);
   }, [value]);
 
-  return <span>{prefix}{display.toLocaleString()}</span>;
+  return <span>{prefix}{display.toLocaleString("en-US")}</span>;
 }
 
 function Trend({ current, previous }: { current: number; previous?: number }) {

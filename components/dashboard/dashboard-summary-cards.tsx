@@ -23,7 +23,7 @@ export function DashboardSummaryCards({
               <Globe className="h-5 w-5 text-accent-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{total.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{total.toLocaleString("en-US")}</p>
               <p className="text-xs text-text-muted">Total Domains</p>
             </div>
           </div>
@@ -37,7 +37,7 @@ export function DashboardSummaryCards({
               <CheckCircle2 className="h-5 w-5 text-accent-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{active.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{active.toLocaleString("en-US")}</p>
               <p className="text-xs text-text-muted">Active</p>
             </div>
           </div>
@@ -51,7 +51,7 @@ export function DashboardSummaryCards({
               <AlertTriangle className="h-5 w-5 text-accent-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{expiringSoon.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{expiringSoon.toLocaleString("en-US")}</p>
               <p className="text-xs text-text-muted">Expiring Soon</p>
             </div>
           </div>
@@ -66,7 +66,7 @@ export function DashboardSummaryCards({
             </div>
             <div>
               <p className="text-2xl font-bold">
-                ${portfolioValue.toLocaleString()}
+                ${portfolioValue.toLocaleString("en-US")}
               </p>
               <p className="text-xs text-text-muted">Portfolio Value</p>
             </div>
