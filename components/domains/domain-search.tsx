@@ -32,10 +32,9 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
-  const currentNotListed = searchParams.get("notListed") ?? "";
   const currentPageSize = searchParams.get("pageSize") ?? "50";
 
-  const [searchValue, setSearchValue] = useState(urlSearch);
+  const [searchValue, setSearchValue] = useState(urlSearch.replace(/,/g, " "));
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const updateParam = useCallback(
@@ -55,7 +54,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   );
 
   function triggerSearch() {
-    const val = searchValue.trim();
+    const val = searchValue.trim().replace(/\s+/g, ",");
     const params = new URLSearchParams(searchParams.toString());
     if (val) {
       params.set("search", val);
@@ -72,8 +71,8 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   }
 
   const hasFilters =
-    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars || currentNotListed;
-  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars, currentNotListed].filter(
+    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars;
+  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars].filter(
     Boolean
   ).length;
 
@@ -88,7 +87,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           <div className="relative flex-1 lg:max-w-2xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
-              placeholder="Search domains..."
+              placeholder="Search domains (comma or space to separate)"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={(e) => {
@@ -209,23 +208,6 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                     {r}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-text-muted font-medium">Not Listed On</Label>
-            <Select
-              value={currentNotListed}
-              onValueChange={(value) => updateParam({ notListed: value === "all" ? "" : value })}
-            >
-              <SelectTrigger className="h-10 rounded-lg">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="sedo">Not listed on Sedo</SelectItem>
-                <SelectItem value="spaceship">Not listed on Spaceship</SelectItem>
               </SelectContent>
             </Select>
           </div>
