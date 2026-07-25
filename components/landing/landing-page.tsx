@@ -2,9 +2,16 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowRight, BarChart3, TrendingUp, Upload, Tags, Bell, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ShowcaseSection } from "@/components/landing/showcase-section";
 
 interface LandingPageProps {
   isAuthenticated: boolean;
+  showcaseDomains?: Array<{
+    domain: string;
+    notes: string | null;
+    tags: string[] | null;
+    bin: number | null;
+  }>;
 }
 
 const features = [
@@ -46,7 +53,7 @@ const features = [
   },
 ];
 
-export function LandingPage({ isAuthenticated }: LandingPageProps) {
+export function LandingPage({ isAuthenticated, showcaseDomains }: LandingPageProps) {
   const ctaHref = isAuthenticated ? "/dashboard" : "/login";
   const ctaText = isAuthenticated ? "Go to Dashboard" : "Get Started Free";
   const secondaryHref = isAuthenticated ? undefined : "/register";
@@ -132,6 +139,8 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      <ShowcaseSection domains={showcaseDomains ?? []} />
 
       {/* Features */}
       <section className="border-t border-border bg-bg-surface px-4 py-20 sm:px-6">
