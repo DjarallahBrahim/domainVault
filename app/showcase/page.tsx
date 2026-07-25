@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, X, Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ interface ShowcaseDomain {
   bin: number | null;
 }
 
-export default function ShowcasePage() {
+export function ShowcasePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -337,5 +337,17 @@ export default function ShowcasePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function ShowcasePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="animate-pulse h-48 w-48 rounded-full bg-bg-elevated" />
+      </div>
+    }>
+      <ShowcasePageContent />
+    </Suspense>
   );
 }
