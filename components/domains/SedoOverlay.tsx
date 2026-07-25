@@ -29,10 +29,12 @@ interface SedoOverlayProps {
   } | null;
   existingListing: SedoListing | null;
   onSuccess: () => void;
+  batch?: boolean;
+  batchDomains?: Array<{ id: string; domain: string }>;
 }
 
-export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess }: SedoOverlayProps) {
-  const isEdit = !!existingListing;
+export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess, batch, batchDomains }: SedoOverlayProps) {
+  const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
 
   const [askingPrice, setAskingPrice] = useState("");
@@ -98,6 +100,51 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
 
     setLoading(true);
     try {
+      if (batch && batchDomains?.length) {
+        const batchResponse = await fetch("/api/sedo/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            price: Number(askingPrice),
+            minprice: Number(minOffer),
+            fixedprice: (isFixed ? 1 : 0),
+            domainIds: batchDomains.map((d) => d.id),
+          }),
+        });
+
+        const batchBody = await batchResponse.json();
+
+        if (!batchResponse.ok || batchBody.error) {
+          throw new Error(batchBody.error ?? "Sedo API error");
+        }
+
+        
+
+        for (const d of batchDomains) {
+          await upsertSedoListing({
+            domain_id: d.id,
+            domain_name: d.domain,
+            sedo_price: Number(askingPrice),
+            sedo_minprice: Number(minOffer),
+            sedo_fixedprice: isFixed ? 1 : 0,
+            sedo_currency: 1,
+            sedo_forsale: 1,
+          });
+        }
+
+        if (batchBody.data?.errors?.length) {
+          toast.warning(`${batchBody.data.errors.length} domains had errors`);
+        } else {
+          toast.success(`${batchDomains.length} domains listed/updated on Sedo`);
+        }
+
+        queryClient.invalidateQueries({ queryKey: queryKeys.sedoListings.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
+        onSuccess();
+        onClose();
+        return;
+      }
+
       const payload = {
         domain: domain!.domain,
         price: Number(askingPrice),
@@ -186,7 +233,8 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
     }
   }, [domain, onClose, onSuccess, queryClient]);
 
-  if (!open || !domain) return null;
+  if (!open) return null;
+  if (!batch && !domain) return null;
 
   return (
     <>
@@ -195,7 +243,12 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
       <div className="fixed inset-x-0 bottom-0 z-[60] w-full max-h-[90vh] overflow-y-auto rounded-t-2xl bg-bg-surface border-t border-border p-0 pb-20 shadow-2xl sm:pb-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-lg sm:rounded-2xl sm:max-h-[85vh] sm:border">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-lg font-bold font-display">
-            {isEdit ? `Edit Listing — ${domain.domain}` : `List on Sedo — ${domain.domain}`}
+            {batch
+              ? `Bulk Edit — ${batchDomains?.length ?? 0} domains`
+              : isEdit
+                ? `Edit Listing — ${domain?.domain}`
+                : `List on Sedo — ${domain?.domain}`
+            }
           </h2>
           <button
             onClick={onClose}
@@ -206,22 +259,26 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
         </div>
 
         <div className="p-6 space-y-5">
+          {!batch && (
+          <>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Domain</span>
-              <span className="font-mono">{domain.domain}</span>
+              <span className="font-mono">{domain?.domain}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Registrar</span>
-              <span>{domain.registrar || "\u2014"}</span>
+              <span>{domain?.registrar || "\u2014"}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Expires</span>
-              <span>{new Date(domain.expiration_date).toLocaleDateString()}</span>
+              <span>{domain?.expiration_date ? new Date(domain.expiration_date).toLocaleDateString() : ""}</span>
             </div>
           </div>
 
           <div className="border-t border-border" />
+          </>
+          )}
 
           {noCredentials && (
             <p className="text-sm text-accent-danger">
@@ -362,7 +419,9 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
         </div>
 
         <div className="flex items-center justify-between p-6 border-t border-border">
-          {isEdit ? (
+          {batch ? (
+            <span />
+          ) : isEdit ? (
             <Button
               variant="ghost"
               size="sm"
@@ -386,7 +445,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
                 disabled
                 title="Add Sedo credentials in Settings first"
               >
-                {isEdit ? "Update" : "List on Sedo"}
+                {batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Sedo"}
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={loading}>
@@ -395,6 +454,8 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess 
                     <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
                     Processing...
                   </span>
+                ) : batch ? (
+                  `Apply to ${batchDomains?.length ?? 0} domains`
                 ) : isEdit ? (
                   "Update"
                 ) : (

@@ -67,12 +67,14 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   const [editDomain, setEditDomain] = useState<DomainRow | null>(null);
   const [sedoOverlayDomain, setSedoOverlayDomain] = useState<DomainRow | null>(null);
   const [sedoExistingListing, setSedoExistingListing] = useState<SedoListing | null>(null);
+  const [sedoBatchMode, setSedoBatchMode] = useState(false);
 
   const { listings: sedoListings } = useSedoListings();
   const { refreshOne, isRefreshing } = useSedoRefreshOne();
 
   const [spaceshipOverlayDomain, setSpaceshipOverlayDomain] = useState<DomainRow | null>(null);
   const [spaceshipExistingListing, setSpaceshipExistingListing] = useState<SpaceshipListing | null>(null);
+  const [spaceshipBatchMode, setSpaceshipBatchMode] = useState(false);
 
   const { listings: spaceshipListings } = useSpaceshipListings();
   const { refreshOne: refreshSpaceshipOne, isRefreshing: isSpaceshipRefreshing } = useSpaceshipRefreshOne();
@@ -94,6 +96,19 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   function handleSedoClose() {
     setSedoOverlayDomain(null);
     setSedoExistingListing(null);
+    setSedoBatchMode(false);
+  }
+
+  function handleSedoBatch() {
+    setSedoBatchMode(true);
+  }
+
+  function handleSedoBatchSync() {
+    for (const id of selectedIds) {
+      const domain = data.domains.find((d) => d.id === id);
+      if (domain) refreshOne(domain.domain, domain.id);
+    }
+    setSelectedIds(new Set());
   }
 
   function handleSpaceshipRefresh(domain: DomainRow) {
@@ -113,6 +128,19 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
   function handleSpaceshipClose() {
     setSpaceshipOverlayDomain(null);
     setSpaceshipExistingListing(null);
+    setSpaceshipBatchMode(false);
+  }
+
+  function handleSpaceshipBatch() {
+    setSpaceshipBatchMode(true);
+  }
+
+  function handleSpaceshipBatchSync() {
+    for (const id of selectedIds) {
+      const domain = data.domains.find((d) => d.id === id);
+      if (domain) refreshSpaceshipOne(domain.domain, domain.id);
+    }
+    setSelectedIds(new Set());
   }
 
   function handleAdd() {
@@ -255,6 +283,10 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           onSpaceshipCreate={handleSpaceshipCreate}
           onSpaceshipRefresh={handleSpaceshipRefresh}
           spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
+          onSedoBatch={handleSedoBatch}
+          onSpaceshipBatch={handleSpaceshipBatch}
+          onSedoBatchSync={handleSedoBatchSync}
+          onSpaceshipBatchSync={handleSpaceshipBatchSync}
         />
       </div>
 
@@ -296,7 +328,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
       />
 
       <SedoOverlay
-        open={sedoOverlayDomain !== null}
+        open={sedoOverlayDomain !== null || sedoBatchMode}
         onClose={handleSedoClose}
         domain={
           sedoOverlayDomain
@@ -313,11 +345,21 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         onSuccess={() => {
           setSedoOverlayDomain(null);
           setSedoExistingListing(null);
+          setSedoBatchMode(false);
+          setSelectedIds(new Set());
         }}
+        batch={sedoBatchMode}
+        batchDomains={
+          sedoBatchMode
+            ? data.domains
+                .filter((d) => selectedIds.has(d.id))
+                .map((d) => ({ id: d.id, domain: d.domain }))
+            : undefined
+        }
       />
 
       <SpaceshipOverlay
-        open={spaceshipOverlayDomain !== null}
+        open={spaceshipOverlayDomain !== null || spaceshipBatchMode}
         onClose={handleSpaceshipClose}
         domain={
           spaceshipOverlayDomain
@@ -334,7 +376,17 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
         onSuccess={() => {
           setSpaceshipOverlayDomain(null);
           setSpaceshipExistingListing(null);
+          setSpaceshipBatchMode(false);
+          setSelectedIds(new Set());
         }}
+        batch={spaceshipBatchMode}
+        batchDomains={
+          spaceshipBatchMode
+            ? data.domains
+                .filter((d) => selectedIds.has(d.id))
+                .map((d) => ({ id: d.id, domain: d.domain }))
+            : undefined
+        }
       />
     </div>
   );

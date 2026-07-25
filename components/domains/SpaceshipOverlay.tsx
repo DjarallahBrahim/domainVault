@@ -25,10 +25,12 @@ interface SpaceshipOverlayProps {
   } | null;
   existingListing: SpaceshipListing | null;
   onSuccess: () => void;
+  batch?: boolean;
+  batchDomains?: Array<{ id: string; domain: string }>;
 }
 
-export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuccess }: SpaceshipOverlayProps) {
-  const isEdit = !!existingListing;
+export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuccess, batch, batchDomains }: SpaceshipOverlayProps) {
+  const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
 
   const [askingPrice, setAskingPrice] = useState("");
@@ -80,6 +82,48 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
 
     setLoading(true);
     try {
+      if (batch && batchDomains?.length) {
+        const batchResponse = await fetch("/api/spaceship/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            price: Number(askingPrice),
+            minprice: Number(minOffer) || 0,
+            domainIds: batchDomains.map((d) => d.id),
+          }),
+        });
+
+        const batchBody = await batchResponse.json();
+
+        if (!batchResponse.ok || batchBody.error) {
+          throw new Error(batchBody.error ?? "Spaceship API error");
+        }
+
+        
+
+        for (const d of batchDomains) {
+          await upsertSpaceshipListing({
+            domain_id: d.id,
+            domain_name: d.domain,
+            spaceship_price: Number(askingPrice),
+            spaceship_minprice: Number(minOffer) || 0,
+            spaceship_currency: "USD",
+          });
+        }
+
+        if (batchBody.data?.errors?.length) {
+          toast.warning(`${batchBody.data.errors.length} domains had errors`);
+        } else {
+          toast.success(`${batchDomains.length} domains updated on Spaceship`);
+        }
+
+        queryClient.invalidateQueries({ queryKey: queryKeys.spaceshipListings.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
+        onSuccess();
+        onClose();
+        return;
+      }
+
       const endpoint = existingListing ? "/api/spaceship/update" : "/api/spaceship/create";
       const response = await fetch(endpoint, {
         method: "POST",
@@ -163,7 +207,8 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
     }
   }, [domain, onClose, onSuccess, queryClient]);
 
-  if (!open || !domain) return null;
+  if (!open) return null;
+  if (!batch && !domain) return null;
 
   return (
     <>
@@ -172,7 +217,12 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
       <div className="fixed inset-x-0 bottom-0 z-[60] w-full max-h-[90vh] overflow-y-auto rounded-t-2xl bg-bg-surface border-t border-border p-0 pb-20 shadow-2xl sm:pb-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-lg sm:rounded-2xl sm:max-h-[85vh] sm:border">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-lg font-bold font-display">
-            {isEdit ? `Edit Listing — ${domain.domain}` : `List on Spaceship — ${domain.domain}`}
+            {batch
+              ? `Bulk Edit — ${batchDomains?.length ?? 0} domains`
+              : isEdit
+                ? `Edit Listing — ${domain?.domain}`
+                : `List on Spaceship — ${domain?.domain}`
+            }
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
             <X className="h-5 w-5" />
@@ -180,22 +230,25 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
         </div>
 
         <div className="p-6 space-y-5">
+          {!batch && (
+          <>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Domain</span>
-              <span className="font-mono">{domain.domain}</span>
+              <span className="font-mono">{domain?.domain}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Registrar</span>
-              <span>{domain.registrar || "\u2014"}</span>
+              <span>{domain?.registrar || "\u2014"}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Expires</span>
-              <span>{new Date(domain.expiration_date).toLocaleDateString()}</span>
+              <span>{domain?.expiration_date ? new Date(domain.expiration_date).toLocaleDateString() : ""}</span>
             </div>
           </div>
-
           <div className="border-t border-border" />
+          </>
+          )}
 
           {noCredentials && (
             <p className="text-sm text-accent-danger">Add Spaceship credentials in Settings first</p>
@@ -289,7 +342,9 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
         </div>
 
         <div className="flex items-center justify-between p-6 border-t border-border">
-          {isEdit ? (
+          {batch ? (
+            <span />
+          ) : isEdit ? (
             <Button
               variant="ghost"
               size="sm"
@@ -308,7 +363,7 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
             <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
             {noCredentials ? (
               <Button disabled title="Add Spaceship credentials in Settings first">
-                {isEdit ? "Update" : "List on Spaceship"}
+                {batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Spaceship"}
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={loading}>
@@ -317,7 +372,7 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
                     <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
                     Processing...
                   </span>
-                ) : isEdit ? "Update" : "List on Spaceship"}
+                ) : batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Spaceship"}
               </Button>
             )}
           </div>

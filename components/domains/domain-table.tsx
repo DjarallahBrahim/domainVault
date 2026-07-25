@@ -18,7 +18,7 @@ import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Pencil, RefreshCw } from "lucide-react";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -41,6 +41,10 @@ interface DomainTableProps {
   onSpaceshipCreate: (domain: DomainRow) => void;
   onSpaceshipRefresh: (domain: DomainRow) => void;
   spaceshipRefreshingIds: Set<string>;
+  onSedoBatch: () => void;
+  onSpaceshipBatch: () => void;
+  onSedoBatchSync: () => void;
+  onSpaceshipBatchSync: () => void;
 }
 
 export function DomainTable({
@@ -62,6 +66,10 @@ export function DomainTable({
   onSpaceshipCreate,
   onSpaceshipRefresh,
   spaceshipRefreshingIds,
+  onSedoBatch,
+  onSpaceshipBatch,
+  onSedoBatchSync,
+  onSpaceshipBatchSync,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -168,8 +176,64 @@ export function DomainTable({
                 <TableHead>Purchase</TableHead>
               )}
               <TableHead>BIN</TableHead>
-              <TableHead>Sedo</TableHead>
-              <TableHead>Spaceship</TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => updateSort("sedo_price")}
+                    className="flex items-center gap-0.5 hover:text-text-primary"
+                  >
+                    Sedo{sortLabel("sedo_price")}
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={onSedoBatchSync}
+                      className="text-text-muted hover:text-accent-primary transition-colors"
+                      title={`Sync ${selectedIds.size} domains with Sedo`}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={onSedoBatch}
+                      className="text-text-muted hover:text-accent-primary transition-colors"
+                      title={`Edit Sedo price for ${selectedIds.size} domains`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => updateSort("spaceship_price")}
+                    className="flex items-center gap-0.5 hover:text-text-primary"
+                  >
+                    Spaceship{sortLabel("spaceship_price")}
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={onSpaceshipBatchSync}
+                      className="text-text-muted hover:text-accent-primary transition-colors"
+                      title={`Sync ${selectedIds.size} domains with Spaceship`}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={onSpaceshipBatch}
+                      className="text-text-muted hover:text-accent-primary transition-colors"
+                      title={`Edit Spaceship price for ${selectedIds.size} domains`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </TableHead>
               {showAllColumns && (
                 <TableHead>
                   <button
