@@ -143,6 +143,18 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
     setSelectedIds(new Set());
   }
 
+  function handleCopySelected() {
+    const names = data.domains
+      .filter((d) => selectedIds.has(d.id))
+      .map((d) => d.domain)
+      .join("\n");
+
+    navigator.clipboard.writeText(names).then(
+      () => toast.success(`${selectedIds.size} domain${selectedIds.size !== 1 ? "s" : ""} copied to clipboard`),
+      () => toast.error("Failed to copy")
+    );
+  }
+
   function handleAdd() {
     setEditDomain(null);
     setShowSlideover(true);
@@ -287,6 +299,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           onSpaceshipBatch={handleSpaceshipBatch}
           onSedoBatchSync={handleSedoBatchSync}
           onSpaceshipBatchSync={handleSpaceshipBatchSync}
+          onCopySelected={handleCopySelected}
         />
       </div>
 
