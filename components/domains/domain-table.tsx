@@ -45,6 +45,7 @@ interface DomainTableProps {
   onSpaceshipBatch: () => void;
   onSedoBatchSync: () => void;
   onSpaceshipBatchSync: () => void;
+  onCopySelected: () => void;
 }
 
 export function DomainTable({
@@ -70,6 +71,7 @@ export function DomainTable({
   onSpaceshipBatch,
   onSedoBatchSync,
   onSpaceshipBatchSync,
+  onCopySelected,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -377,15 +379,23 @@ export function DomainTable({
         </div>
       </div>
 
-      {/* Bulk delete */}
-      {selectedIds.size > 1 && (
-        <div className="flex justify-end">
+      {/* Bulk actions */}
+      {selectedIds.size > 0 && (
+        <div className="flex justify-end gap-2">
           <button
-            onClick={() => onDelete("__bulk__")}
-            className="px-4 py-2 rounded-md bg-accent-danger text-white text-sm font-medium hover:bg-accent-danger/90 transition-colors"
+            onClick={onCopySelected}
+            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
           >
-            Delete {selectedIds.size} selected
+            Copy {selectedIds.size} selected
           </button>
+          {selectedIds.size > 1 && (
+            <button
+              onClick={() => onDelete("__bulk__")}
+              className="px-4 py-2 rounded-md bg-accent-danger text-white text-sm font-medium hover:bg-accent-danger/90 transition-colors"
+            >
+              Delete {selectedIds.size} selected
+            </button>
+          )}
         </div>
       )}
     </div>
