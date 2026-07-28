@@ -20,7 +20,6 @@ export function ExportButton({ buildCsv, disabled }: ExportButtonProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard API unavailable — fall back to file download
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -41,16 +40,16 @@ export function ExportButton({ buildCsv, disabled }: ExportButtonProps) {
       size="sm"
       onClick={handleExport}
       disabled={disabled}
-      className="text-xs"
+      className="font-mono text-xs"
     >
       {copied ? (
         <>
-          <Check className="h-3.5 w-3.5 mr-1" />
-          Copied!
+          <Check className="h-3.5 w-3.5" />
+          copied
         </>
       ) : (
         <>
-          <Copy className="h-3.5 w-3.5 mr-1" />
+          <Copy className="h-3.5 w-3.5" />
           Copy CSV
         </>
       )}

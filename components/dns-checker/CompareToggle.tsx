@@ -1,7 +1,6 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 interface CompareToggleProps {
   enabled: boolean;
@@ -15,19 +14,14 @@ export function CompareToggle({
   disabled,
 }: CompareToggleProps) {
   return (
-    <div className="flex items-center gap-2">
+    <label className="inline-flex items-center gap-1.5 cursor-pointer select-none text-xs font-mono text-muted-foreground">
       <Checkbox
-        id="compare-providers"
         checked={enabled}
         onCheckedChange={(checked) => onChange(checked === true)}
         disabled={disabled}
+        className="h-3.5 w-3.5"
       />
-      <Label
-        htmlFor="compare-providers"
-        className="text-sm cursor-pointer select-none"
-      >
-        Compare Providers
-      </Label>
-    </div>
+      compare both
+    </label>
   );
 }

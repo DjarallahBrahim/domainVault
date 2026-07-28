@@ -7,24 +7,24 @@ export function HelpSection() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-md border border-border bg-bg-surface/50">
+    <div className="rounded-xl border border-border bg-bg-surface/50">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-left hover:bg-bg-elevated/50 transition-colors rounded-md"
+        className="flex items-center gap-2 w-full px-4 py-3 text-sm font-mono text-muted-foreground text-left hover:bg-bg-elevated/50 transition-colors rounded-xl"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          <ChevronDown className="h-4 w-4 shrink-0" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          <ChevronRight className="h-4 w-4 shrink-0" />
         )}
-        How to use this tool
+        <span className="text-muted-foreground">//</span> how to use this tool
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-4 text-sm text-muted-foreground border-t border-border pt-4">
+        <div className="px-5 pb-5 space-y-4 text-sm border-t border-border pt-4">
           <div>
             <h3 className="text-foreground font-medium mb-1.5">How it works</h3>
-            <ol className="list-decimal list-inside space-y-1">
+            <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
               <li>Paste domain names in the text area (any format)</li>
               <li>
                 Choose your DNS resolver (Cloudflare or Google) or enable
@@ -32,10 +32,10 @@ export function HelpSection() {
               </li>
               <li>
                 Click Resolve or press{" "}
-                <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border text-xs font-mono">
+                <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border text-xs font-mono text-text-primary">
                   Ctrl+Enter
                 </kbd>{" "}
-                (<kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border text-xs font-mono">
+                (<kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border text-xs font-mono text-text-primary">
                   Cmd+Enter
                 </kbd>{" "}
                 on Mac)
@@ -50,41 +50,39 @@ export function HelpSection() {
             <h3 className="text-foreground font-medium mb-1.5">
               Supported formats
             </h3>
-            <ul className="list-disc list-inside space-y-1">
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               <li>
-                Plain domains:{" "}
-                <code className="text-xs bg-bg-elevated px-1 rounded">
+                Plain:{" "}
+                <code className="text-xs bg-bg-elevated px-1 rounded font-mono text-text-primary">
                   google.com
                 </code>
               </li>
               <li>
                 URLs:{" "}
-                <code className="text-xs bg-bg-elevated px-1 rounded">
+                <code className="text-xs bg-bg-elevated px-1 rounded font-mono text-text-primary">
                   https://example.com/page
                 </code>
               </li>
               <li>
                 Commas:{" "}
-                <code className="text-xs bg-bg-elevated px-1 rounded">
+                <code className="text-xs bg-bg-elevated px-1 rounded font-mono text-text-primary">
                   google.com, cloudflare.com
                 </code>
               </li>
-              <li>Newlines: one domain per line</li>
-              <li>Spaces and mixed separators all work</li>
+              <li>One per line (newlines work too)</li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-foreground font-medium mb-1.5">FAQ</h3>
-            <dl className="space-y-3">
+            <dl className="space-y-3 text-muted-foreground">
               <div>
                 <dt className="font-medium text-foreground">
                   Why do results differ between resolvers?
                 </dt>
                 <dd className="mt-0.5">
-                  DNS changes take time to propagate across the internet.
-                  Cloudflare and Google may have different cached results at any
-                  given moment.
+                  DNS changes take time to propagate. Cloudflare and Google may
+                  have different cached results.
                 </dd>
               </div>
               <div>
@@ -92,8 +90,8 @@ export function HelpSection() {
                   What does &ldquo;No DNS&rdquo; mean?
                 </dt>
                 <dd className="mt-0.5">
-                  The domain either has no A (IPv4) record, or the DNS lookup
-                  timed out (after 5 seconds).
+                  The domain has no A (IPv4) record, or the lookup timed out
+                  (after 5 seconds).
                 </dd>
               </div>
               <div>
@@ -101,8 +99,7 @@ export function HelpSection() {
                   What&apos;s the limit?
                 </dt>
                 <dd className="mt-0.5">
-                  You can resolve up to 200 domains at a time, with 20 running
-                  concurrently.
+                  Up to 200 domains at a time, with 20 running concurrently.
                 </dd>
               </div>
               <div>

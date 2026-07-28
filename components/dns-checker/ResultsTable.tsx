@@ -76,7 +76,7 @@ function ResultRow({ result }: { result: DnsResult | null }) {
     <TableRow>
       <TableCell className="w-10">
         {result.status === "ok" ? (
-          <CheckCircle className="h-5 w-5 text-emerald-500" />
+          <CheckCircle className="h-5 w-5 text-accent-success" />
         ) : (
           <XCircle className="h-5 w-5 text-muted-foreground" />
         )}
@@ -146,13 +146,13 @@ function CompareResultRow({
 
   return (
     <TableRow
-      className={result.mismatch ? "bg-amber-500/5" : undefined}
+      className={result.mismatch ? "bg-accent-warning/5" : undefined}
     >
       <TableCell className="w-10">
         {result.mismatch ? (
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-accent-warning" />
         ) : (
-          <CheckCircle className="h-5 w-5 text-emerald-500" />
+          <CheckCircle className="h-5 w-5 text-accent-success" />
         )}
       </TableCell>
       <TableCell className="font-mono text-sm">
