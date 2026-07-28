@@ -1140,3 +1140,831 @@ Placed in the Domains page toolbar, right of existing controls.
 - [ ] All error states: inline in overlay, toasts for sync
 - [ ] Zero TypeScript errors
 - [ ] Works correctly at 375px (mobile) and 1440px+ (desktop)
+
+# DomainVault — Phase 6 · Spaceship SellerHub Integration
+
+> Standalone spec for Phase 6 only. Mirrors the exact same feature set as Phase 5 (Sedo)
+> but adapted for the Spaceship REST API and SellerHub.
+> Build order: **Step 1 — Migration → Step 2 — Settings → Step 3 — API Routes → Step 4 — Domains Page**
+
+---
+
+## Key differences vs Sedo
+
+| | Sedo | Spaceship |
+|---|---|---|
+| Protocol | SOAP / XML | REST / JSON |
+| Auth | partnerid + signkey + username + password | `X-Api-Key` + `X-Api-Secret` headers |
+| Credential test | `CheckMember` | `GET /v1/sellerhub/domains?take=1&skip=0` (returns 401 on bad creds) |
+| List all listings | `DomainList` (paginated, no filter) | `GET /v1/sellerhub/domains` (`take` max 100, paginate with `skip`) |
+| Get single listing | `DomainList` with domain filter | `GET /v1/sellerhub/domains/{domain}` |
+| Create listing | `DomainInsert` | `POST /v1/sellerhub/domains` |
+| Edit listing | `DomainEdit` | `PATCH /v1/sellerhub/domains/{domain}` (partial update) |
+| Delete listing | `DomainDelete` | `DELETE /v1/sellerhub/domains/{domain}` |
+| Price model | `price` + `minprice` + `fixedprice` | `binPrice` + `minPrice` with separate `binPriceEnabled` / `minPriceEnabled` toggles |
+| Currency | always USD | per-price object `{ amount, currency }` — always USD |
+| Error format | XML `<SEDOFAULT>` | JSON `{ detail: string }` with HTTP status codes |
+| Listing status | n/a | `status` field: `"active"` \| `"failed"` \| `"pending"` |
+
+---
+
+## Spaceship API Reference — SellerHub endpoints used
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/v1/sellerhub/domains?take=N&skip=N` | List all SellerHub listings (paginated) |
+| `GET` | `/v1/sellerhub/domains/{domain}` | Get a single listing (per-domain sync) |
+| `POST` | `/v1/sellerhub/domains` | Create a new listing |
+| `PATCH` | `/v1/sellerhub/domains/{domain}` | Update an existing listing (partial) |
+| `DELETE` | `/v1/sellerhub/domains/{domain}` | Remove a domain from SellerHub |
+
+**Auth headers on every request:**
+```
+X-Api-Key: YOUR_API_KEY
+X-Api-Secret: YOUR_API_SECRET
+```
+
+**Base URL:** `https://spaceship.dev/api/v1`
+
+**Rate limits relevant to us:**
+- List: 300 req / user / 300s
+- Get single: 300 req / domain / 300s
+- Create: 300 req / user / 300s
+- Update: 300 req / domain / 300s
+- Delete: 300 req / domain / 300s
+
+---
+
+## Spaceship listing object shape
+
+```ts
+// Returned by GET /sellerhub/domains and GET /sellerhub/domains/{domain}
+{
+  name: string            // ACE format e.g. "xn--spceship-9ya.com"
+  unicodeName: string     // human-readable e.g. "spaceship.com"
+  displayName: string     // shown on marketplace
+  description: string     // optional listing description
+  status: "active" | "failed" | "pending"
+  binPriceEnabled: boolean
+  binPrice: { amount: string, currency: string } | null
+  minPriceEnabled: boolean
+  minPrice: { amount: string, currency: string } | null
+}
+```
+
+**Status meanings:**
+- `active` — live on SellerHub marketplace
+- `pending` — submitted, waiting for Spaceship to process
+- `failed` — listing failed (show error badge, allow retry)
+
+---
+
+## Pricing rules (same UX as Sedo)
+
+- Currency: always USD
+- BIN price: user-entered. Suggestion chips from `domains.bin`:
+  `BIN` · `BIN −20%` · `BIN −30%`. Defaults to `bin` if set.
+- Min price: user-entered. Suggestion chips from asking price:
+  `20%` · `30%` · `40%` · `50%`. Recalculate live as BIN changes.
+- `binPriceEnabled`: always `true` when creating/editing
+- `minPriceEnabled`: `true` if the user filled a min price, `false` if left empty
+
+---
+
+## How to get Spaceship API credentials
+
+Generate from the **API Manager** in the Spaceship account dashboard:
+`https://www.spaceship.com/application/api-manager/`
+Click "New API key", follow the guide. Required scopes: `sellerhub:read` + `sellerhub:write`.
+
+---
+
+## Step 1 — Migration
+
+### Migration 007 — Spaceship credentials in `user_settings` `[NEW]`
+
+```sql
+ALTER TABLE user_settings
+  ADD COLUMN spaceship_api_key    TEXT,
+  ADD COLUMN spaceship_api_secret TEXT;
+```
+
+> Extends the existing `user_settings` table from Migration 005.
+> RLS already in place — no changes needed.
+
+### Migration 008 — `spaceship_listings` cache table `[NEW]`
+
+```sql
+CREATE TABLE spaceship_listings (
+  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id               UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  domain_id             UUID REFERENCES domains(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  domain_name           TEXT NOT NULL,
+  display_name          TEXT,
+  description           TEXT,
+  sp_status             TEXT NOT NULL DEFAULT 'pending',   -- 'active' | 'pending' | 'failed'
+  bin_price             DECIMAL(10,2),
+  bin_price_enabled     BOOLEAN NOT NULL DEFAULT true,
+  min_price             DECIMAL(10,2),
+  min_price_enabled     BOOLEAN NOT NULL DEFAULT false,
+  currency              TEXT NOT NULL DEFAULT 'USD',
+  last_synced_at        TIMESTAMPTZ DEFAULT NOW(),
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_spaceship_listings_user_id   ON spaceship_listings(user_id);
+CREATE INDEX idx_spaceship_listings_domain_id ON spaceship_listings(domain_id);
+CREATE INDEX idx_spaceship_listings_status    ON spaceship_listings(sp_status);
+
+ALTER TABLE spaceship_listings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own spaceship_listings"
+  ON spaceship_listings FOR ALL USING (auth.uid() = user_id);
+```
+
+---
+
+## Step 2 — Settings Page `[UPDATED]`
+
+**File**: `components/settings/SpaceshipCredentialsForm.tsx` (new)
+Appended as a third section to the existing Settings page, below the Sedo section.
+
+### Section 3 — Spaceship API Credentials
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Spaceship SellerHub Credentials                    │
+│  ─────────────────────────────────────────────────  │
+│  API Key     [________________________________]     │
+│  API Secret  [••••••••••••••••••••••••]  👁          │
+│  ─────────────────────────────────────────────────  │
+│  [Test Connection]              [Save Credentials]  │
+│                                                     │
+│  ✅ Connected  /  ❌ Invalid credentials             │
+└─────────────────────────────────────────────────────┘
+```
+
+Helper text below:
+> "Generate your API key and secret in the API Manager at spaceship.com/application/api-manager/.
+> Required scopes: sellerhub:read and sellerhub:write."
+
+**On page load**: fetch `user_settings`, pre-fill `spaceship_api_key`.
+`spaceship_api_secret` field shows `••••••••` placeholder if a value is saved — never exposes the actual value.
+
+**Test Connection**: `GET /api/spaceship/check` — attempts
+`GET /v1/sellerhub/domains?take=1&skip=0`. Returns `200` → ✅ Connected, `401/403` → ❌ Invalid credentials.
+
+**Save Credentials**: both fields required → upsert `user_settings` → success toast
+`"Spaceship credentials saved"`.
+
+---
+
+## Step 3 — API Routes `[NEW]`
+
+### Folder additions
+
+```
+app/api/spaceship/
+  check/route.ts
+  list/route.ts
+  status/route.ts
+  insert/route.ts
+  edit/route.ts
+  delete/route.ts
+
+lib/spaceship/
+  client.ts
+  pricing.ts
+```
+
+### `lib/spaceship/client.ts` — `callSpaceship(method, path, body?)`
+
+```ts
+const BASE = 'https://spaceship.dev/api/v1'
+
+// Simple REST wrapper — no XML, no SOAP.
+// Reads X-Api-Key and X-Api-Secret from the caller.
+// Returns parsed JSON on success.
+// Throws SpaceshipError({ status, detail }) on 4xx/5xx.
+export async function callSpaceship(
+  credentials: SpaceshipCredentials,
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: Record<string, unknown>
+): Promise<unknown>
+```
+
+Implementation:
+- Set headers: `X-Api-Key`, `X-Api-Secret`, `Content-Type: application/json`
+- `DELETE` returns 204 (no body) — handle gracefully
+- 401/403 → throw `SpaceshipError` with `detail` from response
+- 429 → throw `SpaceshipError` with rate limit message
+
+### `lib/spaceship/pricing.ts`
+
+```ts
+// Same chip helpers as Sedo version, same UX
+export function binPriceSuggestions(bin: number | null) {
+  if (!bin) return []
+  return [
+    { label: 'BIN',      value: bin },
+    { label: 'BIN −20%', value: Math.round(bin * 0.80 * 100) / 100 },
+    { label: 'BIN −30%', value: Math.round(bin * 0.70 * 100) / 100 },
+  ]
+}
+
+export function minPriceSuggestions(binPrice: number) {
+  return [
+    { label: '20%', value: Math.round(binPrice * 0.20 * 100) / 100 },
+    { label: '30%', value: Math.round(binPrice * 0.30 * 100) / 100 },
+    { label: '40%', value: Math.round(binPrice * 0.40 * 100) / 100 },
+    { label: '50%', value: Math.round(binPrice * 0.50 * 100) / 100 },
+  ]
+}
+
+// Builds the POST /sellerhub/domains or PATCH payload
+export function buildSpaceshipPayload(
+  binPrice: number | null,
+  minPrice: number | null,
+  displayName?: string,
+  description?: string
+) {
+  return {
+    ...(displayName && { displayName }),
+    ...(description && { description }),
+    binPriceEnabled: binPrice !== null,
+    ...(binPrice !== null && {
+      binPrice: { amount: String(binPrice), currency: 'USD' }
+    }),
+    minPriceEnabled: minPrice !== null,
+    ...(minPrice !== null && {
+      minPrice: { amount: String(minPrice), currency: 'USD' }
+    }),
+  }
+}
+```
+
+### Shared pattern in every route
+
+```ts
+// 1. Get authenticated user via Supabase server client
+// 2. Fetch user_settings — return 401 if spaceship_api_key or spaceship_api_secret missing
+// 3. Call callSpaceship() — return { error: detail } on API error, 500 on network error
+// 4. Return { data } on success
+```
+
+### Route table
+
+| Method | Route | Spaceship call | Body |
+|---|---|---|---|
+| `GET` | `/api/spaceship/check` | `GET /v1/sellerhub/domains?take=1&skip=0` | — |
+| `GET` | `/api/spaceship/list` | `GET /v1/sellerhub/domains?take=100&skip=N` (loop) | — |
+| `GET` | `/api/spaceship/status` | `GET /v1/sellerhub/domains/{domain}` | `?domain=example.com` |
+| `POST` | `/api/spaceship/insert` | `POST /v1/sellerhub/domains` | `{ name, binPrice, minPrice, displayName?, description? }` |
+| `PATCH` | `/api/spaceship/edit` | `PATCH /v1/sellerhub/domains/{domain}` | `{ domain, binPrice?, minPrice?, displayName?, description? }` |
+| `DELETE` | `/api/spaceship/delete` | `DELETE /v1/sellerhub/domains/{domain}` | `{ domain }` |
+
+**`/api/spaceship/list` pagination logic:**
+```
+skip=0, take=100 → if items.length === 100 → skip=100, take=100 → repeat until items.length < 100
+merge all items, return as single array
+```
+
+**`/api/spaceship/insert` notes:**
+- `name` must be the domain in Unicode format (use `domains.domain` directly)
+- `binPriceEnabled` always `true` when inserting
+- `minPriceEnabled` = `true` only if `minPrice` is provided
+- Server-side: call `buildSpaceshipPayload(binPrice, minPrice, displayName, description)`
+
+**`/api/spaceship/edit` notes:**
+- Uses `PATCH` — only sends fields that changed (partial update)
+- Server-side: build partial payload with only provided fields
+
+---
+
+## Step 4 — Domains Page `[UPDATED]`
+
+### New files
+
+```
+components/domains/
+  SpaceshipCell.tsx       ← desktop table cell (mirrors SedoCell)
+  SpaceshipCardRow.tsx    ← mobile card row (mirrors SedoCardRow)
+  SpaceshipOverlay.tsx    ← unified create/edit/delete overlay
+
+lib/hooks/
+  useSpaceshipListings.ts
+  useSpaceshipSync.ts
+
+types/
+  spaceship.ts
+```
+
+---
+
+### TypeScript Types — `types/spaceship.ts`
+
+```ts
+export interface SpaceshipCredentials {
+  apiKey: string
+  apiSecret: string
+}
+
+export interface SpaceshipListing {
+  id: string
+  user_id: string
+  domain_id: string
+  domain_name: string
+  display_name: string | null
+  description: string | null
+  sp_status: 'active' | 'pending' | 'failed'
+  bin_price: number | null
+  bin_price_enabled: boolean
+  min_price: number | null
+  min_price_enabled: boolean
+  currency: string
+  last_synced_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SpaceshipInsertPayload {
+  name: string                          // domain in Unicode format
+  displayName?: string
+  description?: string
+  binPriceEnabled: true
+  binPrice: { amount: string; currency: 'USD' }
+  minPriceEnabled: boolean
+  minPrice?: { amount: string; currency: 'USD' }
+}
+
+export interface SpaceshipEditPayload {
+  displayName?: string
+  description?: string
+  binPriceEnabled?: boolean
+  binPrice?: { amount: string; currency: 'USD' }
+  minPriceEnabled?: boolean
+  minPrice?: { amount: string; currency: 'USD' }
+}
+
+// Raw shape returned from Spaceship API
+export interface SpaceshipApiListing {
+  name: string
+  unicodeName: string
+  displayName: string
+  description: string
+  status: 'active' | 'pending' | 'failed'
+  binPriceEnabled: boolean
+  binPrice: { amount: string; currency: string } | null
+  minPriceEnabled: boolean
+  minPrice: { amount: string; currency: string } | null
+}
+```
+
+---
+
+### Hooks
+
+**`lib/hooks/useSpaceshipListings.ts`**
+```ts
+// TanStack Query key: ['spaceship-listings']
+// Reads spaceship_listings from Supabase for the current user.
+// Returns Map<domain_id, SpaceshipListing> for O(1) lookup per table row.
+export function useSpaceshipListings(): {
+  listings: Map<string, SpaceshipListing>
+  isLoading: boolean
+}
+```
+
+**`lib/hooks/useSpaceshipSync.ts`**
+```ts
+// Global sync mutation:
+//   GET /api/spaceship/list (all pages)
+//   → upsert results into spaceship_listings
+//   → delete rows for domains Spaceship no longer returns (delisted externally)
+//   → invalidate ['spaceship-listings']
+//
+// Single-domain sync mutation:
+//   GET /api/spaceship/status?domain=example.com
+//   → upsert that one row in spaceship_listings (or delete if 404)
+//   → invalidate ['spaceship-listings']
+export function useSpaceshipSync(): {
+  syncAll: () => Promise<void>
+  syncOne: (domain: string, domainId: string) => Promise<void>
+  isSyncing: boolean
+  lastSyncedAt: Date | null
+  error: string | null
+}
+```
+
+---
+
+### US-051 — Spaceship Column in Desktop Table `[NEW]`
+
+Column position: immediately after the `Sedo` column.
+
+Column header: `Spaceship` with a small sync icon → tooltip `"Last synced: X min ago"`.
+
+Data source: `useSpaceshipListings()` map — no API call on page load.
+
+**State A — not listed** (`listing === undefined`)
+```
+Not Listed     ← text-muted
+```
+
+**State B — listed, status = `active`**
+```
+$[bin_price]   ✏️   <RefreshCw size={12} />
+```
+- Price in `accent-success`, JetBrains Mono
+- `bin_price` from `spaceship_listings` cache
+- ✏️ opens `SpaceshipOverlay` in edit mode
+- `RefreshCw` icon → triggers `syncOne(domain)` (per-domain sync, spins while loading)
+
+**State C — listed, status = `pending`**
+```
+⏳ Pending   ✏️   <RefreshCw size={12} />
+```
+- Muted amber color
+- Same icons as State B
+
+**State D — listed, status = `failed`**
+```
+❌ Failed   ✏️   <RefreshCw size={12} />
+```
+- Red color
+- ✏️ opens overlay pre-filled so user can correct and retry
+- `RefreshCw` → syncOne to re-check if it recovered
+
+---
+
+### US-052 — Spaceship Row in Mobile Cards `[NEW]`
+
+Each domain card gets a `Spaceship` row at the bottom, below the Sedo row, separated by `border-t`:
+
+```
+State A:   Spaceship   Not Listed
+State B:   Spaceship   $[price]   ✏️   🔄
+State C:   Spaceship   ⏳ Pending  ✏️   🔄
+State D:   Spaceship   ❌ Failed   ✏️   🔄
+```
+
+Tapping ✏️ opens `SpaceshipOverlay` as a full-screen bottom sheet.
+
+---
+
+### US-053 — SpaceshipOverlay `[NEW]`
+
+**File**: `components/domains/SpaceshipOverlay.tsx`
+
+Single component for create, edit, and delete. Mirrors `SedoOverlay` structure with Spaceship-specific fields.
+
+**Triggers**:
+- Desktop: ✏️ in Spaceship column (edit mode) · "List on Spaceship" in Actions menu (create mode)
+- Mobile: same, as bottom sheet (`fixed bottom-0 w-full rounded-t-2xl`)
+
+**Data on open**: pre-populated from domain row already in table — **no extra DB fetch**.
+
+#### Form layout
+
+```
+┌────────────────────────────────────────────────────────┐
+│  List on Spaceship — example.com              ✕        │
+│  ────────────────────────────────────────────────────  │
+│  Domain          example.com    (read-only)            │
+│  Registrar       GoDaddy        (read-only)            │
+│  Expires         2026-08-15     (read-only)            │
+│  ────────────────────────────────────────────────────  │
+│  BIN Price *                                           │
+│  [ $500.00 ________________________ ] USD              │
+│  [ BIN $500 ] [ BIN−20% $400 ] [ BIN−30% $350 ]       │
+│                                                        │
+│  Min Price  (Optional)                                 │
+│  [ $200.00 ________________________ ] USD              │
+│  [ 20% $100 ] [ 30% $150 ] [ 40% $200 ] [ 50% $250 ]  │
+│                                                        │
+│  Display Name  (Optional)                              │
+│  [ SpaceShip.com __________________ ]                  │
+│                                                        │
+│  Description  (Optional)                               │
+│  [ Premium domain for sale ________ ]                  │
+│  ────────────────────────────────────────────────────  │
+│  [Cancel]                  [List on Spaceship →]       │  ← create mode
+└────────────────────────────────────────────────────────┘
+
+Edit mode footer:
+│  [🗑 Remove from Spaceship]   [Cancel]   [Update →]   │
+│  "Remove from Spaceship? [Yes] [Cancel]"  ← inline    │
+```
+
+#### Field spec
+
+| Field | Source | Editable | Required |
+|---|---|---|---|
+| Domain | `domains.domain` | No | — |
+| Registrar | `domains.registrar` | No | — |
+| Expiration Date | `domains.expiration_date` | No | — |
+| BIN Price | `domains.bin` (default) or `spaceship_listings.bin_price` (edit) | **Yes** | ✅ |
+| Min Price | blank or `spaceship_listings.min_price` (edit) | **Yes** | Optional |
+| Display Name | `spaceship_listings.display_name` (edit) or blank | **Yes** | Optional |
+| Description | `spaceship_listings.description` (edit) or blank | **Yes** | Optional |
+| Currency | always USD | No | — |
+
+Min Price, Display Name, and Description are shown with an `Optional` label.
+
+#### On submit (create)
+1. If `bin` null and user entered a BIN price → `PATCH domains` to save `bin`.
+2. `POST /api/spaceship/insert` with `{ name, binPrice, minPrice?, displayName?, description? }`.
+3. `buildSpaceshipPayload()` called server-side.
+4. On success (201) → insert row into `spaceship_listings` with `sp_status: 'pending'`.
+5. Invalidate `['spaceship-listings']` + `['domains']`.
+6. Close overlay. Toast: `"[domain] submitted to Spaceship SellerHub"`.
+7. Cell switches to State C (Pending) immediately.
+
+#### On submit (edit)
+1. `PATCH /api/spaceship/edit` with only changed fields.
+2. On success → update `spaceship_listings` row.
+3. Invalidate `['spaceship-listings']`.
+4. Close overlay. Toast: `"Spaceship listing updated"`.
+
+#### On remove
+1. Inline confirm in footer: `"Remove from Spaceship? [Yes] [Cancel]"`
+2. `Yes` → `DELETE /api/spaceship/delete` with `{ domain }`.
+3. Delete `spaceship_listings` row.
+4. Invalidate `['spaceship-listings']`.
+5. Close overlay. Toast: `"[domain] removed from Spaceship SellerHub"`.
+6. Cell reverts to State A.
+
+**Status badge in overlay (edit mode only)**:
+Below the read-only domain info, show a status pill:
+- `active` → green `● Active`
+- `pending` → amber `⏳ Pending`
+- `failed` → red `❌ Failed — check your Spaceship account for details`
+
+**Loading**: CTA spinner + inputs disabled during call.
+**Error**: API error `detail` shown inline above footer, not toast.
+
+---
+
+### US-054 — Spaceship Global Sync Button `[NEW]`
+
+**File**: `components/domains/SpaceshipSyncButton.tsx`
+
+Placed in the Domains page toolbar, right of the existing `Sync Sedo` button.
+
+```
+<RefreshCw />  Sync Spaceship
+               Last synced: 4 min ago
+```
+
+**On click**:
+1. `GET /api/spaceship/list` — paginates through all SellerHub listings
+   (`skip=0`, `skip=100`, … until response `items.length < 100`).
+2. Upsert all returned domains into `spaceship_listings` (update `bin_price`, `min_price`,
+   `sp_status`, `last_synced_at`).
+3. Rows in `spaceship_listings` not returned by Spaceship → delete them (delisted externally).
+   Their cells revert to State A.
+4. Invalidate `['spaceship-listings']`.
+
+**UI states**:
+- Syncing: icon spins, button disabled.
+- "Last synced" reads `MAX(last_synced_at)` from `spaceship_listings`.
+- Success toast: `"Spaceship listings synced"`.
+- Error toast with `detail` from API.
+- No credentials → disabled + tooltip `"Add Spaceship credentials in Settings"`.
+
+---
+
+### US-055 — Per-Domain Sync (Single Row) `[NEW]`
+
+The `RefreshCw` icon inside the Spaceship column cell (States B/C/D) triggers a single-domain sync.
+
+**On click**:
+1. `GET /api/spaceship/status?domain=example.com`
+   → calls `GET /v1/sellerhub/domains/{domain}`.
+2. If `200` → upsert `spaceship_listings` row with fresh data.
+3. If `404` → domain was removed from SellerHub externally → delete row → cell reverts to State A.
+4. Invalidate `['spaceship-listings']`.
+
+The icon spins while the call is in-flight. No toast on success (cell re-renders silently).
+Error toast if the call fails.
+
+---
+
+### US-056 — "Not Listed On" Filter Update `[UPDATED]`
+
+The existing "Not Listed On" filter in the Domains page gains a `Spaceship` option alongside `Sedo`.
+
+```
+Not Listed On:  [ ] Sedo   [ ] Spaceship
+```
+
+Selecting `Spaceship` filters the table to show only domains where `spaceship_listings` has no row for that `domain_id`.
+
+---
+
+## Error Handling Matrix
+
+| Scenario | Where | Behavior |
+|---|---|---|
+| No credentials saved | Domains page | Sync Spaceship button disabled + tooltip to Settings |
+| No credentials saved | SpaceshipOverlay | Inline error: "Add Spaceship credentials in Settings first" |
+| `bin` is NULL | SpaceshipOverlay | BIN Price input empty — user must fill before submit |
+| `status = failed` | SpaceshipCell | Red `❌ Failed` badge, ✏️ to resubmit |
+| API `401` / `403` | Any route | `{ error: 'Invalid credentials' }` → toast |
+| API `404` on status | `syncOne` | Delete row → cell State A |
+| API `429` rate limit | Any route | `{ error: 'Rate limit exceeded. Try again shortly.' }` → toast |
+| API `4xx` / `5xx` | SpaceshipOverlay | Error inline above footer |
+| API `4xx` / `5xx` | Sync buttons | Error toast with `detail` |
+| Network error | Any route | `500` → toast `"Could not reach Spaceship. Try again."` |
+| Supabase write failure | Any mutation | Toast with error, no UI change |
+
+---
+
+## Definition of Done — Phase 6
+
+### Step 1 — Migrations
+- [ ] Migration 007 applied (`spaceship_api_key` + `spaceship_api_secret` on `user_settings`)
+- [ ] Migration 008 applied (`spaceship_listings` table + RLS + indexes)
+
+### Step 2 — Settings Page
+- [ ] Spaceship section visible below Sedo section
+- [ ] API Key and API Secret fields with show/hide toggle
+- [ ] Page loads existing credentials pre-filled (secret masked)
+- [ ] Test Connection hits `GET /api/spaceship/check` → inline ✅ / ❌
+- [ ] Save Credentials upserts + success toast
+- [ ] Helper text with link to API Manager
+
+### Step 3 — API Routes
+- [ ] `GET /api/spaceship/check` — returns `{ valid: true/false }`
+- [ ] `GET /api/spaceship/list` — paginates all pages, returns merged array
+- [ ] `GET /api/spaceship/status?domain=X` — returns single listing or 404
+- [ ] `POST /api/spaceship/insert` — creates listing, payload built server-side
+- [ ] `PATCH /api/spaceship/edit` — partial update, only changed fields sent
+- [ ] `DELETE /api/spaceship/delete` — delists domain (handles 204 no-body)
+- [ ] All routes return `401` when credentials missing
+- [ ] All routes return `{ error }` on API error with correct status
+
+### Step 4 — Domains Page
+- [ ] `Spaceship` column visible immediately after `Sedo` column (desktop)
+- [ ] State A: `Not Listed` for unlisted domains
+- [ ] State B: `$price ✏️ 🔄` for `active` listings
+- [ ] State C: `⏳ Pending ✏️ 🔄` for `pending` listings
+- [ ] State D: `❌ Failed ✏️ 🔄` for `failed` listings
+- [ ] SpaceshipOverlay: create mode from Actions menu
+- [ ] SpaceshipOverlay: edit mode from ✏️ icon
+- [ ] Overlay pre-fills all data from existing table row — zero extra DB fetch
+- [ ] BIN price chips shown only when `bin` is set
+- [ ] Min price chips recalculate live as BIN changes
+- [ ] Display Name and Description fields optional, labelled clearly
+- [ ] Status badge shown in overlay (edit mode)
+- [ ] Create: POST → insert cache row as `pending` → cell shows State C
+- [ ] Edit: PATCH → update cache → cell re-renders
+- [ ] Remove: inline confirm → DELETE → remove row → State A
+- [ ] Mobile: `Spaceship` row in cards (State A / B / C / D)
+- [ ] Mobile: SpaceshipOverlay renders as bottom sheet at 375px
+- [ ] Per-domain sync (🔄 icon): syncs one domain, handles 404 → State A
+- [ ] Global Sync Spaceship button: paginates all, cleans stale rows, shows last synced
+- [ ] "Not Listed On" filter includes Spaceship checkbox
+- [ ] No credentials → disabled states everywhere, no crashes
+
+### Quality
+- [ ] All loading states: spinners on CTAs, per-row 🔄 spins
+- [ ] All error states: inline in overlay, toasts for sync
+- [ ] Zero TypeScript errors
+- [ ] Works at 375px (mobile) and 1440px+ (desktop)
+
+
+
+# DNS Checker Tool — Build Plan
+
+Adding a bulk DNS lookup tool (domain → IPv4 via DNS-over-HTTPS) to the
+existing Next.js + Supabase application. No backend is required — Cloudflare
+(`cloudflare-dns.com/dns-query`) and Google (`dns.google/resolve`) both expose
+CORS-enabled DoH JSON APIs that can be called directly from the browser.
+
+Scope: **A (IPv4) records only.**
+
+Picking up at **Phase 7** (Phases 1–6 already complete in the base app).
+
+---
+
+## Phase 7 — Core DNS Resolution Engine
+
+Goal: a pure, framework-agnostic module that does the actual DoH querying.
+
+- [ ] `lib/dns/types.ts` — shared types:
+  - `Resolver = "cloudflare" | "google"`
+  - `DnsStatus = "ok" | "no_dns" | "pending"`
+  - `DnsResult { domain, resolver, status: DnsStatus, ips: string[], error?: string, tookMs?: number }`
+- [ ] `lib/dns/providers.ts` — resolver configs:
+  - Cloudflare: `GET https://cloudflare-dns.com/dns-query?name={domain}&type=A` with header `Accept: application/dns-json`
+  - Google: `GET https://dns.google/resolve?name={domain}&type=A`
+- [ ] `lib/dns/resolve.ts`:
+  - `resolveDomain(domain, resolver, signal?)` — single A-record query, parses `Answer[]`, maps empty/error → `status: "no_dns"`, at least one IPv4 → `status: "ok"`
+  - `resolveBatch(domains, resolver, { concurrency = 20 })` — parallel resolution with a concurrency cap, using `Promise.allSettled` or a small queue
+  - Timeout handling via `AbortController` (e.g. 5s per query) — timeout also maps to `"no_dns"`
+- [ ] `lib/dns/parseInput.ts` — turn raw pasted text into a clean domain list:
+  - Split on newlines, commas, whitespace
+  - Strip protocol (`https://`), path, port, trailing slash from full URLs
+  - De-duplicate, lowercase, basic hostname validation regex
+  - Cap list length (e.g. 200 domains) with a friendly error if exceeded
+- [ ] `typecheck` clean pass on new files
+
+**Exit criteria:** `resolveBatch(["google.com"], "cloudflare")` returns a
+correctly parsed IPv4 address when manually tested in the browser.
+
+---
+
+## Phase 8 — UI: Input, Controls, Results Table
+
+Goal: the interactive page, client-side only (`"use client"`).
+
+- [ ] Route: `app/(tools)/dns-checker/page.tsx` (adjust to match app's existing tool routing convention)
+- [ ] `components/dns-checker/DomainInput.tsx` — textarea + live count of parsed domains + validation warnings
+- [ ] `components/dns-checker/ResolverSelector.tsx` — Cloudflare / Google toggle
+- [ ] `components/dns-checker/ResultsTable.tsx`:
+  - Row per domain: status icon, **domain rendered as a clickable link** (`<a href="https://{domain}" target="_blank" rel="noopener noreferrer">`), IP chip(s) (click-to-copy via `navigator.clipboard`), resolver used, latency
+  - Summary bar with tab/pill filters: **All / DNS OK / No DNS** — each showing a live count
+  - Filtering just toggles which rows are shown based on `status`
+- [ ] `useDnsChecker` hook — owns state (`domains`, `resolver`, `results`, `filter`, `isLoading`), calls `resolveBatch`, streams results in as they resolve (don't block on the whole batch — update table incrementally)
+- [ ] Keyboard shortcut: `Ctrl+Enter` / `Cmd+Enter` triggers resolve
+- [ ] Empty / loading / error states
+
+**Exit criteria:** paste a list of domains, click Resolve, see results populate live with working copy-to-clipboard, clickable domain links, and the All / DNS OK / No DNS filter correctly partitioning rows.
+
+---
+
+## Phase 9 — Bulk Features: Export & Cross-Verification
+
+- [ ] "Copy CSV" — build CSV string (`domain,status,ip`) client-side, write to clipboard (fallback: download via `Blob` + `<a download>`)
+- [ ] "Compare providers" mode — resolve the same batch against both Cloudflare and Google side-by-side, flag mismatches (propagation/cache differences)
+- [ ] Loading/progress indicator for large batches (e.g. "42/120 resolved")
+- [ ] Graceful partial-failure handling — one bad domain shouldn't block the rest (already handled by `Promise.allSettled` in Phase 7, just surface it in UI)
+
+**Exit criteria:** CSV export opens cleanly in Excel/Sheets; provider comparison clearly highlights differing IPs.
+
+---
+
+## Phase 10 — App Integration
+
+Wire the standalone tool into the rest of the application.
+
+- [ ] Add to main nav / tools index page
+- [ ] i18n: if the app already has a locale system, add strings for this tool's copy (labels, FAQ, how-it-works); otherwise ship English-only for now
+- [ ] Shared UI kit: reuse existing design system components (buttons, cards, badges) instead of one-offs, per `frontend-design` conventions already used in the app
+- [ ] Analytics event hooks if the app tracks tool usage (e.g. "dns_lookup_run" event) — client-side only, no domain data sent to your own servers to preserve the privacy story
+
+**Exit criteria:** tool is reachable from the app's normal navigation and matches the app's visual language.
+
+---
+
+## Phase 11 — Resilience, Rate Limits, Edge Cases
+
+- [ ] Handle DoH provider errors (5xx, timeout, malformed JSON) with a clear per-row `"no_dns"` state, not a crash
+- [ ] Client-side concurrency cap (Phase 7) tuned against real browser connection limits (~6 per host, so batch across two hostnames or queue)
+- [ ] Handle IDN / punycode domains (`xn--` conversion) if relevant to your audience
+- [ ] Abort in-flight requests if the user clears input or navigates away (`AbortController` cleanup in `useEffect`)
+- [ ] Basic input abuse guard — cap list size, warn instead of silently truncating
+- [ ] Cross-browser check: Safari/Firefox CORS behavior with `cloudflare-dns.com` and `dns.google` (both are known-good, but verify with your CSP)
+- [ ] Update `next.config.js` **Content-Security-Policy** `connect-src` to explicitly allow `https://cloudflare-dns.com` and `https://dns.google` if the app enforces a CSP
+
+**Exit criteria:** tool degrades gracefully under bad input, slow networks, and provider errors; no console errors; CSP doesn't block requests.
+
+---
+
+## Phase 12 — Optional Backend Features (only if needed)
+
+The core tool needs no backend. Only build this phase if you want features beyond a stateless utility. Uses the app's existing Supabase project.
+
+- [ ] **Saved lookups** (auth-gated): table `dns_lookups (id, user_id, domains jsonb, resolver, created_at)` — store the *request*, not sensitive result data, unless explicitly desired
+- [ ] **Scheduled/monitoring checks**: Supabase Edge Function + `pg_cron` to periodically re-resolve saved domain lists and alert on IP changes (would need a Postgres table for history + a notification mechanism, e.g. email via Resend/Supabase)
+- [ ] RLS policies scoping `dns_lookups` to `auth.uid()`
+- [ ] `types:generate` — run `supabase gen types typescript --linked > types/supabase.ts` after adding new tables
+- [ ] Only proceed here if it doesn't compromise the "we never see your lookups" privacy positioning — make this feature explicitly opt-in
+
+**Exit criteria:** signed-in users can save a domain list and re-run it later; anonymous users still get the full stateless tool with zero data retention.
+
+---
+
+## Phase 13 — Polish, Docs, Ship
+
+- [ ] `format` / `format:check` (Prettier) clean on all new files
+- [ ] `lint` clean
+- [ ] `typecheck` clean
+- [ ] Write short in-app help copy: how-it-works steps, FAQ (privacy, why results differ between resolvers, concurrency limits)
+- [ ] Changelog / release notes entry
+- [ ] QA pass on mobile viewport (textarea usability, table horizontal scroll)
+
+**Exit criteria:** feature is lint/typecheck/format clean, documented, discoverable, and ready to demo.
+
+---
+
+## Reference: Key Technical Facts
+
+- **Cloudflare DoH JSON endpoint:** `https://cloudflare-dns.com/dns-query?name=<domain>&type=A` with header `Accept: application/dns-json` (no API key, CORS-enabled)
+- **Google DoH JSON endpoint:** `https://dns.google/resolve?name=<domain>&type=A` (no API key, CORS-enabled)
+- Both can be called directly from client-side `fetch()` — this is what makes the tool backend-free
+- Browsers cap concurrent connections per host (~6), so large batches should be queued/throttled client-side rather than fired all at once
+- Add both DoH hostnames to CSP `connect-src` if your app sets a Content-Security-Policy header
+- Results filter model: `status` is only ever `"ok"` (has ≥1 IPv4) or `"no_dns"` (empty answer, error, or timeout) — the "All / DNS OK / No DNS" pills are a simple client-side filter over this one field
