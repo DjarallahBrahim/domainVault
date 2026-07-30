@@ -11,6 +11,7 @@ import {
   Pin,
   PinOff,
   Search,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/domains", label: "Domains", icon: Globe },
   { href: "/dns-checker", label: "DNS Checker", icon: Search },
+  { href: "/tld-checker", label: "TLD Checker", icon: Network },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/sales", label: "Sales", icon: DollarSign },
   { href: "/settings", label: "Settings", icon: Settings },
