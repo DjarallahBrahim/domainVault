@@ -18,31 +18,33 @@ export function DomainInput({
   isLoading,
 }: DomainInputProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Paste domain names here...&#10;e.g. google.com, cloudflare.com&#10;https://example.com/page&#10;Supports URLs, commas, spaces, and newlines"
-        className="min-h-[144px] resize-y font-mono text-sm"
-        rows={6}
+        placeholder="google.com&#10;cloudflare.com&#10;github.com"
+        className="min-h-[120px] resize-y font-mono text-sm leading-relaxed border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40"
+        rows={5}
       />
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-xs font-mono">
         {error ? (
-          <span className="text-destructive">{error}</span>
+          <span className="text-accent-danger">↳ {error}</span>
         ) : domainCount > 0 ? (
           <span className="text-muted-foreground">
-            {domainCount} {domainCount === 1 ? "domain" : "domains"} detected
+            ↳ {domainCount} {domainCount === 1 ? "line" : "lines"} parsed
           </span>
         ) : value.trim().length > 0 ? (
-          <span className="text-muted-foreground">No valid domains found</span>
+          <span className="text-muted-foreground">
+            ↳ No valid domains found
+          </span>
         ) : (
           <span className="text-muted-foreground">
-            Enter domain names or paste a list
+            ↳ One per line — commas, spaces, or full URLs accepted
           </span>
         )}
         {isLoading && (
           <span className="ml-auto text-xs text-muted-foreground animate-pulse">
-            Resolving...
+            resolving...
           </span>
         )}
       </div>

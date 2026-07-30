@@ -1968,3 +1968,207 @@ The core tool needs no backend. Only build this phase if you want features beyon
 - Browsers cap concurrent connections per host (~6), so large batches should be queued/throttled client-side rather than fired all at once
 - Add both DoH hostnames to CSP `connect-src` if your app sets a Content-Security-Policy header
 - Results filter model: `status` is only ever `"ok"` (has ≥1 IPv4) or `"no_dns"` (empty answer, error, or timeout) — the "All / DNS OK / No DNS" pills are a simple client-side filter over this one field
+
+# DNS Checker → TLD Reservation Checker
+
+
+## Phase 14 — Data Model
+
+New tables, additive to the existing `domains` table (no changes to it except two summary columns).
+
+```sql
+-- Cache summary directly on domains for fast table rendering (no join needed for the count column)
+ALTER TABLE public.domains
+  ADD COLUMN reserved_tlds_count INTEGER DEFAULT NULL, -- NULL = never checked
+  ADD COLUMN tlds_last_checked_at TIMESTAMPTZ DEFAULT NULL;
+
+-- Configurable TLD list to check against. Empty for now — populated later.
+CREATE TABLE IF NOT EXISTS public.tld_extensions (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  extension   TEXT UNIQUE NOT NULL,          -- e.g. 'io', 'ai', 'co'
+  category    TEXT DEFAULT 'generic'         -- 'generic' | 'country' | 'new_gtld'
+              CHECK (category IN ('generic','country','new_gtld')),
+  is_active   BOOLEAN DEFAULT true,          -- toggle without deleting
+  sort_order  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- One row per (domain root, tld checked) result
+CREATE TABLE IF NOT EXISTS public.domain_extension_checks (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  domain_id      UUID REFERENCES public.domains(id) ON DELETE CASCADE NOT NULL,
+  tld            TEXT NOT NULL,
+  full_domain    TEXT NOT NULL,              -- e.g. 'word.io'
+  is_reserved    BOOLEAN NOT NULL DEFAULT false,  -- NS lookup succeeded
+  is_live        BOOLEAN NOT NULL DEFAULT false,  -- A record resolved
+  resolver       TEXT NOT NULL,              -- 'cloudflare' | 'google'
+  checked_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (domain_id, tld)
+);
+
+CREATE INDEX idx_domain_extension_checks_domain_id ON public.domain_extension_checks(domain_id);
+CREATE INDEX idx_domain_extension_checks_user_id ON public.domain_extension_checks(user_id);
+
+-- Job tracking for batch sync runs
+CREATE TABLE IF NOT EXISTS public.tld_check_jobs (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  scope         TEXT NOT NULL CHECK (scope IN ('all','page')),
+  domain_ids    UUID[] NOT NULL,             -- resolved list of target domains at job creation time
+  status        TEXT DEFAULT 'queued' CHECK (status IN ('queued','running','completed','failed','cancelled')),
+  total_pairs   INTEGER DEFAULT 0,           -- domains × active tlds
+  processed_pairs INTEGER DEFAULT 0,
+  error         TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  started_at    TIMESTAMPTZ,
+  finished_at   TIMESTAMPTZ
+);
+
+CREATE INDEX idx_tld_check_jobs_user_id ON public.tld_check_jobs(user_id);
+```
+
+- [ ] Migration file added
+- [ ] `types:generate` run afterward to refresh `types/supabase.ts`
+- [ ] RLS policies (own rows only) — see Phase 21
+
+**Exit criteria:** tables exist, `tld_extensions` is empty and ready to be populated later, `domains` has the two new nullable summary columns with no data loss.
+
+---
+
+## Phase 15 — Shared DNS Engine Refactor
+
+Goal: generalize the Phase 7 engine so both the standalone DNS Checker tool *and* this new feature call the same core, instead of duplicating query logic.
+
+- [ ] `lib/dns/resolve.ts` — generalize `resolveDomain(domain, resolver, type: "A" | "NS", signal?)` (was hardcoded to `A`)
+- [ ] `lib/dns/parseNsAnswer.ts` — NS responses need different parsing than A (target hostnames, not IPs); `Answer[]` present + non-empty = reserved, `NXDOMAIN`/empty = not reserved
+- [ ] Extract the concurrency-limited batch runner from `resolveBatch` into a standalone, fully generic utility: `lib/dns/batchQueue.ts` → `runWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>, concurrency: number): Promise<R[]>`
+  - This is the reusable "engine" the user asked to keep separate — any future feature (this one, or others) plugs a worker function into it
+- [ ] `lib/dns/resolve.ts`'s `resolveBatch` becomes a thin wrapper around `runWithConcurrency`
+- [ ] No behavior change to the existing DNS Checker tool — this phase is a pure refactor, verified by re-running the tool manually
+
+**Exit criteria:** DNS Checker tool (Phases 7–13) still works identically; `runWithConcurrency` and `resolveDomain(..., "NS")` are usable independently and are covered by a quick manual smoke test.
+
+---
+
+## Phase 16 — TLD Reservation Core Logic
+
+The domain-specific logic for this feature, built on top of Phase 15's shared engine. Lives in its own module so it's swappable/reusable, per your requirement.
+
+- [ ] `lib/tld-checker/types.ts`:
+  - `ExtensionResult { tld, fullDomain, isReserved, isLive, resolver, tookMs }`
+  - `RootExtractor` — derive the checkable "root" from a stored domain (`split_part(domain, '.', 1)` equivalent in JS; flag multi-label TLDs like `.co.uk` as a known edge case to refine later, not blocking for v1)
+- [ ] `lib/tld-checker/checkExtensions.ts`:
+  - `checkAllExtensionsForRoot(root: string, tlds: string[], resolver, concurrency = 15): Promise<ExtensionResult[]>`
+  - For each `tld`, run **NS** query and **A** query in parallel (2 requests per tld), combine into one `ExtensionResult`
+  - Uses `runWithConcurrency` from Phase 15 — concurrency applies across the `tld × 2-queries` fan-out for one root
+- [ ] `lib/tld-checker/persistResults.ts`:
+  - Upsert rows into `domain_extension_checks` (`onConflict: "domain_id,tld"`)
+  - After persisting, recompute and write `reserved_tlds_count` + `tlds_last_checked_at` back onto the `domains` row (single source of truth for the fast list-view count, avoids a `COUNT()` join on every table render)
+- [ ] This module has **zero UI/route dependencies** — callable from an API route, a cron job, or a future different feature that needs "is this reserved" logic
+
+**Exit criteria:** given one domain row and a non-empty `tld_extensions` test list, running `checkAllExtensionsForRoot` populates correct rows in `domain_extension_checks` and updates the parent `domains.reserved_tlds_count`.
+
+---
+
+## Phase 17 — Batch Sync: Job Queue & Optimized Processing
+
+This is the part that needs real design care — a "Sync all domains" click can mean `domains × active_tlds × 2` DNS queries (e.g. 500 domains × 100 TLDs × 2 = 100,000 requests), which cannot run synchronously in a single request/response cycle or safely all-at-once from the browser.
+
+**Chosen approach: server-side queued job, processed in chunks, progress streamed to the client.**
+
+- [ ] **Job creation** (`POST /api/tld-checker/jobs`):
+  - Resolve `scope` ("all" vs current-page domain IDs passed from client) into a concrete `domain_ids` array at creation time (snapshot, so the job isn't affected by later edits)
+  - Compute `total_pairs = domain_ids.length × active_tld_count`
+  - Insert a `tld_check_jobs` row with `status = 'queued'`
+- [ ] **Processing strategy** (avoids hitting DoH provider throttles discussed earlier, and avoids serverless function timeouts):
+  - Process **domains in small groups** (e.g. 5 roots at a time), each root internally fanning out to TLDs with `concurrency = 15` (from Phase 16) → realistic peak of ~75 simultaneous DoH requests, comfortably under the informal per-IP throttling ranges discussed earlier
+  - **Split traffic across both resolvers** (alternate Cloudflare/Google per root, or per chunk) to roughly double effective throughput and avoid concentrating all load on one provider from the same server IP
+  - After each domain root finishes, immediately persist its results (Phase 16's `persistResults`) and increment `processed_pairs` on the job row — **incremental, resumable persistence**, not all-or-nothing
+  - If a job is interrupted (server restart, crash), it can be resumed by re-querying only `domain_ids` whose `tlds_last_checked_at` is older than the job's `created_at` — no wasted duplicate work
+- [ ] **Execution model** — pick based on your hosting:
+  - If serverless function duration limits are a concern for large "all domains" runs: run the loop inside a Supabase **Edge Function** invoked by the API route (can run longer / independently of the Next.js request lifecycle), or trigger via `pg_cron` picking up `queued` jobs every few seconds and processing one chunk per tick until `processed_pairs === total_pairs`
+  - If batches are always small/medium (e.g. capped "all domains" at a sane limit, or scope is usually just the current page of 50–200): a background-processed API route with `waitUntil`/streaming response can suffice without extra infra
+- [ ] **Retry/backoff**: any individual NS/A query that gets a `429` or times out is retried once with backoff before being recorded as `is_reserved: false` — avoids false negatives from transient throttling
+- [ ] **Progress delivery to client**: client subscribes to the `tld_check_jobs` row via **Supabase Realtime** (or polls every 2–3s as a simpler fallback) to update a progress bar (`processed_pairs / total_pairs`)
+
+**Exit criteria:** triggering a sync on 50 domains with a populated TLD list completes with correct per-domain counts, survives a mid-run interruption without duplicating already-checked pairs, and the client sees live progress.
+
+---
+
+## Phase 18 — API Routes / Server Actions
+
+- [ ] `POST /api/tld-checker/jobs` — create a job (scope: `"all" | "page"`, and if `"page"`, the domain IDs currently rendered)
+- [ ] `GET /api/tld-checker/jobs/:id` — job status (for polling fallback if not using Realtime)
+- [ ] `GET /api/tld-checker/domains/:domainId/extensions` — fetch the list of reserved extensions for one domain (powers the dropdown in Phase 19), returns `[{ tld, fullDomain, isReserved, isLive }]` sorted reserved-first
+- [ ] `POST /api/tld-checker/domains/:domainId/refresh` — single-domain "run/reload" action (for the 0-count row button, no need to spin up a full job for one domain)
+- [ ] All routes scoped to `auth.uid()`, reject cross-user domain IDs server-side (defense in depth alongside RLS)
+
+**Exit criteria:** each route independently testable via curl/Postman with a valid session; unauthorized access to another user's domain ID returns 403/404, not data.
+
+---
+
+## Phase 19 — UI: Domains Table Column
+
+- [ ] New column header **"TLDs Reserved"** inserted before **Actions**
+- [ ] Cell rendering per row, based on `reserved_tlds_count`:
+  - `NULL` (never checked) or `0` → small **Run**/reload icon button (matches your existing icon-button style) → calls the single-domain refresh route (Phase 18), shows a spinner while in flight, then updates in place
+  - `> 0` → a pill/badge showing the number, with a small chevron-down icon next to it
+- [ ] Clicking the count+chevron opens a **popover/dropdown** listing every reserved extension for that domain (fetched from Phase 18's `GET .../extensions` route, or from already-loaded data if you prefetch)
+  - Each row in the dropdown: extension (e.g. `.io`), a small live/not-live indicator, and the row itself is clickable → opens `https://{root}.{tld}` in a new tab (`target="_blank" rel="noopener noreferrer"`), matching the clickable-domain pattern from the DNS Checker tool
+- [ ] Loading state while the dropdown's data is being fetched (skeleton rows)
+- [ ] Empty state inside the dropdown if somehow 0 reserved but the button was still clickable (defensive, shouldn't normally occur)
+
+**Exit criteria:** a domain with `reserved_tlds_count = 0` shows a run button that triggers a check and updates the row; a domain with a positive count shows the number + dropdown, and dropdown items open the correct URL.
+
+---
+
+## Phase 20 — UI: Sync Button & Scope Selection
+
+- [ ] **Sync** button placed near the domains table's existing controls (e.g. next to pagination/page-size controls, since scope depends on it)
+- [ ] Clicking opens a small modal/popover with scope choice:
+  - **All domains** (shows total domain count for the user)
+  - **Current page** (shows however many are on the current page — 50/100/200, matching your existing pagination size selector)
+- [ ] Confirm triggers `POST /api/tld-checker/jobs` (Phase 18) with the resolved scope
+- [ ] While a job is running: show a progress bar/toast (`processed / total`), disable the Sync button (or let it queue another job — your call, but disabling avoids overlapping jobs against the same domains) and reflect per-row updates live as results land (via the same Realtime subscription, or by refetching the visible page once the job completes)
+- [ ] On completion: toast/notification with a short summary (e.g. "Checked 50 domains — 340 reserved extensions found")
+- [ ] On failure: surface the job's `error` field with a retry option
+
+**Exit criteria:** user can pick a scope, watch progress, and see the domains table's counts update as the job proceeds or completes, without a full page reload.
+
+---
+
+## Phase 21 — RLS & Security
+
+```sql
+ALTER TABLE public.domain_extension_checks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tld_check_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tld_extensions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own extension checks" ON public.domain_extension_checks
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own tld jobs" ON public.tld_check_jobs
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- tld_extensions is shared reference data, not per-user — read-only for all authenticated users
+CREATE POLICY "read active tlds" ON public.tld_extensions
+  FOR SELECT USING (is_active = true);
+```
+
+- [ ] Confirm `domain_extension_checks.domain_id` always belongs to a `domains` row owned by the same `user_id` (enforced at the API layer in Phase 18, since a DB-level cross-table check needs a trigger or just trusting the app layer + RLS on both tables)
+- [ ] Only privileged/admin path (not exposed to regular users) can write to `tld_extensions` — regular users only read `is_active = true` rows
+
+**Exit criteria:** a user cannot read or trigger checks against another user's domains via any route, verified by testing with two accounts.
+
+---
+
+## Phase 22 — Polish & Ship
+
+- [ ] `format` / `lint` / `typecheck` clean on all new files
+- [ ] Empty-state messaging when `tld_extensions` has zero active rows (since it's intentionally empty for now) — Sync button should be disabled with a tooltip like "No TLD list configured yet" rather than silently doing nothing
+- [ ] Document the NS-based "reserved" heuristic and its known limitation (Phase 14 note) somewhere visible in-app (tooltip/info icon next to the column header) so it's clear this isn't authoritative WHOIS data
+- [ ] Confirm the standalone DNS Checker tool (Phases 7–13) is unaffected by the Phase 15 refactor
+- [ ] Changelog entry
+
+**Exit criteria:** feature is clean, documented, and both features (DNS Checker tool + TLD Reservation column/sync) share the Phase 15 engine without duplication.

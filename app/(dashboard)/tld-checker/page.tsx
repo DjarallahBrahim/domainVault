@@ -1,16 +1,15 @@
 "use client";
 
-import { useDnsChecker } from "@/lib/hooks/useDnsChecker";
-import { DomainInput } from "@/components/dns-checker/DomainInput";
-import { ResolverSelector } from "@/components/dns-checker/ResolverSelector";
-import { SummaryBar } from "@/components/dns-checker/SummaryBar";
-import { ResultsTable } from "@/components/dns-checker/ResultsTable";
-import { ExportButton } from "@/components/dns-checker/ExportButton";
-import { CompareToggle } from "@/components/dns-checker/CompareToggle";
-import { HelpSection } from "@/components/dns-checker/HelpSection";
-import { StatCards } from "@/components/dns-checker/StatCards";
+import { useTldChecker } from "@/lib/hooks/useTldChecker";
+import { DomainInput } from "@/components/tld-checker/DomainInput";
+import { TldPicker } from "@/components/tld-checker/TldPicker";
+import { ResultsTable } from "@/components/tld-checker/ResultsTable";
+import { StatCards } from "@/components/tld-checker/StatCards";
+import { FilterPills } from "@/components/tld-checker/FilterPills";
+import { ExportButton } from "@/components/tld-checker/ExportButton";
+import { HelpSection } from "@/components/tld-checker/HelpSection";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Play, X } from "lucide-react";
 
 function TitleBar() {
   return (
@@ -21,7 +20,7 @@ function TitleBar() {
         <span className="inline-block w-2 h-2 rounded-full bg-accent-success" />
       </div>
       <span className="text-xs text-muted-foreground font-mono">
-        query.txt
+        query.tld
       </span>
     </div>
   );
@@ -35,34 +34,34 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DnsCheckerPage() {
+export default function TldCheckerPage() {
   const {
     rawInput,
     setRawInput,
-    parsedDomains,
+    parsedWords,
     parseError,
-    resolver,
-    setResolver,
+    selectedTlds,
+    toggleTld,
+    addCustomTld,
     isLoading,
+    results,
     filter,
     setFilter,
     filteredResults,
     counts,
     progress,
-    canResolve,
-    resolveAll,
-    compareMode,
-    setCompareMode,
-    compareResults,
+    canCheck,
+    checkAll,
+    cancelAll,
     buildCsv,
-  } = useDnsChecker();
+  } = useTldChecker();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-semibold">DNS Checker</h1>
+        <h1 className="text-2xl font-display font-semibold">TLD Checker</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Bulk DNS lookup tool — resolve A records via Cloudflare or Google
+          Check domain availability across TLDs — find the perfect extension for your brand
         </p>
       </div>
 
@@ -72,60 +71,61 @@ export default function DnsCheckerPage() {
         <TitleBar />
 
         <div className="p-5 space-y-6">
-          {/* DOMAINS section */}
           <div className="space-y-2">
-            <SectionLabel>// DOMAINS</SectionLabel>
+            <SectionLabel>// WORDS</SectionLabel>
             <DomainInput
               value={rawInput}
               onChange={setRawInput}
-              domainCount={parsedDomains.length}
+              wordCount={parsedWords.length}
               error={parseError}
-              isLoading={isLoading}
+              disabled={isLoading}
             />
           </div>
 
-          {/* CONTROLS section */}
+          <div className="space-y-3">
+            <SectionLabel>// TLDS</SectionLabel>
+            <TldPicker
+              selectedTlds={selectedTlds}
+              onToggleTld={toggleTld}
+              onAddCustomTld={addCustomTld}
+              disabled={isLoading}
+            />
+          </div>
+
           <div className="space-y-3">
             <SectionLabel>// CONTROLS</SectionLabel>
-
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3 flex-wrap">
-                <ResolverSelector
-                  value={resolver}
-                  onChange={setResolver}
-                  disabled={isLoading || compareMode}
-                />
-                <CompareToggle
-                  enabled={compareMode}
-                  onChange={setCompareMode}
-                  disabled={isLoading}
-                />
-              </div>
               <div className="flex items-center gap-2">
-                <ExportButton
-                  buildCsv={buildCsv}
-                  disabled={
-                    isLoading ||
-                    counts.all === 0
-                  }
-                />
                 <Button
-                  onClick={resolveAll}
-                  disabled={!canResolve}
+                  onClick={checkAll}
+                  disabled={!canCheck}
                   size="default"
                 >
                   <Play className="h-4 w-4" />
                   {isLoading
                     ? `${progress.done}/${progress.total}`
-                    : "Resolve"}
+                    : "Check Availability"}
                 </Button>
+                {isLoading && (
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={cancelAll}
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                )}
               </div>
+              <ExportButton
+                buildCsv={buildCsv}
+                disabled={isLoading || counts.all === 0}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* STATS section */}
       {counts.all > 0 && (
         <div className="space-y-3">
           <SectionLabel>// STATS</SectionLabel>
@@ -137,22 +137,23 @@ export default function DnsCheckerPage() {
         </div>
       )}
 
-      {/* RESULTS section */}
       {(counts.all > 0 || isLoading) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <SectionLabel>// RESULTS</SectionLabel>
-            <SummaryBar
+            <FilterPills
               filter={filter}
               onFilterChange={setFilter}
               counts={counts}
             />
           </div>
           <ResultsTable
-            results={filteredResults}
-            filter={filter}
-            compareMode={compareMode}
-            compareResults={compareResults}
+            results={
+              filter === "all"
+                ? results
+                : filteredResults
+            }
+            isLoading={isLoading}
           />
         </div>
       )}
