@@ -14,6 +14,7 @@ import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
+import { TldCell } from "@/components/domains/TldCell";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -46,6 +47,7 @@ interface DomainTableProps {
   onSedoBatchSync: () => void;
   onSpaceshipBatchSync: () => void;
   onCopySelected: () => void;
+  reservedExtensions: Map<string, string[]>;
 }
 
 export function DomainTable({
@@ -72,6 +74,7 @@ export function DomainTable({
   onSedoBatchSync,
   onSpaceshipBatchSync,
   onCopySelected,
+  reservedExtensions,
 }: DomainTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -256,6 +259,7 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
+              <TableHead className="w-[100px] font-mono text-xs">TLDs</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -327,6 +331,16 @@ export function DomainTable({
                 )}
                 <TableCell className="text-sm text-text-muted">
                   {new Date(domain.created_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  <TldCell
+                    domainId={domain.id}
+                    domainName={domain.domain}
+                    reservedTldsCount={
+                      (domain as Record<string, unknown>).reserved_tlds_count as number | null ?? null
+                    }
+                    reservedExtensions={reservedExtensions.get(domain.id) ?? []}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
