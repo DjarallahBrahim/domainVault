@@ -36,9 +36,10 @@ interface DomainListClientProps {
   >;
   tlds: string[];
   registrars: string[];
+  userId: string;
 }
 
-export function DomainListClient({ initialData, tlds, registrars }: DomainListClientProps) {
+export function DomainListClient({ initialData, tlds, registrars, userId }: DomainListClientProps) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const filters = Object.fromEntries(searchParams.entries());
@@ -275,6 +276,8 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           <TldSyncModal
             totalDomains={data.total}
             currentPageDomainIds={data.domains.map((d) => d.id)}
+            domains={data.domains.map((d) => ({ id: d.id, domain: d.domain }))}
+            userId={userId}
           />
           <SedoSyncButton />
           <SpaceshipSyncButton />

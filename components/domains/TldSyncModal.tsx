@@ -13,11 +13,15 @@ import { TldSyncButton } from "./TldSyncButton";
 interface TldSyncModalProps {
   totalDomains: number;
   currentPageDomainIds: string[];
+  domains: Array<{ id: string; domain: string }>;
+  userId: string;
 }
 
 export function TldSyncModal({
   totalDomains,
   currentPageDomainIds,
+  domains,
+  userId,
 }: TldSyncModalProps) {
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<"all" | "page">("all");
@@ -133,7 +137,13 @@ export function TldSyncModal({
               <p className="text-sm text-muted-foreground font-mono mb-4">
                 Sync in progress...
               </p>
-              <TldSyncButton variant="full" />
+              <TldSyncButton
+                variant="full"
+                scope={scope}
+                domainIds={scope === "page" ? currentPageDomainIds : []}
+                domains={domains}
+                userId={userId}
+              />
               <div className="mt-3 flex justify-end">
                 <Button
                   variant="outline"
