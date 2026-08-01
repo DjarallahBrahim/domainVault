@@ -15,6 +15,7 @@ import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { TldCell } from "@/components/domains/TldCell";
+import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -178,7 +179,15 @@ export function DomainTable({
                 </button>
               </TableHead>
               {showAllColumns && (
-                <TableHead>Purchase</TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => updateSort("purchase_price")}
+                    className="flex items-center gap-1 hover:text-text-primary"
+                  >
+                    Purchase{sortLabel("purchase_price")}
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
               )}
               <TableHead>BIN</TableHead>
               <TableHead>
@@ -273,12 +282,18 @@ export function DomainTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <button
-                    onClick={() => router.push(`/domains/${domain.id}`)}
-                    className="font-medium font-mono text-accent-primary hover:underline text-left"
-                  >
-                    {domain.domain}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <RenewalToggle
+                      domainId={domain.id}
+                      toBeRenewal={(domain as Record<string, unknown>).to_be_renewal as boolean | null ?? null}
+                    />
+                    <button
+                      onClick={() => router.push(`/domains/${domain.id}`)}
+                      className="font-medium font-mono text-accent-primary hover:underline text-left"
+                    >
+                      {domain.domain}
+                    </button>
+                  </div>
                 </TableCell>
                 {showAllColumns && (
                   <TableCell>

@@ -4,6 +4,7 @@ import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { TldCell } from "@/components/domains/TldCell";
+import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -39,6 +40,10 @@ export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoC
     <div className="rounded-lg border border-border bg-bg-surface p-4 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <RenewalToggle
+            domainId={domain.id}
+            toBeRenewal={(domain as Record<string, unknown>).to_be_renewal as boolean | null ?? null}
+          />
           <button
             onClick={() => router.push(`/domains/${domain.id}`)}
             className="font-mono font-medium text-accent-primary hover:underline text-left"

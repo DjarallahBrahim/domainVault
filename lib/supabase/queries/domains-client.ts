@@ -18,6 +18,7 @@ export interface DomainFilters {
   expiry?: string;
   registrars?: string;
   notListed?: string;
+  renewal?: string;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -81,6 +82,14 @@ export async function fetchDomains(filters: DomainFilters) {
     if (table) {
       query = query.not("id", "in", `(select "domain_id" from "${table}")`);
     }
+  }
+
+  if (filters.renewal === "yes") {
+    query = query.eq("to_be_renewal", true);
+  } else if (filters.renewal === "no") {
+    query = query.eq("to_be_renewal", false);
+  } else if (filters.renewal === "decided") {
+    query = query.is("to_be_renewal", null);
   }
 
   const sortColumn = (filters.sort ?? "created_at") as keyof DomainRow;
