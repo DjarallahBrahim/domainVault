@@ -19,3 +19,5 @@ BEGIN
 END $$;
 
 COMMIT;
+
+ALTER TABLE public.domains ADD COLUMN to_be_renewal BOOLEAN DEFAULT NULL;

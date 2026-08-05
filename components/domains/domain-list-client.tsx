@@ -15,6 +15,7 @@ import { SedoOverlay } from "@/components/domains/SedoOverlay";
 import { SedoSyncButton } from "@/components/domains/SedoSyncButton";
 import { SpaceshipOverlay } from "@/components/domains/SpaceshipOverlay";
 import { SpaceshipSyncButton } from "@/components/domains/SpaceshipSyncButton";
+import { TldSyncModal } from "@/components/domains/TldSyncModal";
 import { useSedoListings } from "@/lib/hooks/useSedoListings";
 import { useSedoRefreshOne } from "@/lib/hooks/useSedoRefreshOne";
 import { useSpaceshipListings } from "@/lib/hooks/useSpaceshipListings";
@@ -35,9 +36,10 @@ interface DomainListClientProps {
   >;
   tlds: string[];
   registrars: string[];
+  userId: string;
 }
 
-export function DomainListClient({ initialData, tlds, registrars }: DomainListClientProps) {
+export function DomainListClient({ initialData, tlds, registrars, userId }: DomainListClientProps) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const filters = Object.fromEntries(searchParams.entries());
@@ -265,14 +267,22 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <Button variant="outline" onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-1" />
           Add Domain
         </Button>
+        <div className="flex items-center gap-2">
+          <TldSyncModal
+            totalDomains={data.total}
+            currentPageDomainIds={data.domains.map((d) => d.id)}
+            domains={data.domains.map((d) => ({ id: d.id, domain: d.domain }))}
+            userId={userId}
+          />
           <SedoSyncButton />
           <SpaceshipSyncButton />
         </div>
+      </div>
       <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
 
       <div className="hidden sm:block">
@@ -300,6 +310,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
           onSedoBatchSync={handleSedoBatchSync}
           onSpaceshipBatchSync={handleSpaceshipBatchSync}
           onCopySelected={handleCopySelected}
+          reservedExtensions={data.reservedExtensions}
         />
       </div>
 
@@ -319,6 +330,7 @@ export function DomainListClient({ initialData, tlds, registrars }: DomainListCl
             onSpaceshipCreate={handleSpaceshipCreate}
             onSpaceshipRefresh={handleSpaceshipRefresh}
             spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
+            reservedExtensions={data.reservedExtensions}
           />
         ))}
       </div>

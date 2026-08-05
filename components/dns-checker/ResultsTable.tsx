@@ -67,7 +67,29 @@ function CopyChip({ ip }: { ip: string }) {
   );
 }
 
-function ResultRow({ result }: { result: DnsResult | null }) {
+function DomainLink({ domain, isVisited, onVisit }: { domain: string; isVisited: boolean; onVisit: () => void }) {
+  const handleClick = useCallback(() => {
+    onVisit();
+  }, [onVisit]);
+
+  return (
+    <a
+      href={`https://${domain}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={handleClick}
+      onAuxClick={handleClick}
+      className={`inline-flex items-center gap-1 hover:underline ${
+        isVisited ? "text-muted-foreground/50 line-through" : "text-primary"
+      }`}
+    >
+      {domain}
+      <ExternalLink className="h-3 w-3" />
+    </a>
+  );
+}
+
+function ResultRow({ result, visited, onVisit }: { result: DnsResult | null; visited: Set<string>; onVisit: (d: string) => void }) {
   if (!result) {
     return <SkeletonRow />;
   }
@@ -82,15 +104,11 @@ function ResultRow({ result }: { result: DnsResult | null }) {
         )}
       </TableCell>
       <TableCell className="font-mono text-sm">
-        <a
-          href={`https://${result.domain}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          {result.domain}
-          <ExternalLink className="h-3 w-3" />
-        </a>
+        <DomainLink
+          domain={result.domain}
+          isVisited={visited.has(result.domain)}
+          onVisit={() => onVisit(result.domain)}
+        />
         {result.error && (
           <span className="block text-xs text-muted-foreground mt-0.5">
             {result.error}
@@ -120,8 +138,12 @@ function ResultRow({ result }: { result: DnsResult | null }) {
 
 function CompareResultRow({
   result,
+  visited,
+  onVisit,
 }: {
   result: ComparisonResult | null;
+  visited: Set<string>;
+  onVisit: (d: string) => void;
 }) {
   if (!result) {
     return (
@@ -156,15 +178,11 @@ function CompareResultRow({
         )}
       </TableCell>
       <TableCell className="font-mono text-sm">
-        <a
-          href={`https://${result.domain}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          {result.domain}
-          <ExternalLink className="h-3 w-3" />
-        </a>
+        <DomainLink
+          domain={result.domain}
+          isVisited={visited.has(result.domain)}
+          onVisit={() => onVisit(result.domain)}
+        />
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
@@ -251,6 +269,11 @@ export function ResultsTable({
   compareMode,
   compareResults,
 }: ResultsTableProps) {
+  const [visited, setVisited] = useState<Set<string>>(new Set());
+
+  const markVisited = useCallback((domain: string) => {
+    setVisited((prev) => new Set(prev).add(domain));
+  }, []);
   if (compareMode && compareResults) {
     const hasResults = compareResults.length > 0;
 
@@ -270,8 +293,10 @@ export function ResultsTable({
               {hasResults ? (
                 compareResults.map((result, i) => (
                   <CompareResultRow
-                    key={result?.domain ?? `pending-${i}`}
+                    key={result?.domain ?? `compare-${i}`}
                     result={result}
+                    visited={visited}
+                    onVisit={markVisited}
                   />
                 ))
               ) : (
@@ -309,6 +334,8 @@ export function ResultsTable({
                 <ResultRow
                   key={result?.domain ?? `pending-${i}`}
                   result={result}
+                  visited={visited}
+                  onVisit={markVisited}
                 />
               ))
             ) : (

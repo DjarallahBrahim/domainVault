@@ -15,6 +15,7 @@ export interface DomainFilters {
   expiry?: string;
   registrars?: string;
   notListed?: string;
+  renewal?: string;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -83,6 +84,14 @@ export async function fetchDomains(filters: DomainFilters) {
     }
   }
 
+  if (filters.renewal === "yes") {
+    query = query.eq("to_be_renewal", true);
+  } else if (filters.renewal === "no") {
+    query = query.eq("to_be_renewal", false);
+  } else if (filters.renewal === "decided") {
+    query = query.is("to_be_renewal", null);
+  }
+
   const sortColumn = (filters.sort ?? "created_at") as keyof DomainRow;
   const sortOrder = filters.order === "asc" ? true : false;
 
@@ -94,8 +103,26 @@ export async function fetchDomains(filters: DomainFilters) {
 
   if (error) throw error;
 
+  const domains = (data ?? []) as unknown as DomainRow[];
+
+  const reservedExtensions = new Map<string, string[]>();
+  if (domains.length > 0) {
+    const { data: extData } = await resolved
+      .from("domain_extension_checks")
+      .select("domain_id, tld")
+      .in("domain_id", domains.map((d) => d.id))
+      .eq("is_reserved", true);
+
+    for (const row of (extData ?? []) as Array<{ domain_id: string; tld: string }>) {
+      const list = reservedExtensions.get(row.domain_id) ?? [];
+      list.push(row.tld);
+      reservedExtensions.set(row.domain_id, list);
+    }
+  }
+
   return {
-    domains: (data ?? []) as unknown as DomainRow[],
+    domains,
+    reservedExtensions,
     total: count ?? 0,
     page,
     pageSize,

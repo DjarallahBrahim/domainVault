@@ -32,6 +32,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
+  const currentRenewal = searchParams.get("renewal") ?? "";
   const currentPageSize = searchParams.get("pageSize") ?? "50";
 
   const [searchValue, setSearchValue] = useState(urlSearch.replace(/,/g, " "));
@@ -71,8 +72,8 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   }
 
   const hasFilters =
-    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars;
-  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars].filter(
+    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars || currentRenewal;
+  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars, currentRenewal].filter(
     Boolean
   ).length;
 
@@ -169,6 +170,26 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
               </SelectContent>
             </Select>
           </div>
+
+          {showAdvanced && (
+            <div className="space-y-1">
+              <Label className="text-xs text-text-muted font-medium">Renewal</Label>
+              <Select
+                value={currentRenewal}
+                onValueChange={(value) => updateParam({ renewal: value === "all" ? "" : value })}
+              >
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="decided">Not decided</SelectItem>
+                  <SelectItem value="yes">Will renew</SelectItem>
+                  <SelectItem value="no">Will not renew</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {showAdvanced && (
             <div className="space-y-1">

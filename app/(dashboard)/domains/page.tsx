@@ -5,6 +5,7 @@ import {
   fetchAllRegistrars,
 } from "@/lib/supabase/queries/domains";
 import { DomainListClient } from "@/components/domains/domain-list-client";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Domains",
@@ -45,6 +46,9 @@ export default async function DomainsPage({
       typeof params.notListed === "string" ? params.notListed : undefined,
   };
 
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+
   const [initialData, tlds, registrars] = await Promise.all([
     fetchDomains(filters),
     fetchAllTlds(),
@@ -54,7 +58,12 @@ export default async function DomainsPage({
   return (
     <div>
       <h1 className="text-2xl font-bold font-display mb-6">Domains</h1>
-      <DomainListClient initialData={initialData} tlds={tlds} registrars={registrars} />
+      <DomainListClient
+        initialData={initialData}
+        tlds={tlds}
+        registrars={registrars}
+        userId={authData.user?.id ?? ""}
+      />
     </div>
   );
 }

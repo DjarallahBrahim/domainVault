@@ -3,6 +3,8 @@
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
+import { TldCell } from "@/components/domains/TldCell";
+import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -23,6 +25,7 @@ interface DomainCardProps {
   onSpaceshipCreate: (domain: DomainRow) => void;
   onSpaceshipRefresh: (domain: DomainRow) => void;
   spaceshipRefreshingIds: Set<string>;
+  reservedExtensions: Map<string, string[]>;
 }
 
 const formatPrice = (price: number | null): string => {
@@ -30,17 +33,33 @@ const formatPrice = (price: number | null): string => {
   return `$${price.toLocaleString()}`;
 };
 
-export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds, spaceshipListings, onSpaceshipEdit, onSpaceshipCreate, onSpaceshipRefresh, spaceshipRefreshingIds }: DomainCardProps) {
+export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds, spaceshipListings, onSpaceshipEdit, onSpaceshipCreate, onSpaceshipRefresh, spaceshipRefreshingIds, reservedExtensions }: DomainCardProps) {
   const router = useRouter();
 
   return (
     <div className="rounded-lg border border-border bg-bg-surface p-4 space-y-2">
-      <button
-        onClick={() => router.push(`/domains/${domain.id}`)}
-        className="font-mono font-medium text-accent-primary hover:underline text-left"
-      >
-        {domain.domain}
-      </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <RenewalToggle
+            domainId={domain.id}
+            toBeRenewal={(domain as Record<string, unknown>).to_be_renewal as boolean | null ?? null}
+          />
+          <button
+            onClick={() => router.push(`/domains/${domain.id}`)}
+            className="font-mono font-medium text-accent-primary hover:underline text-left"
+          >
+            {domain.domain}
+          </button>
+          <TldCell
+            domainId={domain.id}
+            domainName={domain.domain}
+            reservedTldsCount={
+              (domain as Record<string, unknown>).reserved_tlds_count as number | null ?? null
+            }
+            reservedExtensions={reservedExtensions.get(domain.id) ?? []}
+          />
+        </div>
+      </div>
 
       <div className="text-xs text-text-muted space-y-1">
         {domain.registrar && (
