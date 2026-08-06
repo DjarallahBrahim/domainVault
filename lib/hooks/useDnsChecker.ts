@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { Resolver, DnsResult } from "@/lib/dns/resolve";
 import { resolveDomain } from "@/lib/dns/resolve";
-import { parseDomainList } from "@/lib/dns/parseInput";
+import { parseDomainList, replaceDomainsTld } from "@/lib/dns/parseInput";
 
 type FilterValue = "all" | "dns_ok" | "no_dns";
 
@@ -26,6 +26,12 @@ interface DnsCheckerState {
   setRawInput: (value: string) => void;
   parsedDomains: string[];
   parseError: string | null;
+  existingTld: string;
+  setExistingTld: (v: string) => void;
+  targetTld: string;
+  setTargetTld: (v: string) => void;
+  transformedDomains: string[];
+  handleReplaceTld: () => void;
   resolver: Resolver;
   setResolver: (r: Resolver) => void;
   results: (DnsResult | null)[];
@@ -116,6 +122,8 @@ export function useDnsChecker(): DnsCheckerState {
   const [rawInput, setRawInput] = useState("");
   const [parsedDomains, setParsedDomains] = useState<string[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [existingTld, setExistingTld] = useState(".com");
+  const [targetTld, setTargetTld] = useState("");
   const [resolver, setResolver] = useState<Resolver>("cloudflare");
   const [results, setResults] = useState<(DnsResult | null)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,6 +158,43 @@ export function useDnsChecker(): DnsCheckerState {
   useEffect(() => {
     debouncedParse(rawInput);
   }, [rawInput, debouncedParse]);
+
+  const transformedDomains = useMemo(
+    () => replaceDomainsTld(parsedDomains, existingTld, targetTld),
+    [parsedDomains, existingTld, targetTld]
+  );
+
+  const handleReplaceTld = useCallback(() => {
+    if (!existingTld.trim() || !targetTld.trim() || parsedDomains.length === 0) {
+      return;
+    }
+
+    const from = existingTld.startsWith(".") ? existingTld : `.${existingTld}`;
+    const to = targetTld.startsWith(".") ? targetTld : `.${targetTld}`;
+    if (from === to) return;
+
+    const transformed = parsedDomains.map((domain) => {
+      if (domain.endsWith(from)) {
+        return domain.slice(0, -from.length) + to;
+      }
+      return domain;
+    });
+
+    const pairs = parsedDomains
+      .map((orig, i) => [orig, transformed[i]] as const)
+      .filter(([orig, t]) => orig !== t)
+      .sort((a, b) => b[0].length - a[0].length);
+
+    if (pairs.length === 0) return;
+
+    let text = rawInput;
+    for (const [orig, t] of pairs) {
+      const escaped = orig.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      text = text.replace(new RegExp(escaped, "g"), t);
+    }
+
+    setRawInput(text);
+  }, [rawInput, parsedDomains, existingTld, targetTld]);
 
   useEffect(() => {
     return () => {
@@ -367,6 +412,12 @@ export function useDnsChecker(): DnsCheckerState {
     setRawInput,
     parsedDomains,
     parseError,
+    existingTld,
+    setExistingTld,
+    targetTld,
+    setTargetTld,
+    transformedDomains,
+    handleReplaceTld,
     resolver,
     setResolver,
     results,

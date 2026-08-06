@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { ArrowRight, BarChart3, TrendingUp, Upload, Tags, Bell, DollarSign } from "lucide-react";
+import { ArrowRight, BarChart3, TrendingUp, Upload, Tags, Bell, DollarSign, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ShowcaseSection } from "@/components/landing/showcase-section";
 
@@ -72,12 +72,21 @@ export function LandingPage({ isAuthenticated, showcaseDomains }: LandingPagePro
           </Link>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className={cn(buttonVariants({ variant: "default", size: "sm" }))}
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  href="/tools"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  Free Tools
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+                >
+                  Dashboard
+                </Link>
+              </>
             ) : (
               <>
                 <Link
@@ -85,6 +94,13 @@ export function LandingPage({ isAuthenticated, showcaseDomains }: LandingPagePro
                   className="text-sm font-medium text-text-muted transition-colors hover:text-text-primary"
                 >
                   Sign In
+                </Link>
+                <Link
+                  href="/tools"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  Free Tools
                 </Link>
                 <Link
                   href="/register"

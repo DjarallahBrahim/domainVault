@@ -58,6 +58,30 @@ interface ParseError {
   error: string;
 }
 
+export function replaceDomainsTld(
+  domains: string[],
+  existingTld: string,
+  targetTld: string
+): string[] {
+  if (!existingTld || !targetTld || existingTld === targetTld) {
+    return domains;
+  }
+
+  const from = existingTld.startsWith(".") ? existingTld : `.${existingTld}`;
+  const to = targetTld.startsWith(".") ? targetTld : `.${targetTld}`;
+
+  if (from === to) {
+    return domains;
+  }
+
+  return domains.map((domain) => {
+    if (domain.endsWith(from)) {
+      return domain.slice(0, -from.length) + to;
+    }
+    return domain;
+  });
+}
+
 export function parseDomainList(
   rawText: string
 ): ParseResult | ParseError {
