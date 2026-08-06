@@ -80,6 +80,24 @@ Built with Next.js 14+ (App Router), TypeScript, Supabase, Tailwind CSS + shadcn
 - Earnings summary: total sales count, total revenue, average price, highest sale
 - "Log Sale" quick-action button on domain detail page
 
+### DNS Checker
+- Bulk DNS A record resolution via Cloudflare (1.1.1.1) or Google (8.8.8.8) DNS-over-HTTPS
+- Paste a list of domains (one per line, comma-separated, or full URLs) — up to 200 at once
+- **TLD Replacement**: replace the TLD on all domains in-place (e.g. `.com` → `.net`) — defaults to `.com` as source TLD, type a target and click "Replace"
+- **Compare Mode**: runs both Cloudflare and Google resolvers in parallel, highlights mismatched A records
+- Results filterable by DNS OK / No DNS / All, with CSV export
+- Live progress counter during resolution (concurrency pool of 20)
+- Available publicly from `/tools/dns-checker` (no sign-up) and in the dashboard sidebar
+
+### TLD Checker
+- Check domain availability across multiple TLDs simultaneously via DNS NS record lookup
+- Enter base words (one per line) and select extensions from a pill-style picker (default: com, net, org, io, ai, co, app, dev)
+- Add custom TLDs via text input
+- Results: available / registered / reserved / error, with filterable status columns
+- CSV export with word × TLD matrix
+- Concurrency-limited with cancel support
+- Available publicly from `/tools/tld-checker` (no sign-up) and in the dashboard sidebar
+
 ---
 
 ## Getting Started
@@ -172,26 +190,37 @@ app/
 ├── (dashboard)/
 │   ├── dashboard/           # Analytics homepage
 │   ├── domains/             # Domain list + detail/edit
+│   ├── dns-checker/         # Bulk DNS resolution (auth users, sidebar)
 │   ├── import/              # CSV upload + manual entry + history
 │   ├── sales/               # Sales tracking + earnings
-│   └── settings/            # Account settings
+│   ├── settings/            # Account settings
+│   └── tld-checker/         # TLD availability check (auth users, sidebar)
+├── tools/                   # Public tools (no sign-up required)
+│   ├── page.tsx             # Feature cards landing page
+│   ├── dns-checker/         # Public DNS Checker
+│   └── tld-checker/         # Public TLD Checker
 components/
 ├── ui/                      # shadcn/ui primitives + reusable (tag-input, promotion-row)
 ├── auth/                    # Auth forms
 ├── layout/                  # Sidebar, tab bar, theme toggle
 ├── domains/                 # Domain table, cards, forms, dialogs, tag-input
+├── dns-checker/             # DNS Checker components + DnsCheckerContent shared component
+├── tld-checker/             # TLD Checker components + TldCheckerContent shared component
 ├── import/                  # CSV uploader, progress, summary, manual-entry-tab
 ├── dashboard/               # KPI cards, charts, donut, promotion section, leaderboard, revenue chart
 ├── sales/                   # Sale form, list, summary, dialogs
+├── landing/                 # Landing page components
 lib/
+├── dns/                     # DNS resolution (parse, resolve, types)
+├── tld/                     # TLD availability check logic
 ├── supabase/                # Browser + server clients
 │   └── queries/             # Typed CRUD helpers (domains, sales, imports, dashboard)
+├── hooks/                   # Custom React hooks (useDnsChecker, useTldChecker, etc.)
 ├── validations/             # Zod schemas
 ├── promotions.ts            # Promotion logic (candidates, stats, recording)
-├── hooks/                   # Custom React hooks
 └── query-keys.ts            # Centralized TanStack Query keys
 supabase/
-├── migrations/              # SQL migration files (001–003)
+├── migrations/              # SQL migration files
 └── seed-sales.sql           # Fake test data for dashboard development
 ```
 
