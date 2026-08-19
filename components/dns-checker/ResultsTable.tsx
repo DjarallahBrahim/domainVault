@@ -34,6 +34,8 @@ interface ResultsTableProps {
   filter: FilterValue;
   compareMode?: boolean;
   compareResults?: (ComparisonResult | null)[];
+  visited?: Set<string>;
+  onVisit?: (domain: string) => void;
 }
 
 function CopyChip({ ip }: { ip: string }) {
@@ -268,12 +270,11 @@ export function ResultsTable({
   filter,
   compareMode,
   compareResults,
+  visited,
+  onVisit,
 }: ResultsTableProps) {
-  const [visited, setVisited] = useState<Set<string>>(new Set());
-
-  const markVisited = useCallback((domain: string) => {
-    setVisited((prev) => new Set(prev).add(domain));
-  }, []);
+  const visitedSet = visited ?? new Set<string>();
+  const handleVisit = onVisit ?? (() => {});
   if (compareMode && compareResults) {
     const hasResults = compareResults.length > 0;
 
@@ -295,8 +296,8 @@ export function ResultsTable({
                   <CompareResultRow
                     key={result?.domain ?? `compare-${i}`}
                     result={result}
-                    visited={visited}
-                    onVisit={markVisited}
+                    visited={visitedSet}
+                    onVisit={handleVisit}
                   />
                 ))
               ) : (
@@ -334,8 +335,8 @@ export function ResultsTable({
                 <ResultRow
                   key={result?.domain ?? `pending-${i}`}
                   result={result}
-                  visited={visited}
-                  onVisit={markVisited}
+                  visited={visitedSet}
+                  onVisit={handleVisit}
                 />
               ))
             ) : (

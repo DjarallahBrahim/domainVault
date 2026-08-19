@@ -40,6 +40,8 @@ export default async function DomainsPage({
         : undefined,
     expiry:
       typeof params.expiry === "string" ? params.expiry : undefined,
+    renewal:
+      typeof params.renewal === "string" ? params.renewal : undefined,
     registrars:
       typeof params.registrar === "string" ? params.registrar : undefined,
     notListed:

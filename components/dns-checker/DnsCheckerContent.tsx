@@ -11,7 +11,7 @@ import { HelpSection } from "@/components/dns-checker/HelpSection";
 import { StatCards } from "@/components/dns-checker/StatCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RefreshCw } from "lucide-react";
+import { Play, RefreshCw, ExternalLink } from "lucide-react";
 
 function TitleBar() {
   return (
@@ -60,11 +60,16 @@ export function DnsCheckerContent() {
     compareMode,
     setCompareMode,
     compareResults,
+    visited,
+    markVisited,
+    openDnsOk,
     buildCsv,
   } = useDnsChecker();
 
   const tldReplaceReady =
     existingTld.trim().length > 0 && targetTld.trim().length > 0;
+
+  const openCount = Math.min(counts.dns_ok, 20);
 
   return (
     <div className="space-y-6">
@@ -180,19 +185,36 @@ export function DnsCheckerContent() {
 
       {(counts.all > 0 || isLoading) && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <SectionLabel>// RESULTS</SectionLabel>
-            <SummaryBar
-              filter={filter}
-              onFilterChange={setFilter}
-              counts={counts}
-            />
+            <div className="flex items-center gap-2">
+              {counts.dns_ok > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDnsOk(20)}
+                  disabled={isLoading}
+                  className="h-7 px-2 text-xs font-mono"
+                  title={`Open up to 20 DNS-OK domains in new tabs and mark them visited`}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Open {openCount} URLs
+                </Button>
+              )}
+              <SummaryBar
+                filter={filter}
+                onFilterChange={setFilter}
+                counts={counts}
+              />
+            </div>
           </div>
           <ResultsTable
             results={filteredResults}
             filter={filter}
             compareMode={compareMode}
             compareResults={compareResults}
+            visited={visited}
+            onVisit={markVisited}
           />
         </div>
       )}

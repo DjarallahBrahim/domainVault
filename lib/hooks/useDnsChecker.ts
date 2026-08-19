@@ -46,6 +46,9 @@ interface DnsCheckerState {
   compareMode: boolean;
   setCompareMode: (v: boolean) => void;
   compareResults: (ComparisonResult | null)[];
+  visited: Set<string>;
+  markVisited: (domain: string) => void;
+  openDnsOk: (limit?: number) => void;
   buildCsv: () => string;
 }
 
@@ -133,6 +136,7 @@ export function useDnsChecker(): DnsCheckerState {
   const [compareResults, setCompareResults] = useState<
     (ComparisonResult | null)[]
   >([]);
+  const [visited, setVisited] = useState<Set<string>>(new Set());
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -195,6 +199,46 @@ export function useDnsChecker(): DnsCheckerState {
 
     setRawInput(text);
   }, [rawInput, parsedDomains, existingTld, targetTld]);
+
+  const markVisited = useCallback((domain: string) => {
+    setVisited((prev) => {
+      if (prev.has(domain)) return prev;
+      const next = new Set(prev);
+      next.add(domain);
+      return next;
+    });
+  }, []);
+
+  const openDnsOk = useCallback(
+    (limit = 20) => {
+      const okDomains = (results.filter(
+        (r): r is DnsResult => r !== null && r.status === "ok"
+      ) as DnsResult[]).map((r) => r.domain);
+
+      const targets = okDomains.slice(0, limit);
+      if (targets.length === 0) return;
+
+      for (const domain of targets) {
+        const anchor = document.createElement("a");
+        anchor.href = `https://${domain}`;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      }
+
+      setVisited((prev) => {
+        const next = new Set(prev);
+        for (const domain of targets) {
+          next.add(domain);
+        }
+        return next;
+      });
+    },
+    [results]
+  );
 
   useEffect(() => {
     return () => {
@@ -432,6 +476,9 @@ export function useDnsChecker(): DnsCheckerState {
     compareMode,
     setCompareMode,
     compareResults,
+    visited,
+    markVisited,
+    openDnsOk,
     buildCsv,
   };
 }
