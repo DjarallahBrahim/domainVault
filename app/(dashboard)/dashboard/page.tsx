@@ -3,7 +3,6 @@ import {
   autoTransitionExpired,
   fetchDashboardStats,
   fetchExpirySegments,
-  fetchRegistrarBreakdown,
   fetchExpiringDomains,
   fetchQuickStats,
 } from "@/lib/supabase/queries/dashboard";
@@ -21,14 +20,12 @@ export default async function DashboardPage() {
     // Auto-transition failure should not block dashboard load
   }
 
-  const [stats, segments, registrarData, expiringDomains, quickStatsData] =
-    await Promise.all([
-      fetchDashboardStats().catch(() => null),
-      fetchExpirySegments().catch(() => null),
-      fetchRegistrarBreakdown().catch(() => null),
-      fetchExpiringDomains(30).catch(() => null),
-      fetchQuickStats().catch(() => null),
-    ]);
+  const [stats, segments, expiringDomains, quickStatsData] = await Promise.all([
+    fetchDashboardStats().catch(() => null),
+    fetchExpirySegments().catch(() => null),
+    fetchExpiringDomains(30).catch(() => null),
+    fetchQuickStats().catch(() => null),
+  ]);
 
   if (!stats || stats.total_active === 0) {
     return (
@@ -45,7 +42,6 @@ export default async function DashboardPage() {
       <DashboardClient
         initialStats={stats}
         initialSegments={segments}
-        initialRegistrarData={registrarData}
         initialExpiringDomains={expiringDomains}
         initialQuickStats={quickStatsData}
       />

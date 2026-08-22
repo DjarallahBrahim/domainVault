@@ -12,6 +12,7 @@ import {
   PinOff,
   Search,
   Network,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/domains", label: "Domains", icon: Globe },
   { href: "/dns-checker", label: "DNS Checker", icon: Search },
   { href: "/tld-checker", label: "TLD Checker", icon: Network },
+  { href: "/promoting", label: "Promoting", icon: Megaphone },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/sales", label: "Sales", icon: DollarSign },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -66,19 +68,14 @@ export function Sidebar() {
             className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
             aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
           >
-            {pinned ? (
-              <Pin className="h-4 w-4" />
-            ) : (
-              <PinOff className="h-4 w-4" />
-            )}
+            {pinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link

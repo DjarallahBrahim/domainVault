@@ -2172,3 +2172,401 @@ CREATE POLICY "read active tlds" ON public.tld_extensions
 - [ ] Changelog entry
 
 **Exit criteria:** feature is clean, documented, and both features (DNS Checker tool + TLD Reservation column/sync) share the Phase 15 engine without duplication.
+
+# DomainVault — Phase 23 · Promoting (TLD Outreach Tracker)
+
+> Standalone spec for Phase 23 only. Builds on top of the TLD Reservation Checker
+> (Phases 14–22), which already computes and stores reserved TLDs per domain.
+> Build order: **Step 1 — Migration → Step 2 — API Routes → Step 3 — Page & Components → Step 4 — Polish**
+>
+> ### Tags
+> - `[NEW]` — does not exist yet, must be built from scratch
+> - `[REUSE]` — existing route/hook/component from a prior phase, no changes needed
+
+---
+
+## Goal
+
+A new **`/promoting`** page where the user picks one domain from their portfolio and
+sees every **reserved TLD variant** of that domain (e.g. `word.io`, `word.ai`, `word.co`
+if `word.com` is the base domain), already computed by the Phase 14–22 TLD checker.
+
+For each reserved TLD the user tracks manual outreach to the current owner:
+- **TLD** — clickable link
+- **Contacted** — checkbox
+- **Reply** — Pending / Positive / Negative
+
+If the selected domain has never been checked (or has 0 reserved TLDs), the page
+offers a one-click "Run TLD Check" using the existing single-domain refresh route —
+no new DNS logic is built here, this phase is purely the outreach layer on top.
+
+---
+
+## Design Constraints
+
+- Reuses the existing design system exactly as defined in the master plan (Section 4):
+  same CSS variables, same dark/light palettes, same `accent-success` /
+  `accent-warning` / `accent-danger` semantics, same Syne / DM Sans / JetBrains Mono
+  type pairing (TLD/domain strings in JetBrains Mono, like everywhere else in the app).
+- Reuses shadcn/ui primitives already in the codebase (`Table`, `Checkbox`, `Select`,
+  `Badge`, `Card`, `Combobox`/`Command` for the domain picker, `Skeleton`). Only build
+  a new component if nothing existing covers it — see Step 3 component table for which
+  are genuinely new vs. reused.
+- Follows the same interaction conventions already established: hover lift on cards,
+  optimistic updates on toggles (pattern already used in US-010 domain edit and the
+  Sedo/Spaceship overlays), skeleton loaders on async fetch, toast on save.
+- KPI-style summary cards on this page follow the exact same visual spec as US-013
+  (icon, accent stripe, animated counter, hover lift) — not a new card style.
+
+---
+
+## Step 1 — Migration
+
+### Migration 009 — `tld_outreach` table `[NEW]`
+
+One row per **(domain, TLD)** the user is tracking outreach for. Keyed off
+`domain_extension_checks` conceptually (same `domain_id` + `tld` pair) but kept as
+its own table since outreach is a distinct, user-editable concern from the
+read-only DNS check results.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.tld_outreach (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  domain_id      UUID REFERENCES public.domains(id) ON DELETE CASCADE NOT NULL,
+  tld            TEXT NOT NULL,
+  full_domain    TEXT NOT NULL,                 -- e.g. 'word.io' — denormalized for fast render
+  contacted      BOOLEAN NOT NULL DEFAULT false,
+  contacted_at   TIMESTAMPTZ,
+  reply_status   TEXT NOT NULL DEFAULT 'pending'
+                 CHECK (reply_status IN ('pending', 'positive', 'negative')),
+  reply_at       TIMESTAMPTZ,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (domain_id, tld)
+);
+
+CREATE INDEX idx_tld_outreach_user_id   ON public.tld_outreach(user_id);
+CREATE INDEX idx_tld_outreach_domain_id ON public.tld_outreach(domain_id);
+CREATE INDEX idx_tld_outreach_reply     ON public.tld_outreach(reply_status);
+
+ALTER TABLE public.tld_outreach ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own tld_outreach" ON public.tld_outreach
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+```
+
+- `contacted_at` set server-side the moment `contacted` flips `false → true`; cleared
+  if unchecked.
+- `reply_at` set server-side whenever `reply_status` changes away from `'pending'`.
+- A row is only ever created lazily (on first checkbox/select interaction) — reserved
+  TLDs with no outreach yet don't need a pre-seeded row; the UI treats "no row" the
+  same as `contacted: false, reply_status: 'pending'`.
+
+- [ ] Migration 009 applied
+- [ ] `types:generate` run afterward to refresh `types/supabase.ts`
+
+---
+
+## Step 2 — API Routes / Hooks
+
+No new DNS/network calls in this phase — reads reuse Phase 18's existing extension
+data, writes are plain Supabase upserts on `tld_outreach`.
+
+### Reused from Phase 18 `[REUSE]`
+
+| Route | Purpose here |
+|---|---|
+| `GET /api/tld-checker/domains/:domainId/extensions` | Fetch reserved TLDs for the selected domain (filter client-side to `isReserved === true`) |
+| `POST /api/tld-checker/domains/:domainId/refresh` | "Run TLD Check" button when a domain has never been checked or has 0 reserved TLDs |
+
+### New hooks `[NEW]`
+
+```
+lib/hooks/
+  usePromotingDomains.ts
+  useReservedTlds.ts
+  useTldOutreach.ts
+```
+
+**`usePromotingDomains.ts`**
+```ts
+// TanStack Query key: ['promoting-domains']
+// Lightweight list of the user's active domains for the Combobox picker:
+// { id, domain, reserved_tlds_count, tlds_last_checked_at }
+// Sourced directly from `domains` (already has the two summary columns from Phase 14).
+export function usePromotingDomains(): {
+  domains: PromotingDomainOption[]
+  isLoading: boolean
+}
+```
+
+**`useReservedTlds.ts`**
+```ts
+// TanStack Query key: ['reserved-tlds', domainId]
+// Calls the reused GET .../extensions route, filters isReserved === true,
+// sorted by tld ascending.
+export function useReservedTlds(domainId: string | null): {
+  tlds: ReservedTld[]        // { tld, fullDomain, isLive }
+  isLoading: boolean
+  isEmpty: boolean           // true if checked but 0 reserved
+  neverChecked: boolean      // true if domains.reserved_tlds_count is NULL
+}
+```
+
+**`useTldOutreach.ts`**
+```ts
+// TanStack Query key: ['tld-outreach', domainId]
+// Reads all tld_outreach rows for the domain, returns Map<tld, OutreachRow>
+// so the table can merge with useReservedTlds() by tld — O(1) lookup, missing
+// entries default to { contacted: false, reply_status: 'pending' }.
+//
+// Mutations (optimistic, mirrors the Domain slide-over pattern from US-010):
+//   toggleContacted(tld: string, next: boolean) -> upsert tld_outreach
+//   setReplyStatus(tld: string, status: 'pending' | 'positive' | 'negative') -> upsert
+// Both invalidate ['tld-outreach', domainId] and ['promoting-domains']
+// (so the summary card / domain list counts stay in sync).
+export function useTldOutreach(domainId: string | null): {
+  outreach: Map<string, OutreachRow>
+  isLoading: boolean
+  toggleContacted: (tld: string, next: boolean) => Promise<void>
+  setReplyStatus: (tld: string, status: ReplyStatus) => Promise<void>
+}
+```
+
+All writes go directly through the Supabase client (RLS-protected), same pattern
+already used for domain CRUD (US-010/US-011) — no dedicated API route needed since
+there's no third-party call involved, just a table upsert.
+
+- [ ] `usePromotingDomains`, `useReservedTlds`, `useTldOutreach` implemented
+- [ ] Optimistic UI on checkbox + reply select, rollback on error with toast
+
+---
+
+## Step 3 — Page & Components
+
+### Route
+
+```
+app/(dashboard)/promoting/page.tsx
+```
+
+Added to sidebar nav (desktop) and bottom tab bar (mobile), per the existing
+US-003 navigation pattern — icon suggestion: `Megaphone` (lucide-react).
+
+Deep-linkable via query param: `/promoting?domain=<domain_id>` — read on mount to
+pre-select the domain, written back whenever the user picks a new one (`router.replace`,
+no full navigation), matching the URL-sync convention already used for domain filters
+(US-009c).
+
+### New files
+
+```
+components/promoting/
+  PromotingPage.tsx        ← page shell, layout, state orchestration
+  DomainPicker.tsx         ← searchable combobox to select a domain
+  PromotingSummaryCards.tsx← 3 KPI-style cards for the selected domain
+  ReservedTldTable.tsx     ← desktop table: TLD / Contacted / Reply
+  ReservedTldCardRow.tsx   ← mobile card layout (same data, stacked)
+  ReplyStatusSelect.tsx    ← small segmented control / select used in the table
+  RunTldCheckPrompt.tsx    ← empty state CTA when domain has 0 / never checked
+
+types/
+  promoting.ts
+```
+
+### TypeScript types — `types/promoting.ts`
+
+```ts
+export interface PromotingDomainOption {
+  id: string
+  domain: string
+  reserved_tlds_count: number | null
+  tlds_last_checked_at: string | null
+}
+
+export interface ReservedTld {
+  tld: string
+  fullDomain: string
+  isLive: boolean
+}
+
+export type ReplyStatus = 'pending' | 'positive' | 'negative'
+
+export interface OutreachRow {
+  contacted: boolean
+  contacted_at: string | null
+  reply_status: ReplyStatus
+  reply_at: string | null
+}
+```
+
+---
+
+### Layout
+
+```
+Desktop ≥1024px:
+┌───────────────────────────────────────────────────────────────────┐
+│  Page title "Promoting"          [ DomainPicker ▾ ]                │
+├───────────────────────────────────────────────────────────────────┤
+│  Summary cards row (3 across): Reserved TLDs · Contacted · Replies │
+├───────────────────────────────────────────────────────────────────┤
+│  Reserved TLD Table (full width)                                   │
+│  TLD            Contacted        Reply                             │
+│  word.io  ↗      [ ]             [ Pending ▾ ]                     │
+│  word.ai  ↗      [x]             [ Positive ]                      │
+│  word.co  ↗      [x]             [ Negative ]                      │
+└───────────────────────────────────────────────────────────────────┘
+
+Mobile <768px: DomainPicker becomes a full-width control below the title,
+summary cards become horizontal scroll chips (same pattern as US-019 Quick
+Stats on mobile), table becomes stacked cards (ReservedTldCardRow), one per TLD.
+```
+
+---
+
+### US-061 — Domain Picker `[NEW]`
+
+**Component**: `components/promoting/DomainPicker.tsx`
+
+- shadcn `Command` + `Popover` combobox (searchable), consistent with any existing
+  autocomplete pattern in the app (e.g. Registrar autocomplete in US-010).
+- Options sourced from `usePromotingDomains()`. Each option shows: domain name
+  (JetBrains Mono), and a small muted badge with `reserved_tlds_count` (or
+  "not checked" if `null`).
+- Selecting an option updates local state + `?domain=` query param.
+- Empty portfolio → placeholder "No domains yet — add one from Import".
+
+---
+
+### US-062 — Promoting Summary Cards `[NEW]`
+
+**Component**: `components/promoting/PromotingSummaryCards.tsx`
+
+Only rendered once a domain is selected. Same visual spec as US-013 KPI cards
+(icon, accent stripe, animated counter, hover lift, skeleton while loading):
+
+1. **Reserved TLDs** — total count for the selected domain, accent-primary stripe.
+2. **Contacted** — count where `contacted = true`, accent-warning stripe.
+3. **Positive Replies** — count where `reply_status = 'positive'`, accent-success
+   stripe. Subtext: "`N` negative" in `accent-danger` muted text underneath, so both
+   reply outcomes are visible without a 4th card.
+
+Clicking a card is not interactive in v1 (no drill-down target exists) — no hover
+lift removed, but no click handler either, matching how US-018/US-019 non-clickable
+widgets behave elsewhere in the app.
+
+---
+
+### US-063 — Reserved TLD Table `[NEW]`
+
+**Component**: `components/promoting/ReservedTldTable.tsx` (desktop) /
+`ReservedTldCardRow.tsx` (mobile, <768px, same breakpoint as the Domains table).
+
+Data: merge of `useReservedTlds(domainId)` (the TLD list) and
+`useTldOutreach(domainId)` (the outreach state), joined by `tld`.
+
+**Columns**
+
+| Column | Rendering |
+|---|---|
+| TLD | `fullDomain` in JetBrains Mono, `accent-primary` link with external-link icon (`↗`), `<a href="https://{fullDomain}" target="_blank" rel="noopener noreferrer">` — same clickable-domain pattern as the DNS Checker tool and the TLD dropdown in US-019. A small dot indicator (green/gray) reflects `isLive` from the DNS check, matching existing status-dot conventions. |
+| Contacted | shadcn `Checkbox`. Checking it calls `toggleContacted(tld, true)` optimistically; row shows a brief "Contacted just now" tooltip on hover using `contacted_at`. |
+| Reply | `ReplyStatusSelect` — see US-064 below. |
+
+Sortable by TLD (default) or by Reply status (positive first) via column header
+click, consistent with the sortable-column pattern already used in US-009 Domain List.
+
+**Empty / loading states**
+- Loading: skeleton rows (5), matching Domains table skeleton pattern.
+- Domain has reserved TLDs but table briefly empty during refetch: previous data
+  kept visible (TanStack Query `keepPreviousData`), no flash.
+
+---
+
+### US-064 — Reply Status Control `[NEW]`
+
+**Component**: `components/promoting/ReplyStatusSelect.tsx`
+
+A small shadcn `Select` styled as a status pill rather than a plain dropdown:
+
+```
+[ Pending ▾ ]   ← text-muted, neutral border
+[ Positive ▾ ]  ← accent-success background tint
+[ Negative ▾ ]  ← accent-danger background tint
+```
+
+- Options: `Pending` / `Positive` / `Negative`.
+- Changing the value calls `setReplyStatus(tld, status)` optimistically; pill color
+  transitions smoothly (existing micro-interaction standard from Section 2 — Core
+  Principles: "hover effects, micro-interactions, and smooth transitions on all
+  interactive elements").
+- Disabled (grayed, no interaction) until `Contacted` is checked — reply doesn't make
+  sense before outreach happened. Tooltip on disabled state: "Mark as contacted first".
+
+---
+
+### US-065 — Run TLD Check Empty State `[NEW]`
+
+**Component**: `components/promoting/RunTldCheckPrompt.tsx`
+
+Shown instead of the table when `useReservedTlds` returns `neverChecked` or `isEmpty`:
+
+```
+┌─────────────────────────────────────────────┐
+│         🔍                                   │
+│   No TLD data yet for word.com               │
+│   Run a check to see which extensions        │
+│   are already reserved.                      │
+│                                              │
+│        [ Run TLD Check ]                     │
+└─────────────────────────────────────────────┘
+```
+
+- Button calls the reused `POST /api/tld-checker/domains/:domainId/refresh` (Phase 18),
+  same spinner/disabled-during-call behavior as the row-level "Run" button in US-019.
+- On success: invalidate `['reserved-tlds', domainId]` and `['promoting-domains']`,
+  table replaces the empty state automatically.
+- If `isEmpty` (checked, genuinely 0 reserved TLDs): copy changes to "No reserved
+  TLDs found for word.com — checked `X` extensions." with a "Re-check" button instead
+  of "Run TLD Check", no crash, no dead end.
+- If the global `tld_extensions` reference list is itself empty (Phase 22 known
+  state), button is disabled with the same tooltip already defined in Phase 22:
+  "No TLD list configured yet."
+
+---
+
+## Definition of Done — Phase 23
+
+### Step 1 — Migration
+- [ ] Migration 009 applied (`tld_outreach` table + RLS + indexes)
+- [ ] `types:generate` run
+
+### Step 2 — Hooks
+- [ ] `usePromotingDomains` returns domain list with reserved counts
+- [ ] `useReservedTlds` reuses Phase 18 extensions route, filters to reserved-only
+- [ ] `useTldOutreach` merges outreach rows, defaults missing rows correctly
+- [ ] `toggleContacted` / `setReplyStatus` optimistic, roll back cleanly on error
+- [ ] `contacted_at` / `reply_at` set server-side on state transitions
+
+### Step 3 — Page & Components
+- [ ] `/promoting` route added, reachable from sidebar (desktop) + tab bar (mobile)
+- [ ] `?domain=` query param drives and reflects the selected domain
+- [ ] `DomainPicker` searchable, shows reserved-count badge per option
+- [ ] Summary cards render with correct counts, icon/stripe/hover styling matches US-013
+- [ ] `ReservedTldTable` (desktop) and `ReservedTldCardRow` (mobile) both render correctly
+- [ ] TLD links open correctly in a new tab; live/not-live dot accurate
+- [ ] Contacted checkbox persists and reflects immediately (optimistic)
+- [ ] Reply select disabled until contacted, colors match accent tokens, persists correctly
+- [ ] `RunTldCheckPrompt` covers all 3 empty-state variants (never checked / 0 reserved / no TLD list configured)
+- [ ] Sorting by TLD and by Reply status works
+
+### Quality
+- [ ] Dark and light mode both fully styled — no hardcoded colors outside CSS variables
+- [ ] Fully responsive: 375px (mobile cards) through 1920px (desktop table)
+- [ ] Skeleton loaders on every async section, no layout shift
+- [ ] Zero TypeScript errors
+- [ ] No new third-party calls introduced — this phase only writes to `tld_outreach`
+      and reads/reuses Phase 18 routes

@@ -34,12 +34,24 @@ export async function fetchDomains(filters: DomainFilters) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
-    .from("domains")
-    .select("*", { count: "exact" });
+  const sortColumn = filters.sort ?? "created_at";
+  const sortOrder = filters.order === "asc" ? true : false;
+  const priceSort = sortColumn === "sedo_price" || sortColumn === "spaceship_price";
 
-  if (filters.status) {
+  const selectFields = priceSort
+    ? sortColumn === "sedo_price"
+      ? "*, sedo_listings(sedo_price)"
+      : "*, spaceship_listings(spaceship_price)"
+    : "*";
+
+  let query = supabase.from("domains").select(selectFields, { count: "exact" });
+
+  if (filters.status === "all") {
+    // No status filter — show all statuses
+  } else if (filters.status) {
     query = query.eq("status", filters.status);
+  } else {
+    query = query.eq("status", "active");
   }
 
   if (filters.tld) {
@@ -47,9 +59,12 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.search) {
-    const tokens = filters.search.split(",").map(t => t.trim()).filter(Boolean);
+    const tokens = filters.search
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
     if (tokens.length > 1) {
-      query = query.or(tokens.map(t => `domain.ilike.%${t}%`).join(","));
+      query = query.or(tokens.map((t) => `domain.ilike.%${t}%`).join(","));
     } else if (tokens.length === 1) {
       query = query.ilike("domain", `%${tokens[0]}%`);
     }
@@ -69,7 +84,10 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.registrars) {
-    const regTokens = filters.registrars.split(",").map(r => r.trim()).filter(Boolean);
+    const regTokens = filters.registrars
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean);
     if (regTokens.length > 1) {
       query = query.in("registrar", regTokens);
     } else if (regTokens.length === 1) {
@@ -92,25 +110,63 @@ export async function fetchDomains(filters: DomainFilters) {
     query = query.is("to_be_renewal", null);
   }
 
-  const sortColumn = (filters.sort ?? "created_at") as keyof DomainRow;
-  const sortOrder = filters.order === "asc" ? true : false;
+  let domains: DomainRow[];
+  let count: number;
 
-  query = query
-    .order(sortColumn, { ascending: sortOrder })
-    .range(from, to);
+  if (priceSort) {
+    const priceKey = sortColumn === "sedo_price" ? "sedo_listings" : "spaceship_listings";
 
-  const { data, error, count } = await query;
+    const {
+      data,
+      error,
+      count: exactCount,
+    } = await query.order("created_at", {
+      ascending: false,
+    });
+    if (error) throw error;
+    count = exactCount ?? 0;
 
-  if (error) throw error;
+    const all = (data ?? []) as unknown as Array<DomainRow & Record<string, unknown>>;
 
-  const domains = (data ?? []) as unknown as DomainRow[];
+    const priceOf = (row: DomainRow & Record<string, unknown>): number | undefined => {
+      const rel = row[priceKey];
+      if (rel == null) return undefined;
+      const rec = Array.isArray(rel)
+        ? (rel[0] as Record<string, unknown> | undefined)
+        : (rel as Record<string, unknown>);
+      if (rec == null) return undefined;
+      const p = rec[sortColumn] as number | string | null | undefined;
+      return p == null ? undefined : Number(p);
+    };
+
+    const sorted = [...all].sort((a, b) => {
+      const pa = priceOf(a);
+      const pb = priceOf(b);
+      if (pa === undefined && pb === undefined) return 0;
+      if (pa === undefined) return 1;
+      if (pb === undefined) return -1;
+      return sortOrder ? pa - pb : pb - pa;
+    });
+
+    domains = sorted.slice(from, to) as unknown as DomainRow[];
+  } else {
+    query = query.order(sortColumn as keyof DomainRow, { ascending: sortOrder }).range(from, to);
+
+    const { data, error, count: exactCount } = await query;
+    if (error) throw error;
+    count = exactCount ?? 0;
+    domains = (data ?? []) as unknown as DomainRow[];
+  }
 
   const reservedExtensions = new Map<string, string[]>();
   if (domains.length > 0) {
     const { data: extData } = await supabase
       .from("domain_extension_checks")
       .select("domain_id, tld")
-      .in("domain_id", domains.map((d) => d.id))
+      .in(
+        "domain_id",
+        domains.map((d) => d.id)
+      )
       .eq("is_reserved", true);
 
     for (const row of (extData ?? []) as Array<{ domain_id: string; tld: string }>) {
@@ -123,10 +179,10 @@ export async function fetchDomains(filters: DomainFilters) {
   return {
     domains,
     reservedExtensions,
-    total: count ?? 0,
+    total: count,
     page,
     pageSize,
-    totalPages: Math.ceil((count ?? 0) / pageSize),
+    totalPages: Math.ceil(count / pageSize),
   };
 }
 
@@ -167,10 +223,7 @@ export interface UpsertRow {
   tags?: string[] | null;
 }
 
-export async function upsertDomains(
-  rows: UpsertRow[],
-  mode: "skip" | "update"
-) {
+export async function upsertDomains(rows: UpsertRow[], mode: "skip" | "update") {
   const supabase = createClient();
 
   const {
@@ -192,30 +245,24 @@ export async function upsertDomains(
   }));
 
   if (mode === "skip") {
-    const { data, error } = await supabase
-      .from("domains")
-      .upsert(payload as never, {
-        onConflict: "user_id,domain",
-        ignoreDuplicates: true,
-      });
+    const { data, error } = await supabase.from("domains").upsert(payload as never, {
+      onConflict: "user_id,domain",
+      ignoreDuplicates: true,
+    });
 
     if (error) throw error;
     return data;
   }
 
-  const { data, error } = await supabase
-    .from("domains")
-    .upsert(payload as never, {
-      onConflict: "user_id,domain",
-    });
+  const { data, error } = await supabase.from("domains").upsert(payload as never, {
+    onConflict: "user_id,domain",
+  });
 
   if (error) throw error;
   return data;
 }
 
-export async function checkExistingDomains(
-  normalizedNames: string[]
-): Promise<Set<string>> {
+export async function checkExistingDomains(normalizedNames: string[]): Promise<Set<string>> {
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -269,7 +316,10 @@ export async function insertSingleDomain(input: {
       registrar: input.registrar ?? null,
       notes: input.notes ?? null,
       tags: input.tags
-        ? input.tags.split(",").map((t: string) => t.trim()).filter((t: string) => t.length > 0)
+        ? input.tags
+            .split(",")
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.length > 0)
         : null,
       status: "active",
     } as never)

@@ -138,10 +138,7 @@ export function DomainTable({
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
-          <Checkbox
-            checked={showAllColumns}
-            onCheckedChange={(c) => setShowAllColumns(!!c)}
-          />
+          <Checkbox checked={showAllColumns} onCheckedChange={(c) => setShowAllColumns(!!c)} />
           Show all columns
         </label>
       </div>
@@ -151,10 +148,7 @@ export function DomainTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={toggleAll}
-                />
+                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
               </TableHead>
               <TableHead>
                 <button
@@ -165,9 +159,6 @@ export function DomainTable({
                   <ArrowUpDown className="h-3 w-3" />
                 </button>
               </TableHead>
-              {showAllColumns && (
-                <TableHead>TLD</TableHead>
-              )}
               <TableHead>Registrar</TableHead>
               <TableHead>
                 <button
@@ -259,15 +250,6 @@ export function DomainTable({
                   </button>
                 </TableHead>
               )}
-              <TableHead>
-                <button
-                  onClick={() => updateSort("created_at")}
-                  className="flex items-center gap-1 hover:text-text-primary"
-                >
-                  Added{sortLabel("created_at")}
-                  <ArrowUpDown className="h-3 w-3" />
-                </button>
-              </TableHead>
               <TableHead className="w-[100px] font-mono text-xs">TLDs</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
@@ -285,7 +267,10 @@ export function DomainTable({
                   <div className="flex items-center gap-1.5">
                     <RenewalToggle
                       domainId={domain.id}
-                      toBeRenewal={(domain as Record<string, unknown>).to_be_renewal as boolean | null ?? null}
+                      toBeRenewal={
+                        ((domain as Record<string, unknown>).to_be_renewal as boolean | null) ??
+                        null
+                      }
                     />
                     <button
                       onClick={() => router.push(`/domains/${domain.id}`)}
@@ -295,15 +280,8 @@ export function DomainTable({
                     </button>
                   </div>
                 </TableCell>
-                {showAllColumns && (
-                  <TableCell>
-                    <span className="text-xs text-text-muted">.{domain.tld}</span>
-                  </TableCell>
-                )}
                 <TableCell>
-                  <span className="text-sm">
-                    {domain.registrar || "\u2014"}
-                  </span>
+                  <span className="text-sm">{domain.registrar || "\u2014"}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -314,9 +292,7 @@ export function DomainTable({
                   </div>
                 </TableCell>
                 {showAllColumns && (
-                  <TableCell className="text-sm">
-                    {formatPrice(domain.purchase_price)}
-                  </TableCell>
+                  <TableCell className="text-sm">{formatPrice(domain.purchase_price)}</TableCell>
                 )}
                 <TableCell className="text-sm">
                   {formatPrice((domain as Record<string, unknown>).bin as number | null)}
@@ -344,15 +320,13 @@ export function DomainTable({
                     <DomainStatusBadge status={domain.status} />
                   </TableCell>
                 )}
-                <TableCell className="text-sm text-text-muted">
-                  {new Date(domain.created_at).toLocaleDateString()}
-                </TableCell>
                 <TableCell>
                   <TldCell
                     domainId={domain.id}
                     domainName={domain.domain}
                     reservedTldsCount={
-                      (domain as Record<string, unknown>).reserved_tlds_count as number | null ?? null
+                      ((domain as Record<string, unknown>).reserved_tlds_count as number | null) ??
+                      null
                     }
                     reservedExtensions={reservedExtensions.get(domain.id) ?? []}
                   />

@@ -24,4 +24,13 @@ export const queryKeys = {
   userSettings: {
     all: ["user-settings"] as const,
   },
+  promoting: {
+    all: ["promoting"] as const,
+    domains: () => [...queryKeys.promoting.all, "domains"] as const,
+    reservedTlds: (domainId: string | null) =>
+      [...queryKeys.promoting.all, "reserved-tlds", domainId] as const,
+    outreach: (domainId: string | null) =>
+      [...queryKeys.promoting.all, "outreach", domainId] as const,
+    activeTlds: () => [...queryKeys.promoting.all, "active-tlds"] as const,
+  },
 };
