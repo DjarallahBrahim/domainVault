@@ -2,6 +2,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
+type DomainRenewalRow = DomainRow & { to_be_renewal: boolean | null };
 
 export async function autoTransitionExpired(): Promise<number> {
   const supabase = createServerClient();
@@ -23,6 +24,7 @@ export interface DashboardStats {
   portfolio_value: number;
   total_sales: number;
   expiring_90d: number;
+  expiring_90d_all: number;
   expiring_30d: number;
   sold_this_year: number;
 }
@@ -32,7 +34,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date");
+    .select("purchase_price, status, expiration_date, to_be_renewal");
 
   if (domainError) throw domainError;
 
@@ -49,12 +51,18 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const domainRows = (domains ?? []) as unknown as DomainRow[];
   const active = domainRows.filter((d) => d.status === "active");
+  const activeRenewal = active as unknown as DomainRenewalRow[];
 
   const portfolio_value = active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0);
-  const expiring_90d = active.filter((d) => {
+  const expiring_90d_all = activeRenewal.filter((d) => {
     const exp = new Date(d.expiration_date);
     const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff <= 90;
+  }).length;
+  const expiring_90d = activeRenewal.filter((d) => {
+    const exp = new Date(d.expiration_date);
+    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 90 && d.to_be_renewal === null;
   }).length;
   const expiring_30d = active.filter((d) => {
     const exp = new Date(d.expiration_date);
@@ -70,6 +78,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     portfolio_value,
     total_sales,
     expiring_90d,
+    expiring_90d_all,
     expiring_30d,
     sold_this_year,
   };

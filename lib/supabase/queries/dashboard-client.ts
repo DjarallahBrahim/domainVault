@@ -3,6 +3,7 @@ import { addMonths } from "date-fns";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
+type DomainRenewalRow = DomainRow & { to_be_renewal: boolean | null };
 
 export async function updatePromotion(promotionId: string, updates: { promoted_at: string }) {
   const supabase = createClient();
@@ -95,6 +96,7 @@ export interface DashboardStats {
   portfolio_value: number;
   total_sales: number;
   expiring_90d: number;
+  expiring_90d_all: number;
   expiring_30d: number;
   sold_this_year: number;
 }
@@ -103,7 +105,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const supabase = createClient();
   const { data: domains, error } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date");
+    .select("purchase_price, status, expiration_date, to_be_renewal");
   if (error) throw error;
   const { data: salesRaw, error: sErr } = await supabase
     .from("sales")
@@ -113,15 +115,17 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const now = new Date();
   const yearStart = `${now.getFullYear()}-01-01`;
   const rows = (domains ?? []) as unknown as DomainRow[];
-  const active = rows.filter((d) => d.status === "active");
+  const active = rows.filter((d) => d.status === "active") as unknown as DomainRenewalRow[];
+  const in90d = active.filter((d) => {
+    const diff = (new Date(d.expiration_date).getTime() - now.getTime()) / 86400000;
+    return diff <= 90;
+  });
   return {
     total_active: active.length,
     portfolio_value: active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0),
     total_sales: sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0),
-    expiring_90d: active.filter((d) => {
-      const diff = (new Date(d.expiration_date).getTime() - now.getTime()) / 86400000;
-      return diff <= 90;
-    }).length,
+    expiring_90d: in90d.filter((d) => d.to_be_renewal === null).length,
+    expiring_90d_all: in90d.length,
     expiring_30d: active.filter((d) => {
       const diff = (new Date(d.expiration_date).getTime() - now.getTime()) / 86400000;
       return diff <= 30 && diff >= 0;
