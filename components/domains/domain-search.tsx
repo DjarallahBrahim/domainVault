@@ -31,6 +31,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentStatus = searchParams.get("status") ?? "active";
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
+  const currentCreated = searchParams.get("created") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
   const currentRenewal = searchParams.get("renewal") ?? "";
   const currentPageSize = searchParams.get("pageSize") ?? "50";
@@ -76,12 +77,14 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     currentStatus !== "active" ||
     currentTld ||
     currentExpiry ||
+    currentCreated ||
     currentRegistrars ||
     currentRenewal;
   const activeFilterCount = [
     currentStatus !== "active" ? currentStatus : "",
     currentTld,
     currentExpiry,
+    currentCreated,
     currentRegistrars,
     currentRenewal,
   ].filter(Boolean).length;
@@ -173,6 +176,22 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                 <SelectItem value="3m">≤3 months</SelectItem>
                 <SelectItem value="6m">≤6 months</SelectItem>
                 <SelectItem value="9m">≤9 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Acquired</Label>
+            <Select
+              value={currentCreated}
+              onValueChange={(value) => updateParam({ created: value === "all" ? "" : value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="1m">This Month</SelectItem>
               </SelectContent>
             </Select>
           </div>

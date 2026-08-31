@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/supabase";
-import { addMonths } from "date-fns";
+import { addMonths, format, startOfMonth } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 type DomainUpdate = Database["public"]["Tables"]["domains"]["Update"];
@@ -19,6 +19,7 @@ export interface DomainFilters {
   registrars?: string;
   notListed?: string;
   renewal?: string;
+  created?: string;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -110,6 +111,13 @@ export async function fetchDomains(filters: DomainFilters) {
     query = query.is("to_be_renewal", null);
   }
 
+  if (filters.created === "1m") {
+    const now = new Date();
+    const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+    const nextMonthStart = format(startOfMonth(addMonths(now, 1)), "yyyy-MM-dd");
+    query = query.gte("created_at", monthStart).lt("created_at", nextMonthStart);
+  }
+
   let domains: DomainRow[];
   let count: number;
 
@@ -189,9 +197,15 @@ export async function fetchDomains(filters: DomainFilters) {
 export async function updateDomain(id: string, updates: DomainUpdate) {
   const supabase = createClient();
 
+  const normalized: Record<string, unknown> = { ...updates };
+  if (typeof normalized.registrar === "string") {
+    const trimmed = normalized.registrar.trim();
+    normalized.registrar = trimmed ? trimmed.toLowerCase() : null;
+  }
+
   const { error } = await supabase
     .from("domains")
-    .update(updates as never)
+    .update(normalized as never)
     .eq("id", id);
 
   if (error) throw error;
@@ -239,7 +253,7 @@ export async function upsertDomains(rows: UpsertRow[], mode: "skip" | "update") 
     expiration_date: row.expiration_date,
     purchase_price: row.purchase_price ?? null,
     bin: row.bin ?? null,
-    registrar: row.registrar ?? null,
+    registrar: row.registrar ? row.registrar.trim().toLowerCase() : null,
     notes: row.notes ?? null,
     tags: row.tags ?? null,
   }));
@@ -313,7 +327,7 @@ export async function insertSingleDomain(input: {
       domain: input.domain,
       expiration_date: input.expiration_date,
       purchase_price: input.purchase_price ?? null,
-      registrar: input.registrar ?? null,
+      registrar: input.registrar ? input.registrar.trim().toLowerCase() : null,
       notes: input.notes ?? null,
       tags: input.tags
         ? input.tags

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards";
+import { DashboardMonthSnapshot } from "@/components/dashboard/dashboard-month-snapshot";
 import { DashboardExpiryDonut } from "@/components/dashboard/dashboard-expiry-donut";
 import { DashboardCriticalRenewals } from "@/components/dashboard/dashboard-critical-renewals";
 import { PromotionSection } from "@/components/dashboard/dashboard-promotion-section";
@@ -66,6 +67,8 @@ export function DashboardClient({
   return (
     <div className="space-y-6">
       <DashboardKpiCards stats={stats ?? null} />
+
+      <DashboardMonthSnapshot />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

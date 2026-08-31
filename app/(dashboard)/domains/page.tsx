@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import {
-  fetchDomains,
-  fetchAllTlds,
-  fetchAllRegistrars,
-} from "@/lib/supabase/queries/domains";
+import { fetchDomains, fetchAllTlds, fetchAllRegistrars } from "@/lib/supabase/queries/domains";
 import { DomainListClient } from "@/components/domains/domain-list-client";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,37 +11,22 @@ interface DomainsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function DomainsPage({
-  searchParams,
-}: DomainsPageProps) {
+export default async function DomainsPage({ searchParams }: DomainsPageProps) {
   const params = await searchParams;
 
   const filters = {
-    status:
-      typeof params.status === "string" ? params.status : undefined,
+    status: typeof params.status === "string" ? params.status : undefined,
     tld: typeof params.tld === "string" ? params.tld : undefined,
-    search:
-      typeof params.search === "string" ? params.search : undefined,
-    sort:
-      typeof params.sort === "string" ? params.sort : undefined,
-    order:
-      typeof params.order === "string" ? params.order : undefined,
-    page:
-      typeof params.page === "string"
-        ? Number(params.page)
-        : undefined,
-    pageSize:
-      typeof params.pageSize === "string"
-        ? Number(params.pageSize)
-        : undefined,
-    expiry:
-      typeof params.expiry === "string" ? params.expiry : undefined,
-    renewal:
-      typeof params.renewal === "string" ? params.renewal : undefined,
-    registrars:
-      typeof params.registrar === "string" ? params.registrar : undefined,
-    notListed:
-      typeof params.notListed === "string" ? params.notListed : undefined,
+    search: typeof params.search === "string" ? params.search : undefined,
+    sort: typeof params.sort === "string" ? params.sort : undefined,
+    order: typeof params.order === "string" ? params.order : undefined,
+    page: typeof params.page === "string" ? Number(params.page) : undefined,
+    pageSize: typeof params.pageSize === "string" ? Number(params.pageSize) : undefined,
+    expiry: typeof params.expiry === "string" ? params.expiry : undefined,
+    created: typeof params.created === "string" ? params.created : undefined,
+    renewal: typeof params.renewal === "string" ? params.renewal : undefined,
+    registrars: typeof params.registrar === "string" ? params.registrar : undefined,
+    notListed: typeof params.notListed === "string" ? params.notListed : undefined,
   };
 
   const supabase = await createClient();

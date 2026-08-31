@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
-import { addMonths } from "date-fns";
+import { addMonths, format, startOfMonth } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -16,6 +16,7 @@ export interface DomainFilters {
   registrars?: string;
   notListed?: string;
   renewal?: string;
+  created?: string;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -108,6 +109,13 @@ export async function fetchDomains(filters: DomainFilters) {
     query = query.eq("to_be_renewal", false);
   } else if (filters.renewal === "decided") {
     query = query.is("to_be_renewal", null);
+  }
+
+  if (filters.created === "1m") {
+    const now = new Date();
+    const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+    const nextMonthStart = format(startOfMonth(addMonths(now, 1)), "yyyy-MM-dd");
+    query = query.gte("created_at", monthStart).lt("created_at", nextMonthStart);
   }
 
   let domains: DomainRow[];

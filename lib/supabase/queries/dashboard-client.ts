@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { addMonths } from "date-fns";
+import { addMonths, format } from "date-fns";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -171,8 +171,60 @@ export interface SpendVsSoldPoint {
   sold: number;
 }
 
+export interface MonthSnapshot {
+  month: string;
+  invested: number;
+  acquiredCount: number;
+  soldCount: number;
+  revenue: number;
+}
+
+export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
+  const supabase = createClient();
+
+  const monthKey = format(new Date(), "yyyy-MM");
+  const monthLabel = format(new Date(), "MMMM");
+
+  const { data: domains, error: domainError } = await supabase
+    .from("domains")
+    .select("created_at, purchase_price");
+  if (domainError) throw domainError;
+
+  const { data: sales, error: salesError } = await supabase
+    .from("sales")
+    .select("sold_at, sale_price");
+  if (salesError) throw salesError;
+
+  let invested = 0;
+  let acquiredCount = 0;
+  for (const d of (domains ?? []) as unknown as Array<{
+    created_at: string | null;
+    purchase_price: number | null;
+  }>) {
+    if (d.created_at && d.created_at.slice(0, 7) === monthKey) {
+      invested += d.purchase_price ?? 0;
+      acquiredCount++;
+    }
+  }
+
+  let revenue = 0;
+  let soldCount = 0;
+  for (const s of (sales ?? []) as unknown as Array<{
+    sold_at: string | null;
+    sale_price: number;
+  }>) {
+    if (s.sold_at && s.sold_at.slice(0, 7) === monthKey) {
+      revenue += s.sale_price ?? 0;
+      soldCount++;
+    }
+  }
+
+  return { month: monthLabel, invested, acquiredCount, soldCount, revenue };
+}
+
 export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
   const supabase = createClient();
+
   const { data: domains, error: domainError } = await supabase
     .from("domains")
     .select("created_at, purchase_price");
