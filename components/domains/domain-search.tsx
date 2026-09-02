@@ -28,9 +28,10 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const searchParams = useSearchParams();
 
   const urlSearch = searchParams.get("search") ?? "";
-  const currentStatus = searchParams.get("status") ?? "";
+  const currentStatus = searchParams.get("status") ?? "active";
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
+  const currentCreated = searchParams.get("created") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
   const currentRenewal = searchParams.get("renewal") ?? "";
   const currentPageSize = searchParams.get("pageSize") ?? "50";
@@ -72,10 +73,21 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   }
 
   const hasFilters =
-    urlSearch || currentStatus || currentTld || currentExpiry || currentRegistrars || currentRenewal;
-  const activeFilterCount = [currentStatus, currentTld, currentExpiry, currentRegistrars, currentRenewal].filter(
-    Boolean
-  ).length;
+    urlSearch ||
+    currentStatus !== "active" ||
+    currentTld ||
+    currentExpiry ||
+    currentCreated ||
+    currentRegistrars ||
+    currentRenewal;
+  const activeFilterCount = [
+    currentStatus !== "active" ? currentStatus : "",
+    currentTld,
+    currentExpiry,
+    currentCreated,
+    currentRegistrars,
+    currentRenewal,
+  ].filter(Boolean).length;
 
   const filterGridCols = showAdvanced
     ? "grid-cols-1 sm:grid-cols-3 lg:grid-cols-6"
@@ -123,10 +135,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
         </div>
 
         <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
-          <Checkbox
-            checked={showAdvanced}
-            onCheckedChange={(c) => setShowAdvanced(!!c)}
-          />
+          <Checkbox checked={showAdvanced} onCheckedChange={(c) => setShowAdvanced(!!c)} />
           Show advanced filters
         </label>
 
@@ -136,7 +145,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
               <Label className="text-xs text-text-muted font-medium">Status</Label>
               <Select
                 value={currentStatus}
-                onValueChange={(value) => updateParam({ status: value === "all" ? "" : value })}
+                onValueChange={(value) => updateParam({ status: value })}
               >
                 <SelectTrigger className="h-10 rounded-lg">
                   <SelectValue placeholder="All" />
@@ -167,6 +176,22 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                 <SelectItem value="3m">≤3 months</SelectItem>
                 <SelectItem value="6m">≤6 months</SelectItem>
                 <SelectItem value="9m">≤9 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-text-muted font-medium">Acquired</Label>
+            <Select
+              value={currentCreated}
+              onValueChange={(value) => updateParam({ created: value === "all" ? "" : value })}
+            >
+              <SelectTrigger className="h-10 rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="1m">This Month</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -262,9 +287,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
               >
                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                 Reset Filters
-                <span className="ml-1 text-xs opacity-60">
-                  ({activeFilterCount} active)
-                </span>
+                <span className="ml-1 text-xs opacity-60">({activeFilterCount} active)</span>
               </Button>
             </div>
           ) : (

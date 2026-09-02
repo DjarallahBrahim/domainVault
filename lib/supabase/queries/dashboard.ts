@@ -2,6 +2,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
+type DomainRenewalRow = DomainRow & { to_be_renewal: boolean | null };
 
 export async function autoTransitionExpired(): Promise<number> {
   const supabase = createServerClient();
@@ -23,6 +24,7 @@ export interface DashboardStats {
   portfolio_value: number;
   total_sales: number;
   expiring_90d: number;
+  expiring_90d_all: number;
   expiring_30d: number;
   sold_this_year: number;
 }
@@ -32,7 +34,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date");
+    .select("purchase_price, status, expiration_date, to_be_renewal");
 
   if (domainError) throw domainError;
 
@@ -49,12 +51,18 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const domainRows = (domains ?? []) as unknown as DomainRow[];
   const active = domainRows.filter((d) => d.status === "active");
+  const activeRenewal = active as unknown as DomainRenewalRow[];
 
   const portfolio_value = active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0);
-  const expiring_90d = active.filter((d) => {
+  const expiring_90d_all = activeRenewal.filter((d) => {
     const exp = new Date(d.expiration_date);
     const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff <= 90;
+  }).length;
+  const expiring_90d = activeRenewal.filter((d) => {
+    const exp = new Date(d.expiration_date);
+    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 90 && d.to_be_renewal === null;
   }).length;
   const expiring_30d = active.filter((d) => {
     const exp = new Date(d.expiration_date);
@@ -70,6 +78,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     portfolio_value,
     total_sales,
     expiring_90d,
+    expiring_90d_all,
     expiring_30d,
     sold_this_year,
   };
@@ -87,9 +96,7 @@ export interface ExpirySegments {
 export async function fetchExpirySegments(): Promise<ExpirySegments> {
   const supabase = await createServerClient();
 
-  const { data, error } = await supabase
-    .from("domains")
-    .select("expiration_date, status, domain");
+  const { data, error } = await supabase.from("domains").select("expiration_date, status, domain");
 
   if (error) throw error;
 
@@ -123,38 +130,6 @@ export async function fetchExpirySegments(): Promise<ExpirySegments> {
   return { exp_1m, exp_3m, exp_6m, exp_9m, exp_over_9m, total_active };
 }
 
-export interface RegistrarBreakdown {
-  registrar: string;
-  domain_count: number;
-}
-
-export async function fetchRegistrarBreakdown(): Promise<RegistrarBreakdown[]> {
-  const supabase = await createServerClient();
-
-  const { data, error } = await supabase
-    .from("domains")
-    .select("registrar, status");
-
-  if (error) throw error;
-
-  const rows = (data ?? []) as unknown as DomainRow[];
-  const active = rows.filter((d) => d.status === "active");
-
-  const map = new Map<string, number>();
-  for (const d of active) {
-    const key = d.registrar?.trim() || "Unknown";
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-
-  const breakdown: RegistrarBreakdown[] = [];
-  for (const [registrar, domain_count] of map) {
-    breakdown.push({ registrar, domain_count });
-  }
-  breakdown.sort((a, b) => b.domain_count - a.domain_count);
-
-  return breakdown.slice(0, 10);
-}
-
 export interface PromotionWithDomain {
   id: string;
   user_id: string;
@@ -176,7 +151,8 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
 
   const { data, error } = await supabase
     .from("promotions")
-    .select(`
+    .select(
+      `
       id,
       user_id,
       domain_id,
@@ -187,20 +163,23 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
         registrar,
         expiration_date
       )
-    `)
+    `
+    )
     .eq("week_start", weekStart)
     .order("domain_id");
 
   if (error) throw error;
 
-  return ((data ?? []) as unknown as Array<{
-    id: string;
-    user_id: string;
-    domain_id: string;
-    week_start: string;
-    promoted_at: string | null;
-    domains: { domain: string; registrar: string | null; expiration_date: string } | null;
-  }>).map((p) => ({
+  return (
+    (data ?? []) as unknown as Array<{
+      id: string;
+      user_id: string;
+      domain_id: string;
+      week_start: string;
+      promoted_at: string | null;
+      domains: { domain: string; registrar: string | null; expiration_date: string } | null;
+    }>
+  ).map((p) => ({
     id: p.id,
     user_id: p.user_id,
     domain_id: p.domain_id,
@@ -220,7 +199,10 @@ export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
     .from("domains")
     .select("*")
     .eq("status", "active")
-    .lte("expiration_date", new Date(now.getFullYear(), now.getMonth(), now.getDate() + 31).toISOString().split("T")[0])
+    .lte(
+      "expiration_date",
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 31).toISOString().split("T")[0]
+    )
     .order("expiration_date", { ascending: true })
     .limit(limit);
 
@@ -239,9 +221,7 @@ export async function fetchQuickStats(): Promise<{
 }> {
   const supabase = await createServerClient();
 
-  const { data: domains, error } = await supabase
-    .from("domains")
-    .select("*");
+  const { data: domains, error } = await supabase.from("domains").select("*");
 
   if (error) throw error;
 
@@ -260,7 +240,10 @@ export async function fetchQuickStats(): Promise<{
   let most_common_registrar = "Unknown";
   let maxCount = 0;
   for (const [k, c] of registrarMap) {
-    if (c > maxCount) { maxCount = c; most_common_registrar = k; }
+    if (c > maxCount) {
+      maxCount = c;
+      most_common_registrar = k;
+    }
   }
 
   const sorted = [...active].sort(
@@ -269,9 +252,7 @@ export async function fetchQuickStats(): Promise<{
   const oldest_domain = sorted.length > 0 ? sorted[0].domain : "—";
   const newest_domain = sorted.length > 0 ? sorted[sorted.length - 1].domain : "—";
 
-  const { data: salesRaw } = await supabase
-    .from("sales")
-    .select("sale_price");
+  const { data: salesRaw } = await supabase.from("sales").select("sale_price");
   const sales = (salesRaw ?? []) as unknown as Array<{ sale_price: number }>;
   const total_earnings = sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0);
 
@@ -302,7 +283,8 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
 
   const { data, error } = await supabase
     .from("sales")
-    .select(`
+    .select(
+      `
       id,
       sale_price,
       sold_at,
@@ -315,21 +297,24 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
         purchase_price,
         created_at
       )
-    `)
+    `
+    )
     .order("sold_at", { ascending: false });
 
   if (error) throw error;
 
-  return ((data ?? []) as unknown as Array<{
-    id: string;
-    sale_price: number;
-    sold_at: string;
-    platform: string | null;
-    buyer: string | null;
-    notes: string | null;
-    domain_id: string;
-    domains: { domain: string; purchase_price: number | null; created_at: string } | null;
-  }>).map((s) => ({
+  return (
+    (data ?? []) as unknown as Array<{
+      id: string;
+      sale_price: number;
+      sold_at: string;
+      platform: string | null;
+      buyer: string | null;
+      notes: string | null;
+      domain_id: string;
+      domains: { domain: string; purchase_price: number | null; created_at: string } | null;
+    }>
+  ).map((s) => ({
     id: s.id,
     domain: s.domains?.domain ?? "",
     sale_price: s.sale_price,

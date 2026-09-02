@@ -31,9 +31,7 @@ import type { SpaceshipListing } from "@/types/spaceship";
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
 interface DomainListClientProps {
-  initialData: Awaited<
-    ReturnType<typeof fetchDomains>
-  >;
+  initialData: Awaited<ReturnType<typeof fetchDomains>>;
   tlds: string[];
   registrars: string[];
   userId: string;
@@ -56,6 +54,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         page: filters.page ? Number(filters.page) : 1,
         pageSize: filters.pageSize ? Number(filters.pageSize) : undefined,
         expiry: filters.expiry,
+        created: filters.created,
         renewal: filters.renewal,
         registrars: filters.registrar,
         notListed: filters.notListed,
@@ -76,11 +75,14 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
   const { refreshOne, isRefreshing } = useSedoRefreshOne();
 
   const [spaceshipOverlayDomain, setSpaceshipOverlayDomain] = useState<DomainRow | null>(null);
-  const [spaceshipExistingListing, setSpaceshipExistingListing] = useState<SpaceshipListing | null>(null);
+  const [spaceshipExistingListing, setSpaceshipExistingListing] = useState<SpaceshipListing | null>(
+    null
+  );
   const [spaceshipBatchMode, setSpaceshipBatchMode] = useState(false);
 
   const { listings: spaceshipListings } = useSpaceshipListings();
-  const { refreshOne: refreshSpaceshipOne, isRefreshing: isSpaceshipRefreshing } = useSpaceshipRefreshOne();
+  const { refreshOne: refreshSpaceshipOne, isRefreshing: isSpaceshipRefreshing } =
+    useSpaceshipRefreshOne();
 
   function handleSedoRefresh(domain: DomainRow) {
     refreshOne(domain.domain, domain.id);
@@ -153,7 +155,10 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
       .join("\n");
 
     navigator.clipboard.writeText(names).then(
-      () => toast.success(`${selectedIds.size} domain${selectedIds.size !== 1 ? "s" : ""} copied to clipboard`),
+      () =>
+        toast.success(
+          `${selectedIds.size} domain${selectedIds.size !== 1 ? "s" : ""} copied to clipboard`
+        ),
       () => toast.error("Failed to copy")
     );
   }
@@ -194,8 +199,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         toast.success("Domain deleted");
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete";
+      const message = err instanceof Error ? err.message : "Failed to delete";
       toast.error("Delete failed", { description: message });
     } finally {
       setDeleteTarget(null);
@@ -213,15 +217,32 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         sort: filters.sort,
         order: filters.order,
         expiry: filters.expiry,
+        created: filters.created,
         renewal: filters.renewal,
         registrars: filters.registrar,
         notListed: filters.notListed,
         page: 1,
         pageSize: 10000,
       });
-      const csvHeader = ["Domain","TLD","Registrar","Expiration Date","Purchase Price","BIN","Status"];
+      const csvHeader = [
+        "Domain",
+        "TLD",
+        "Registrar",
+        "Expiration Date",
+        "Purchase Price",
+        "BIN",
+        "Status",
+      ];
       const csvRows = allDomains.map((d) => {
-        const row = [d.domain, d.tld ?? "", d.registrar ?? "", d.expiration_date, d.purchase_price ?? "", (d as Record<string, unknown>).bin ?? "", d.status ?? ""];
+        const row = [
+          d.domain,
+          d.tld ?? "",
+          d.registrar ?? "",
+          d.expiration_date,
+          d.purchase_price ?? "",
+          (d as Record<string, unknown>).bin ?? "",
+          d.status ?? "",
+        ];
         return row.map((v) => (String(v).includes(",") ? `"${v}"` : String(v))).join(",");
       });
       const csv = [csvHeader.join(","), ...csvRows].join("\n");
@@ -259,10 +280,10 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         <DomainSearch tlds={tlds} registrars={registrars} />
         <DomainEmptyState onAddDomain={handleAdd} />
         <DomainAddDialog
-        open={showSlideover}
-        onOpenChange={setShowSlideover}
-        domain={editDomain ?? undefined}
-      />
+          open={showSlideover}
+          onOpenChange={setShowSlideover}
+          domain={editDomain ?? undefined}
+        />
       </div>
     );
   }
@@ -301,12 +322,16 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           onSedoEdit={handleSedoEdit}
           onSedoCreate={handleSedoCreate}
           onSedoRefresh={handleSedoRefresh}
-          sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
+          sedoRefreshingIds={
+            new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))
+          }
           spaceshipListings={spaceshipListings}
           onSpaceshipEdit={handleSpaceshipEdit}
           onSpaceshipCreate={handleSpaceshipCreate}
           onSpaceshipRefresh={handleSpaceshipRefresh}
-          spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
+          spaceshipRefreshingIds={
+            new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))
+          }
           onSedoBatch={handleSedoBatch}
           onSpaceshipBatch={handleSpaceshipBatch}
           onSedoBatchSync={handleSedoBatchSync}
@@ -326,12 +351,16 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             onSedoEdit={handleSedoEdit}
             onSedoCreate={handleSedoCreate}
             onSedoRefresh={handleSedoRefresh}
-            sedoRefreshingIds={new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))}
+            sedoRefreshingIds={
+              new Set(data.domains.filter((d) => isRefreshing(d.id)).map((d) => d.id))
+            }
             spaceshipListings={spaceshipListings}
             onSpaceshipEdit={handleSpaceshipEdit}
             onSpaceshipCreate={handleSpaceshipCreate}
             onSpaceshipRefresh={handleSpaceshipRefresh}
-            spaceshipRefreshingIds={new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))}
+            spaceshipRefreshingIds={
+              new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))
+            }
             reservedExtensions={data.reservedExtensions}
           />
         ))}
@@ -342,9 +371,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        count={
-          deleteTarget === "__bulk__" ? selectedIds.size : 1
-        }
+        count={deleteTarget === "__bulk__" ? selectedIds.size : 1}
         onConfirm={confirmDelete}
       />
 

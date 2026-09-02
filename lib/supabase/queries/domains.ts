@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
-import { addMonths } from "date-fns";
+import { addMonths, format, startOfMonth } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -16,6 +16,7 @@ export interface DomainFilters {
   registrars?: string;
   notListed?: string;
   renewal?: string;
+  created?: string;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -34,12 +35,24 @@ export async function fetchDomains(filters: DomainFilters) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = resolved
-    .from("domains")
-    .select("*", { count: "exact" });
+  const sortColumn = filters.sort ?? "created_at";
+  const sortOrder = filters.order === "asc" ? true : false;
+  const priceSort = sortColumn === "sedo_price" || sortColumn === "spaceship_price";
 
-  if (filters.status) {
+  const selectFields = priceSort
+    ? sortColumn === "sedo_price"
+      ? "*, sedo_listings(sedo_price)"
+      : "*, spaceship_listings(spaceship_price)"
+    : "*";
+
+  let query = resolved.from("domains").select(selectFields, { count: "exact" });
+
+  if (filters.status === "all") {
+    // No status filter — show all statuses
+  } else if (filters.status) {
     query = query.eq("status", filters.status);
+  } else {
+    query = query.eq("status", "active");
   }
 
   if (filters.tld) {
@@ -47,9 +60,12 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.search) {
-    const tokens = filters.search.split(",").map(t => t.trim()).filter(Boolean);
+    const tokens = filters.search
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
     if (tokens.length > 1) {
-      query = query.or(tokens.map(t => `domain.ilike.%${t}%`).join(","));
+      query = query.or(tokens.map((t) => `domain.ilike.%${t}%`).join(","));
     } else if (tokens.length === 1) {
       query = query.ilike("domain", `%${tokens[0]}%`);
     }
@@ -69,7 +85,10 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.registrars) {
-    const regTokens = filters.registrars.split(",").map(r => r.trim()).filter(Boolean);
+    const regTokens = filters.registrars
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean);
     if (regTokens.length > 1) {
       query = query.in("registrar", regTokens);
     } else if (regTokens.length === 1) {
@@ -92,25 +111,70 @@ export async function fetchDomains(filters: DomainFilters) {
     query = query.is("to_be_renewal", null);
   }
 
-  const sortColumn = (filters.sort ?? "created_at") as keyof DomainRow;
-  const sortOrder = filters.order === "asc" ? true : false;
+  if (filters.created === "1m") {
+    const now = new Date();
+    const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+    const nextMonthStart = format(startOfMonth(addMonths(now, 1)), "yyyy-MM-dd");
+    query = query.gte("created_at", monthStart).lt("created_at", nextMonthStart);
+  }
 
-  query = query
-    .order(sortColumn, { ascending: sortOrder })
-    .range(from, to);
+  let domains: DomainRow[];
+  let count: number;
 
-  const { data, error, count } = await query;
+  if (priceSort) {
+    const priceKey = sortColumn === "sedo_price" ? "sedo_listings" : "spaceship_listings";
 
-  if (error) throw error;
+    const {
+      data,
+      error,
+      count: exactCount,
+    } = await query.order("created_at", {
+      ascending: false,
+    });
+    if (error) throw error;
+    count = exactCount ?? 0;
 
-  const domains = (data ?? []) as unknown as DomainRow[];
+    const all = (data ?? []) as unknown as Array<DomainRow & Record<string, unknown>>;
+
+    const priceOf = (row: DomainRow & Record<string, unknown>): number | undefined => {
+      const rel = row[priceKey];
+      if (rel == null) return undefined;
+      const rec = Array.isArray(rel)
+        ? (rel[0] as Record<string, unknown> | undefined)
+        : (rel as Record<string, unknown>);
+      if (rec == null) return undefined;
+      const p = rec[sortColumn] as number | string | null | undefined;
+      return p == null ? undefined : Number(p);
+    };
+
+    const sorted = [...all].sort((a, b) => {
+      const pa = priceOf(a);
+      const pb = priceOf(b);
+      if (pa === undefined && pb === undefined) return 0;
+      if (pa === undefined) return 1;
+      if (pb === undefined) return -1;
+      return sortOrder ? pa - pb : pb - pa;
+    });
+
+    domains = sorted.slice(from, to) as unknown as DomainRow[];
+  } else {
+    query = query.order(sortColumn as keyof DomainRow, { ascending: sortOrder }).range(from, to);
+
+    const { data, error, count: exactCount } = await query;
+    if (error) throw error;
+    count = exactCount ?? 0;
+    domains = (data ?? []) as unknown as DomainRow[];
+  }
 
   const reservedExtensions = new Map<string, string[]>();
   if (domains.length > 0) {
     const { data: extData } = await resolved
       .from("domain_extension_checks")
       .select("domain_id, tld")
-      .in("domain_id", domains.map((d) => d.id))
+      .in(
+        "domain_id",
+        domains.map((d) => d.id)
+      )
       .eq("is_reserved", true);
 
     for (const row of (extData ?? []) as Array<{ domain_id: string; tld: string }>) {
@@ -123,10 +187,10 @@ export async function fetchDomains(filters: DomainFilters) {
   return {
     domains,
     reservedExtensions,
-    total: count ?? 0,
+    total: count,
     page,
     pageSize,
-    totalPages: Math.ceil((count ?? 0) / pageSize),
+    totalPages: Math.ceil(count / pageSize),
   };
 }
 
@@ -134,11 +198,7 @@ export async function fetchDomain(id: string) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
-  const { data, error } = await resolved
-    .from("domains")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await resolved.from("domains").select("*").eq("id", id).single();
 
   if (error) throw error;
 
@@ -149,9 +209,7 @@ export async function fetchAllTlds(): Promise<string[]> {
   const supabase = createServerClient();
   const resolved = await supabase;
 
-  const { data, error } = await resolved
-    .from("domains")
-    .select("tld");
+  const { data, error } = await resolved.from("domains").select("tld");
 
   if (error) throw error;
 
@@ -164,9 +222,7 @@ export async function fetchAllTlds(): Promise<string[]> {
   return tlds;
 }
 
-export async function checkExistingDomains(
-  normalizedNames: string[]
-): Promise<Set<string>> {
+export async function checkExistingDomains(normalizedNames: string[]): Promise<Set<string>> {
   const supabase = createServerClient();
   const resolved = await supabase;
 

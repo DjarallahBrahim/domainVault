@@ -16,7 +16,10 @@ function AnimatedCounter({ value, prefix }: { value: number; prefix?: string }) 
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    if (value === 0) { setDisplay(0); return; }
+    if (value === 0) {
+      setDisplay(0);
+      return;
+    }
     const steps = 20;
     const increment = value / steps;
     let current = 0;
@@ -30,7 +33,12 @@ function AnimatedCounter({ value, prefix }: { value: number; prefix?: string }) 
     return () => clearInterval(timer);
   }, [value]);
 
-  return <span>{prefix}{display.toLocaleString("en-US")}</span>;
+  return (
+    <span>
+      {prefix}
+      {display.toLocaleString("en-US")}
+    </span>
+  );
 }
 
 function Trend({ current, previous }: { current: number; previous?: number }) {
@@ -43,12 +51,24 @@ function Trend({ current, previous }: { current: number; previous?: number }) {
   return (
     <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${color}`}>
       <Icon className="h-3 w-3" />
-      {isUp ? "+" : ""}{diff}
+      {isUp ? "+" : ""}
+      {diff}
     </span>
   );
 }
 
-const CARD_CONFIG = [
+const CARD_CONFIG: Array<{
+  key: keyof DashboardStats;
+  label: string;
+  icon: typeof Clock;
+  href?: string;
+  prefix?: string;
+  subKey?: keyof DashboardStats;
+  subLabel?: string;
+  gradient: string;
+  border: string;
+  iconColor: string;
+}> = [
   {
     key: "total_active" as const,
     label: "Total Domains",
@@ -80,6 +100,8 @@ const CARD_CONFIG = [
   {
     key: "expiring_90d" as const,
     label: "Expiring in 90 Days",
+    subKey: "expiring_90d_all" as const,
+    subLabel: "all expiring in 90d",
     icon: Clock,
     href: "/domains?expiry=3m",
     gradient: "from-accent-warning/8 to-accent-warning/3",
@@ -105,7 +127,8 @@ export function DashboardKpiCards({ stats, prevStats }: DashboardKpiCardsProps) 
       {CARD_CONFIG.map((card) => {
         const value = stats?.[card.key] ?? 0;
         const prev = prevStats?.[card.key] ?? undefined;
-        const prefix = (card as { prefix?: string }).prefix;
+        const prefix = card.prefix;
+        const sub = card.subKey && stats ? (stats[card.subKey] ?? 0) : null;
 
         const content = (
           <Card
@@ -121,6 +144,15 @@ export function DashboardKpiCards({ stats, prevStats }: DashboardKpiCardsProps) 
                     <div className="flex items-baseline gap-2">
                       <p className="text-2xl lg:text-3xl font-bold font-display">
                         <AnimatedCounter value={value} prefix={prefix} />
+                        {sub !== null && (
+                          <span
+                            className="text-base font-normal text-text-muted"
+                            title={card.subLabel}
+                          >
+                            {" "}
+                            ({sub})
+                          </span>
+                        )}
                       </p>
                       <Trend current={value} previous={prev} />
                     </div>
