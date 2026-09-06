@@ -52,10 +52,7 @@ interface DnsCheckerState {
   buildCsv: () => string;
 }
 
-function matchesFilter(
-  result: DnsResult | null,
-  filter: FilterValue
-): boolean {
+function matchesFilter(result: DnsResult | null, filter: FilterValue): boolean {
   if (!result) return false;
   if (filter === "all") return true;
   if (filter === "dns_ok") return result.status === "ok";
@@ -82,11 +79,7 @@ async function runConcurrencyPool(
 
   return new Promise<void>((resolve) => {
     function startNext(): void {
-      while (
-        nextIndex < domains.length &&
-        inFlight < concurrency &&
-        !signal.aborted
-      ) {
+      while (nextIndex < domains.length && inFlight < concurrency && !signal.aborted) {
         const idx = nextIndex++;
         inFlight++;
 
@@ -96,8 +89,7 @@ async function runConcurrencyPool(
               onResult(idx, result);
             }
           })
-          .catch(() => {
-          })
+          .catch(() => {})
           .finally(() => {
             inFlight--;
             if (inFlight === 0 && nextIndex >= domains.length) {
@@ -133,9 +125,7 @@ export function useDnsChecker(): DnsCheckerState {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [compareMode, setCompareMode] = useState(false);
-  const [compareResults, setCompareResults] = useState<
-    (ComparisonResult | null)[]
-  >([]);
+  const [compareResults, setCompareResults] = useState<(ComparisonResult | null)[]>([]);
   const [visited, setVisited] = useState<Set<string>>(new Set());
 
   const abortRef = useRef<AbortController | null>(null);
@@ -173,13 +163,15 @@ export function useDnsChecker(): DnsCheckerState {
       return;
     }
 
-    const from = existingTld.startsWith(".") ? existingTld : `.${existingTld}`;
-    const to = targetTld.startsWith(".") ? targetTld : `.${targetTld}`;
-    if (from === to) return;
+    const from = existingTld.trim().toLowerCase();
+    const to = targetTld.trim().toLowerCase();
+    const fromDot = from.startsWith(".") ? from : `.${from}`;
+    const toDot = to.startsWith(".") ? to : `.${to}`;
+    if (fromDot === toDot) return;
 
     const transformed = parsedDomains.map((domain) => {
-      if (domain.endsWith(from)) {
-        return domain.slice(0, -from.length) + to;
+      if (domain.endsWith(fromDot)) {
+        return domain.slice(0, -fromDot.length) + toDot;
       }
       return domain;
     });
@@ -194,7 +186,10 @@ export function useDnsChecker(): DnsCheckerState {
     let text = rawInput;
     for (const [orig, t] of pairs) {
       const escaped = orig.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      text = text.replace(new RegExp(escaped, "g"), t);
+      text = text.replace(
+        new RegExp(`(^|[^\\w.-])(${escaped})(?![\\w.-])`, "gi"),
+        (_match, pre) => pre + t
+      );
     }
 
     setRawInput(text);
@@ -211,9 +206,9 @@ export function useDnsChecker(): DnsCheckerState {
 
   const openDnsOk = useCallback(
     (limit = 20) => {
-      const okDomains = (results.filter(
-        (r): r is DnsResult => r !== null && r.status === "ok"
-      ) as DnsResult[]).map((r) => r.domain);
+      const okDomains = (
+        results.filter((r): r is DnsResult => r !== null && r.status === "ok") as DnsResult[]
+      ).map((r) => r.domain);
 
       const targets = okDomains.slice(0, limit);
       if (targets.length === 0) return;
@@ -289,12 +284,8 @@ export function useDnsChecker(): DnsCheckerState {
     const signal = controller.signal;
 
     if (isCompare) {
-      const cfResults: (DnsResult | null)[] = new Array(totalDomains).fill(
-        null
-      );
-      const ggResults: (DnsResult | null)[] = new Array(totalDomains).fill(
-        null
-      );
+      const cfResults: (DnsResult | null)[] = new Array(totalDomains).fill(null);
+      const ggResults: (DnsResult | null)[] = new Array(totalDomains).fill(null);
 
       let cfDone = false;
       let ggDone = false;
@@ -321,54 +312,36 @@ export function useDnsChecker(): DnsCheckerState {
         abortRef.current = null;
       }
 
-      runConcurrencyPool(
-        parsedDomains,
-        "cloudflare",
-        20,
-        signal,
-        (index, result) => {
-          cfResults[index] = result;
-          if (!signal.aborted) {
-            setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-          }
+      runConcurrencyPool(parsedDomains, "cloudflare", 20, signal, (index, result) => {
+        cfResults[index] = result;
+        if (!signal.aborted) {
+          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
         }
-      ).finally(() => {
+      }).finally(() => {
         cfDone = true;
         tryFinish();
       });
 
-      runConcurrencyPool(
-        parsedDomains,
-        "google",
-        20,
-        signal,
-        (index, result) => {
-          ggResults[index] = result;
-          if (!signal.aborted) {
-            setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-          }
+      runConcurrencyPool(parsedDomains, "google", 20, signal, (index, result) => {
+        ggResults[index] = result;
+        if (!signal.aborted) {
+          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
         }
-      ).finally(() => {
+      }).finally(() => {
         ggDone = true;
         tryFinish();
       });
     } else {
-      runConcurrencyPool(
-        parsedDomains,
-        resolver,
-        20,
-        signal,
-        (index, result) => {
-          setResults((prev) => {
-            const next = [...prev];
-            next[index] = result;
-            return next;
-          });
-          if (!signal.aborted) {
-            setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-          }
+      runConcurrencyPool(parsedDomains, resolver, 20, signal, (index, result) => {
+        setResults((prev) => {
+          const next = [...prev];
+          next[index] = result;
+          return next;
+        });
+        if (!signal.aborted) {
+          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
         }
-      ).finally(() => {
+      }).finally(() => {
         setIsLoading(false);
         abortRef.current = null;
       });
@@ -418,14 +391,11 @@ export function useDnsChecker(): DnsCheckerState {
     };
   }, [results]);
 
-  const canResolve =
-    parsedDomains.length > 0 && !isLoading && !parseError;
+  const canResolve = parsedDomains.length > 0 && !isLoading && !parseError;
 
   const buildCsv = useCallback((): string => {
     if (isCompareActive) {
-      const rows = compareResults.filter(
-        (r): r is ComparisonResult => r !== null
-      );
+      const rows = compareResults.filter((r): r is ComparisonResult => r !== null);
       const header = "domain,cloudflare_status,cloudflare_ips,google_status,google_ips";
       const lines = rows.map((r) =>
         [
@@ -442,11 +412,7 @@ export function useDnsChecker(): DnsCheckerState {
     const rows = results.filter((r): r is DnsResult => r !== null);
     const header = "domain,status,ip";
     const lines = rows.map((r) =>
-      [
-        escapeCsvField(r.domain),
-        r.status,
-        escapeCsvField(r.ips.join(", ")),
-      ].join(",")
+      [escapeCsvField(r.domain), r.status, escapeCsvField(r.ips.join(", "))].join(",")
     );
     return [header, ...lines].join("\n");
   }, [isCompareActive, compareResults, results]);

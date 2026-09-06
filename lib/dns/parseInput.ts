@@ -67,8 +67,8 @@ export function replaceDomainsTld(
     return domains;
   }
 
-  const from = existingTld.startsWith(".") ? existingTld : `.${existingTld}`;
-  const to = targetTld.startsWith(".") ? targetTld : `.${targetTld}`;
+  const from = (existingTld.startsWith(".") ? existingTld : `.${existingTld}`).toLowerCase();
+  const to = (targetTld.startsWith(".") ? targetTld : `.${targetTld}`).toLowerCase();
 
   if (from === to) {
     return domains;
@@ -82,9 +82,7 @@ export function replaceDomainsTld(
   });
 }
 
-export function parseDomainList(
-  rawText: string
-): ParseResult | ParseError {
+export function parseDomainList(rawText: string): ParseResult | ParseError {
   const tokens = splitTokens(rawText);
 
   const seen = new Set<string>();
