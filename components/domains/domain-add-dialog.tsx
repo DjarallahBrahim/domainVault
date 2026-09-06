@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,10 @@ import {
 import { TagInput } from "@/components/domains/tag-input";
 import { queryKeys } from "@/lib/query-keys";
 import { manualEntrySchema, type ManualEntryInput } from "@/lib/validations/domain";
-import { insertSingleDomain, updateDomain, fetchRegistrarList } from "@/lib/supabase/queries/domains-client";
+import { insertSingleDomain, updateDomain } from "@/lib/supabase/queries/domains-client";
+import { useWhoisAnalysis } from "@/lib/hooks/useWhoisAnalysis";
+import { WhoisAnalyse } from "@/components/whois/whois-analyse";
+import { RegistrarAutocomplete } from "@/components/whois/registrar-autocomplete";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -39,14 +42,6 @@ interface DomainAddDialogProps {
 export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
-  const [registrarInput, setRegistrarInput] = useState("");
-
-  const { data: registrarList = [] } = useQuery({
-    queryKey: ["registrars"],
-    queryFn: fetchRegistrarList,
-    staleTime: 60 * 1000,
-  });
 
   const isEdit = !!domain;
 
@@ -54,7 +49,10 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
     register,
     handleSubmit,
     reset,
+    getValues,
     setValue,
+    watch,
+    trigger,
     formState: { errors },
   } = useForm<ManualEntryInput>({
     resolver: zodResolver(manualEntrySchema),
@@ -71,8 +69,14 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
   const [status, setStatus] = useState(domain?.status ?? "active");
   const [tags, setTags] = useState<string[]>(domain?.tags ?? []);
 
+  const whois = useWhoisAnalysis({
+    setExpiration: (value) => setValue("expiration_date", value),
+    setRegistrar: (value) => setValue("registrar", value),
+  });
+
   useEffect(() => {
     if (open) {
+      whois.reset();
       if (domain) {
         reset({
           domain: domain.domain,
@@ -84,7 +88,6 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
         });
         setStatus(domain.status ?? "active");
         setTags(domain.tags ?? []);
-        setRegistrarInput(domain.registrar ?? "");
       } else {
         reset({
           domain: "",
@@ -96,11 +99,10 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
         });
         setStatus("active");
         setTags([]);
-        setRegistrarInput("");
       }
       setServerError(null);
     }
-  }, [open, domain, reset]);
+  }, [open, domain, reset, whois.reset]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ManualEntryInput) => {
@@ -137,14 +139,18 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
     },
   });
 
+  async function handleAnalyse() {
+    if (isEdit) return;
+    const valid = await trigger("domain");
+    if (!valid) return;
+    setServerError(null);
+    await whois.run(getValues("domain").trim().toLowerCase());
+  }
+
   function onSubmit(data: ManualEntryInput) {
     setServerError(null);
     mutate(data);
   }
-
-  const filteredRegistrars = registrarList.filter((r) =>
-    r.toLowerCase().includes(registrarInput.toLowerCase())
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,25 +172,24 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
               disabled={isEdit}
               {...register("domain")}
             />
-            {errors.domain && (
-              <p className="text-sm text-accent-danger">{errors.domain.message}</p>
-            )}
-            {serverError && (
-              <p className="text-sm text-accent-danger">{serverError}</p>
-            )}
+            {errors.domain && <p className="text-sm text-accent-danger">{errors.domain.message}</p>}
+            {serverError && <p className="text-sm text-accent-danger">{serverError}</p>}
           </div>
+
+          {!isEdit && (
+            <WhoisAnalyse
+              loading={whois.analysis.status === "loading"}
+              onAnalyse={handleAnalyse}
+              analysis={whois.analysis}
+              onPickAllowed={whois.updateRegistrar}
+            />
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="dialog-expiration">Expiration Date *</Label>
-            <Input
-              id="dialog-expiration"
-              type="date"
-              {...register("expiration_date")}
-            />
+            <Input id="dialog-expiration" type="date" {...register("expiration_date")} />
             {errors.expiration_date && (
-              <p className="text-sm text-accent-danger">
-                {errors.expiration_date.message}
-              </p>
+              <p className="text-sm text-accent-danger">{errors.expiration_date.message}</p>
             )}
           </div>
 
@@ -199,9 +204,7 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
               {...register("purchase_price")}
             />
             {errors.purchase_price && (
-              <p className="text-sm text-accent-danger">
-                {errors.purchase_price.message}
-              </p>
+              <p className="text-sm text-accent-danger">{errors.purchase_price.message}</p>
             )}
           </div>
 
@@ -222,38 +225,11 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
 
           <div className="space-y-2">
             <Label htmlFor="dialog-registrar">Registrar</Label>
-            <div className="relative">
-              <Input
-                id="dialog-registrar"
-                placeholder="GoDaddy, Namecheap..."
-                value={registrarInput}
-                onChange={(e) => {
-                  setRegistrarInput(e.target.value);
-                  setValue("registrar", e.target.value);
-                  setAutocompleteOpen(true);
-                }}
-                onFocus={() => setAutocompleteOpen(true)}
-                onBlur={() => setTimeout(() => setAutocompleteOpen(false), 200)}
-              />
-              {autocompleteOpen && registrarInput && filteredRegistrars.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-bg-elevated border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                  {filteredRegistrars.slice(0, 8).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-bg-surface"
-                      onMouseDown={() => {
-                        setRegistrarInput(r);
-                        setValue("registrar", r);
-                        setAutocompleteOpen(false);
-                      }}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <RegistrarAutocomplete
+              id="dialog-registrar"
+              value={watch("registrar") ?? ""}
+              onValueChange={whois.updateRegistrar}
+            />
           </div>
 
           <div className="space-y-2">
@@ -275,14 +251,10 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || (!isEdit && whois.registrarBlocked)}>
               {isPending ? "Saving..." : isEdit ? "Save Changes" : "Add Domain"}
             </Button>
           </div>
