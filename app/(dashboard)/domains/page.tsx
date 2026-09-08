@@ -40,7 +40,12 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold font-display mb-6">Domains</h1>
+      <div className="mb-8">
+        <h1 className="text-large-title text-text-primary">Domains</h1>
+        <p className="mt-1 text-sm text-text-muted">
+          {initialData.total} domain{initialData.total === 1 ? "" : "s"}
+        </p>
+      </div>
       <DomainListClient
         initialData={initialData}
         tlds={tlds}

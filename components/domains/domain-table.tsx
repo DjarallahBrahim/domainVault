@@ -136,249 +136,252 @@ export function DomainTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
-          <Checkbox checked={showAllColumns} onCheckedChange={(c) => setShowAllColumns(!!c)} />
-          Show all columns
-        </label>
-      </div>
+      <div className="overflow-hidden rounded-2xl bg-bg-surface shadow-card ring-1 ring-border/50">
+        <div className="flex items-center gap-2 border-b border-border/40 px-5 py-3">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-text-muted">
+            <Checkbox checked={showAllColumns} onCheckedChange={(c) => setShowAllColumns(!!c)} />
+            Show all columns
+          </label>
+        </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-              </TableHead>
-              <TableHead>
-                <button
-                  onClick={() => updateSort("domain")}
-                  className="flex items-center gap-1 hover:text-text-primary"
-                >
-                  Domain{sortLabel("domain")}
-                  <ArrowUpDown className="h-3 w-3" />
-                </button>
-              </TableHead>
-              <TableHead>Registrar</TableHead>
-              <TableHead>
-                <button
-                  onClick={() => updateSort("expiration_date")}
-                  className="flex items-center gap-1 hover:text-text-primary"
-                >
-                  Expiration{sortLabel("expiration_date")}
-                  <ArrowUpDown className="h-3 w-3" />
-                </button>
-              </TableHead>
-              {showAllColumns && (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                </TableHead>
                 <TableHead>
                   <button
-                    onClick={() => updateSort("purchase_price")}
+                    onClick={() => updateSort("domain")}
                     className="flex items-center gap-1 hover:text-text-primary"
                   >
-                    Purchase{sortLabel("purchase_price")}
+                    Domain{sortLabel("domain")}
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-              )}
-              <TableHead>BIN</TableHead>
-              <TableHead>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => updateSort("sedo_price")}
-                    className="flex items-center gap-0.5 hover:text-text-primary"
-                  >
-                    Sedo{sortLabel("sedo_price")}
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                  {selectedIds.size > 0 && (
-                    <button
-                      onClick={onSedoBatchSync}
-                      className="text-text-muted hover:text-accent-primary transition-colors"
-                      title={`Sync ${selectedIds.size} domains with Sedo`}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {selectedIds.size > 0 && (
-                    <button
-                      onClick={onSedoBatch}
-                      className="text-text-muted hover:text-accent-primary transition-colors"
-                      title={`Edit Sedo price for ${selectedIds.size} domains`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </TableHead>
-              <TableHead>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => updateSort("spaceship_price")}
-                    className="flex items-center gap-0.5 hover:text-text-primary"
-                  >
-                    Spaceship{sortLabel("spaceship_price")}
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                  {selectedIds.size > 0 && (
-                    <button
-                      onClick={onSpaceshipBatchSync}
-                      className="text-text-muted hover:text-accent-primary transition-colors"
-                      title={`Sync ${selectedIds.size} domains with Spaceship`}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {selectedIds.size > 0 && (
-                    <button
-                      onClick={onSpaceshipBatch}
-                      className="text-text-muted hover:text-accent-primary transition-colors"
-                      title={`Edit Spaceship price for ${selectedIds.size} domains`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </TableHead>
-              {showAllColumns && (
+                <TableHead>Registrar</TableHead>
                 <TableHead>
                   <button
-                    onClick={() => updateSort("status")}
+                    onClick={() => updateSort("expiration_date")}
                     className="flex items-center gap-1 hover:text-text-primary"
                   >
-                    Status{sortLabel("status")}
+                    Expiration{sortLabel("expiration_date")}
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-              )}
-              <TableHead className="w-[100px] font-mono text-xs">TLDs</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {domains.map((domain) => (
-              <TableRow key={domain.id} className="hover:bg-bg-elevated">
-                <TableCell>
-                  <Checkbox
-                    checked={selectedIds.has(domain.id)}
-                    onCheckedChange={() => toggleOne(domain.id)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <RenewalToggle
-                      domainId={domain.id}
-                      toBeRenewal={
-                        ((domain as Record<string, unknown>).to_be_renewal as boolean | null) ??
-                        null
-                      }
-                    />
-                    <button
-                      onClick={() => router.push(`/domains/${domain.id}`)}
-                      className="font-medium font-mono text-accent-primary hover:underline text-left"
-                    >
-                      {domain.domain}
-                    </button>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm">{domain.registrar || "\u2014"}</span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">
-                      {new Date(domain.expiration_date).toLocaleDateString()}
-                    </span>
-                    <DomainExpiryBadge expirationDate={domain.expiration_date} />
-                  </div>
-                </TableCell>
                 {showAllColumns && (
-                  <TableCell className="text-sm">{formatPrice(domain.purchase_price)}</TableCell>
+                  <TableHead>
+                    <button
+                      onClick={() => updateSort("purchase_price")}
+                      className="flex items-center gap-1 hover:text-text-primary"
+                    >
+                      Purchase{sortLabel("purchase_price")}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
                 )}
-                <TableCell className="text-sm">
-                  {formatPrice((domain as Record<string, unknown>).bin as number | null)}
-                </TableCell>
-                <TableCell>
-                  <SedoCell
-                    listing={sedoListings.get(domain.id)}
-                    onEdit={(listing) => onSedoEdit(domain, listing)}
-                    onCreate={() => onSedoCreate(domain)}
-                    onRefresh={() => onSedoRefresh(domain)}
-                    refreshing={sedoRefreshingIds.has(domain.id)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <SpaceshipCell
-                    listing={spaceshipListings.get(domain.id)}
-                    onEdit={(listing) => onSpaceshipEdit(domain, listing)}
-                    onCreate={() => onSpaceshipCreate(domain)}
-                    onRefresh={() => onSpaceshipRefresh(domain)}
-                    refreshing={spaceshipRefreshingIds.has(domain.id)}
-                  />
-                </TableCell>
-                {showAllColumns && (
-                  <TableCell>
-                    <DomainStatusBadge status={domain.status} />
-                  </TableCell>
-                )}
-                <TableCell>
-                  <TldCell
-                    domainId={domain.id}
-                    domainName={domain.domain}
-                    reservedTldsCount={
-                      ((domain as Record<string, unknown>).reserved_tlds_count as number | null) ??
-                      null
-                    }
-                    reservedExtensions={reservedExtensions.get(domain.id) ?? []}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
+                <TableHead>BIN</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => router.push(`/domains/${domain.id}`)}
-                      className="text-xs text-accent-primary hover:underline"
+                      onClick={() => updateSort("sedo_price")}
+                      className="flex items-center gap-0.5 hover:text-text-primary"
                     >
-                      View
+                      Sedo{sortLabel("sedo_price")}
+                      <ArrowUpDown className="h-3 w-3" />
                     </button>
-                    <button
-                      onClick={() => onEdit(domain)}
-                      className="text-xs text-accent-primary hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(domain.id)}
-                      className="text-xs text-accent-danger hover:underline"
-                    >
-                      Delete
-                    </button>
+                    {selectedIds.size > 0 && (
+                      <button
+                        onClick={onSedoBatchSync}
+                        className="text-text-muted hover:text-accent-primary transition-colors"
+                        title={`Sync ${selectedIds.size} domains with Sedo`}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {selectedIds.size > 0 && (
+                      <button
+                        onClick={onSedoBatch}
+                        className="text-text-muted hover:text-accent-primary transition-colors"
+                        title={`Edit Sedo price for ${selectedIds.size} domains`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                </TableCell>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateSort("spaceship_price")}
+                      className="flex items-center gap-0.5 hover:text-text-primary"
+                    >
+                      Spaceship{sortLabel("spaceship_price")}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                    {selectedIds.size > 0 && (
+                      <button
+                        onClick={onSpaceshipBatchSync}
+                        className="text-text-muted hover:text-accent-primary transition-colors"
+                        title={`Sync ${selectedIds.size} domains with Spaceship`}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {selectedIds.size > 0 && (
+                      <button
+                        onClick={onSpaceshipBatch}
+                        className="text-text-muted hover:text-accent-primary transition-colors"
+                        title={`Edit Spaceship price for ${selectedIds.size} domains`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </TableHead>
+                {showAllColumns && (
+                  <TableHead>
+                    <button
+                      onClick={() => updateSort("status")}
+                      className="flex items-center gap-1 hover:text-text-primary"
+                    >
+                      Status{sortLabel("status")}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                )}
+                <TableHead className="w-[100px] font-mono text-xs">TLDs</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {domains.map((domain) => (
+                <TableRow key={domain.id} className="hover:bg-bg-elevated">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(domain.id)}
+                      onCheckedChange={() => toggleOne(domain.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <RenewalToggle
+                        domainId={domain.id}
+                        toBeRenewal={
+                          ((domain as Record<string, unknown>).to_be_renewal as boolean | null) ??
+                          null
+                        }
+                      />
+                      <button
+                        onClick={() => router.push(`/domains/${domain.id}`)}
+                        className="font-medium font-mono text-accent-primary hover:underline text-left"
+                      >
+                        {domain.domain}
+                      </button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">{domain.registrar || "\u2014"}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">
+                        {new Date(domain.expiration_date).toLocaleDateString()}
+                      </span>
+                      <DomainExpiryBadge expirationDate={domain.expiration_date} />
+                    </div>
+                  </TableCell>
+                  {showAllColumns && (
+                    <TableCell className="text-sm">{formatPrice(domain.purchase_price)}</TableCell>
+                  )}
+                  <TableCell className="text-sm">
+                    {formatPrice((domain as Record<string, unknown>).bin as number | null)}
+                  </TableCell>
+                  <TableCell>
+                    <SedoCell
+                      listing={sedoListings.get(domain.id)}
+                      onEdit={(listing) => onSedoEdit(domain, listing)}
+                      onCreate={() => onSedoCreate(domain)}
+                      onRefresh={() => onSedoRefresh(domain)}
+                      refreshing={sedoRefreshingIds.has(domain.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <SpaceshipCell
+                      listing={spaceshipListings.get(domain.id)}
+                      onEdit={(listing) => onSpaceshipEdit(domain, listing)}
+                      onCreate={() => onSpaceshipCreate(domain)}
+                      onRefresh={() => onSpaceshipRefresh(domain)}
+                      refreshing={spaceshipRefreshingIds.has(domain.id)}
+                    />
+                  </TableCell>
+                  {showAllColumns && (
+                    <TableCell>
+                      <DomainStatusBadge status={domain.status} />
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <TldCell
+                      domainId={domain.id}
+                      domainName={domain.domain}
+                      reservedTldsCount={
+                        ((domain as Record<string, unknown>).reserved_tlds_count as
+                          | number
+                          | null) ?? null
+                      }
+                      reservedExtensions={reservedExtensions.get(domain.id) ?? []}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => router.push(`/domains/${domain.id}`)}
+                        className="text-xs text-accent-primary hover:underline"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => onEdit(domain)}
+                        className="text-xs text-accent-primary hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDelete(domain.id)}
+                        className="text-xs text-accent-danger hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-text-muted">
-        <span>
-          {total} domains · Page {page} of {totalPages}
-        </span>
-        <div className="flex gap-1">
-          <button
-            onClick={() => goToPage(page - 1)}
-            disabled={page <= 1}
-            className="px-3 py-1 rounded-md bg-bg-elevated hover:bg-bg-elevated/80 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Prev
-          </button>
-          <button
-            onClick={() => goToPage(page + 1)}
-            disabled={page >= totalPages}
-            className="px-3 py-1 rounded-md bg-bg-elevated hover:bg-bg-elevated/80 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+        {/* Pagination */}
+        <div className="flex items-center justify-between border-t border-border/40 px-5 py-3 text-sm text-text-muted">
+          <span className="tabular-nums">
+            {total} domains · Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
