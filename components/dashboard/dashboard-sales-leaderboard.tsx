@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WidgetCard } from "@/components/ui/widget-card";
+import { Segmented } from "@/components/ui/segmented";
 import { fetchSalesAnalytics } from "@/lib/supabase/queries/dashboard-client";
+import { cn } from "@/lib/utils";
 
 export function DashboardSalesLeaderboard() {
+  const [mode, setMode] = useState<"price" | "roi">("price");
   const [showTop10, setShowTop10] = useState(false);
-  const [sortByROI, setSortByROI] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -17,30 +19,10 @@ export function DashboardSalesLeaderboard() {
     staleTime: 10 * 1000,
   });
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Top Sales</h3>
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const empty = !isLoading && (!data || data.length === 0);
 
-  if (!data || data.length === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Top Sales</h3>
-        <p className="text-sm text-text-muted py-4 text-center">No sales yet</p>
-      </div>
-    );
-  }
-
-  const sorted = [...data].sort((a, b) => {
-    if (sortByROI) {
+  const sorted = [...(data ?? [])].sort((a, b) => {
+    if (mode === "roi") {
       const roiA = a.purchase_price
         ? ((a.sale_price - a.purchase_price) / a.purchase_price) * 100
         : -Infinity;
@@ -52,41 +34,36 @@ export function DashboardSalesLeaderboard() {
     return b.sale_price - a.sale_price;
   });
 
-  const limit = showTop10 ? 10 : 5;
-  const displayed = sorted.slice(0, limit);
+  const displayed = sorted.slice(0, showTop10 ? 10 : 5);
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Top Sales</h3>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setShowTop10(!showTop10)}
-            className="text-xs px-2 py-0.5 rounded border border-border text-text-muted hover:text-text-primary"
-          >
-            {showTop10 ? "Top 5" : "Top 10"}
-          </button>
-          <button
-            onClick={() => setSortByROI(!sortByROI)}
-            className={`text-xs px-2 py-0.5 rounded border transition ${
-              sortByROI
-                ? "bg-accent-primary text-white border-accent-primary"
-                : "border-border text-text-muted hover:text-text-primary"
-            }`}
-          >
-            Best ROI
-          </button>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
+    <WidgetCard
+      title="Top Sales"
+      description={showTop10 ? "Top 10 sales" : "Top 5 sales"}
+      loading={isLoading}
+      empty={empty}
+      emptyMessage="No sales yet"
+      action={
+        <Segmented
+          aria-label="Leaderboard sort"
+          options={[
+            { value: "price", label: "Price" },
+            { value: "roi", label: "Best ROI" },
+          ]}
+          value={mode}
+          onChange={(v) => setMode(v === "roi" ? "roi" : "price")}
+        />
+      }
+    >
+      <div className="overflow-x-auto -mx-6 px-6">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left">
-              <th className="pb-2 font-medium text-text-muted w-8">#</th>
+            <tr className="border-b border-border/60 text-left">
+              <th className="w-8 pb-2 font-medium text-text-muted">#</th>
               <th className="pb-2 font-medium text-text-muted">Domain</th>
-              <th className="pb-2 font-medium text-text-muted text-right">Price</th>
-              <th className="pb-2 font-medium text-text-muted text-right">ROI</th>
-              <th className="pb-2 font-medium text-text-muted text-right">Date</th>
+              <th className="pb-2 text-right font-medium text-text-muted">Price</th>
+              <th className="pb-2 text-right font-medium text-text-muted">ROI</th>
+              <th className="pb-2 text-right font-medium text-text-muted">Date</th>
             </tr>
           </thead>
           <tbody>
@@ -95,81 +72,90 @@ export function DashboardSalesLeaderboard() {
                 ? ((s.sale_price - s.purchase_price) / s.purchase_price) * 100
                 : null;
               const isExpanded = expandedId === s.id;
-              const holdDays =
-                s.created_at
-                  ? differenceInDays(parseISO(s.sold_at), parseISO(s.created_at))
-                  : null;
+              const holdDays = s.created_at
+                ? differenceInDays(parseISO(s.sold_at), parseISO(s.created_at))
+                : null;
 
               return (
-                <tr key={s.id} className="border-b border-border/50">
-                  <td colSpan={isExpanded ? 5 : 1} className={isExpanded ? "p-0" : ""}>
-                    <div
-                      className={`flex items-center gap-3 py-2 cursor-pointer hover:bg-bg-elevated/30 ${isExpanded ? "px-0" : ""}`}
+                <tr
+                  key={s.id}
+                  className={cn("border-b border-border/40", !isExpanded && "last:border-0")}
+                >
+                  <td colSpan={isExpanded ? 5 : 1} className={isExpanded ? "p-0" : "py-0"}>
+                    <button
+                      type="button"
                       onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                      className="flex w-full items-center gap-3 rounded-md py-2.5 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <span className="text-text-muted w-8 text-center">{i + 1}</span>
-                      <span className="font-mono truncate flex-1">{s.domain}</span>
-                      <span className="text-right w-20">
+                      <span className="w-8 shrink-0 text-center text-xs font-semibold tabular-nums text-text-muted">
+                        {i + 1}
+                      </span>
+                      <span className="truncate font-mono text-sm">{s.domain}</span>
+                      <span className="w-20 shrink-0 text-right font-medium tabular-nums">
                         ${s.sale_price.toLocaleString("en-US")}
                       </span>
                       <span
-                        className={`text-right w-16 ${
+                        className={cn(
+                          "w-16 shrink-0 text-right font-medium tabular-nums",
                           roiPct === null
                             ? "text-text-muted"
                             : roiPct >= 0
-                            ? "text-accent-success"
-                            : "text-accent-danger"
-                        }`}
+                              ? "text-accent-success"
+                              : "text-accent-danger"
+                        )}
                       >
-                        {roiPct !== null
-                          ? `${roiPct >= 0 ? "+" : ""}${Math.round(roiPct)}%`
-                          : "—"}
+                        {roiPct !== null ? `${roiPct >= 0 ? "+" : ""}${Math.round(roiPct)}%` : "—"}
                       </span>
-                      <span className="text-right w-24 text-text-muted">
+                      <span className="w-20 shrink-0 text-right text-text-muted tabular-nums">
                         {format(parseISO(s.sold_at), "MMM d, yy")}
                       </span>
-                    </div>
+                    </button>
                     {isExpanded && (
-                      <div className="bg-bg-elevated/50 px-4 py-3 text-xs space-y-1 border-t border-border/30">
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Purchase Price</span>
-                          <span>
-                            {s.purchase_price
-                              ? `$${s.purchase_price.toLocaleString("en-US")}`
-                              : "—"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Sale Price</span>
-                          <span>${s.sale_price.toLocaleString("en-US")}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Profit</span>
-                          <span
-                            className={
-                              s.purchase_price
-                                ? s.sale_price - s.purchase_price >= 0
-                                  ? "text-accent-success"
-                                  : "text-accent-danger"
-                                : "text-text-muted"
-                            }
-                          >
-                            {s.purchase_price
-                              ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
-                              : "—"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Hold Duration</span>
-                          <span>
-                            {holdDays !== null
-                              ? `${holdDays} days (${Math.round(holdDays / 30)} months)`
-                              : "—"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Platform</span>
-                          <span>{s.platform || "—"}</span>
+                      <div className="mb-2 rounded-xl bg-bg-elevated/50 px-12 py-3 text-xs">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                          <div className="flex justify-between">
+                            <span className="text-text-muted">Purchase Price</span>
+                            <span className="tabular-nums">
+                              {s.purchase_price
+                                ? `$${s.purchase_price.toLocaleString("en-US")}`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-text-muted">Sale Price</span>
+                            <span className="tabular-nums">
+                              ${s.sale_price.toLocaleString("en-US")}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-text-muted">Profit</span>
+                            <span
+                              className={cn(
+                                "tabular-nums",
+                                s.purchase_price
+                                  ? s.sale_price - s.purchase_price >= 0
+                                    ? "text-accent-success"
+                                    : "text-accent-danger"
+                                  : "text-text-muted"
+                              )}
+                            >
+                              {s.purchase_price
+                                ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-text-muted">Hold Duration</span>
+                            <span className="tabular-nums">
+                              {holdDays !== null
+                                ? `${holdDays} days (${Math.round(holdDays / 30)} months)`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="col-span-2 flex justify-between">
+                            <span className="text-text-muted">Platform</span>
+                            <span>{s.platform || "—"}</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -180,6 +166,17 @@ export function DashboardSalesLeaderboard() {
           </tbody>
         </table>
       </div>
-    </div>
+      {!empty && sorted.length > 5 && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setShowTop10(!showTop10)}
+            className="text-xs font-medium text-accent-primary transition-colors hover:text-accent-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
+            {showTop10 ? "Show top 5" : "Show top 10"}
+          </button>
+        </div>
+      )}
+    </WidgetCard>
   );
 }

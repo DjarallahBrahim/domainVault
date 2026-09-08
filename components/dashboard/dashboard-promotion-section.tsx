@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WidgetCard } from "@/components/ui/widget-card";
+import { Segmented } from "@/components/ui/segmented";
 import { PromotionRow } from "@/components/ui/promotion-row";
 import {
   fetchCandidates,
@@ -43,9 +44,7 @@ export function PromotionSection() {
     try {
       const candidates = await fetchCandidates(supabase, bucket);
       const ids = candidates.map((c) => c.id);
-      const statsData = ids.length > 0
-        ? await fetchPromotionStats(supabase, ids)
-        : {};
+      const statsData = ids.length > 0 ? await fetchPromotionStats(supabase, ids) : {};
       setDomains(candidates);
       setStats(statsData);
       setActiveBucket(bucket);
@@ -71,9 +70,7 @@ export function PromotionSection() {
     try {
       const data = await searchByKeywords(supabase, keywords);
       const ids = data.map((c) => c.id);
-      const statsData = ids.length > 0
-        ? await fetchPromotionStats(supabase, ids)
-        : {};
+      const statsData = ids.length > 0 ? await fetchPromotionStats(supabase, ids) : {};
       setDomains(data);
       setStats(statsData);
       setActiveBucket(null);
@@ -100,8 +97,13 @@ export function PromotionSection() {
 
   async function handlePromote(domainId: string) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error("Not authenticated"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Not authenticated");
+        return;
+      }
       await recordPromotion(supabase, user.id, domainId);
 
       setStats((prev) => {
@@ -123,55 +125,28 @@ export function PromotionSection() {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Domains to Promote</h3>
-        {activeBucket && (
+    <WidgetCard
+      title="Domains to Promote"
+      description="Pick an expiry range to build this week’s promotion list"
+      action={
+        activeBucket ? (
           <button
+            type="button"
             onClick={() => load(activeBucket)}
             disabled={loading}
-            className="flex items-center gap-1 text-xs text-text-muted hover:text-text-primary transition"
+            className="flex items-center gap-1 text-xs font-medium text-text-muted transition-colors hover:text-text-primary disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           >
-            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <div
-          className={`flex flex-wrap gap-2 transition-all duration-300 ease-in-out ${
-            searchMode
-              ? "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-              : "opacity-100 translate-x-0"
-          }`}
-        >
-          {BUCKETS.map((b) => (
-            <button
-              key={b.key}
-              onClick={() => load(b.key)}
-              disabled={loading}
-              className={`px-2.5 py-1.5 rounded-md text-xs sm:text-sm border transition whitespace-nowrap ${
-                activeBucket === b.key
-                  ? "bg-accent-primary text-white border-accent-primary"
-                  : "border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className={`transition-all duration-300 ease-in-out min-w-0 ${
-            searchMode
-              ? "opacity-100 translate-x-0 flex-1 sm:flex-none"
-              : "opacity-0 translate-x-2 pointer-events-none w-0 overflow-hidden"
-          }`}
-        >
+        ) : undefined
+      }
+    >
+      <div className="mb-4 flex items-center gap-3">
+        {searchMode ? (
           <input
             ref={searchInputRef}
-            className="px-3 py-1.5 rounded-md text-sm border border-border bg-bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary w-full sm:w-[260px]"
+            className="w-full rounded-lg border border-border bg-bg-surface px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="Search (e.g. acme.com, store.io)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -180,74 +155,80 @@ export function PromotionSection() {
             }}
             onBlur={exitSearchMode}
           />
-        </div>
-
-        {!searchMode && (
-          <button
-            onClick={enterSearchMode}
-            disabled={loading}
-            className="p-1.5 rounded-md border border-border hover:bg-bg-elevated text-text-muted hover:text-text-primary transition shrink-0"
-            title="Search domains"
-          >
-            <Search className="h-4 w-4" />
-          </button>
+        ) : (
+          <>
+            <div className="min-w-0 overflow-x-auto">
+              <Segmented
+                aria-label="Promotion pool"
+                options={BUCKETS.map((b) => ({ value: b.key, label: b.label }))}
+                value={activeBucket}
+                onChange={(v) => load(v as BucketKey)}
+                size="sm"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={enterSearchMode}
+              disabled={loading}
+              className="shrink-0 rounded-lg border border-border p-1.5 text-text-muted transition-colors hover:bg-foreground/5 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              title="Search domains"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          </>
         )}
       </div>
 
       {!activeBucket && !searchMode && domains.length === 0 && (
-        <p className="text-sm text-text-muted py-4">
+        <p className="py-4 text-sm text-text-muted">
           Select a filter above to see domains to promote.
         </p>
       )}
 
       {searchMode && !loading && domains.length === 0 && (
-        <p className="text-sm text-text-muted py-4">
-          No domains match your search.
-        </p>
+        <p className="py-4 text-sm text-text-muted">No domains match your search.</p>
       )}
 
-      {loading && (
+      {activeBucket && !loading && domains.length === 0 && (
+        <p className="py-4 text-sm text-text-muted">No active domains expiring in this range.</p>
+      )}
+
+      {loading && domains.length === 0 && (
         <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-foreground/5" />
           ))}
         </div>
       )}
 
-      {activeBucket && !loading && domains.length === 0 && (
-        <p className="text-sm text-text-muted py-4">
-          No active domains expiring in this range.
-        </p>
-      )}
-
       {!loading && domains.length > 0 && (
         <div className="overflow-x-auto -mx-6 px-6">
-          <table className="w-full text-sm min-w-[500px]">
-          <thead>
-            <tr className="text-left border-b border-border">
-              <th className="pb-2 font-medium text-text-muted">Domain</th>
-              <th className="pb-2 font-medium text-text-muted">Expires</th>
-              <th className="pb-2 font-medium text-text-muted">Promoted</th>
-              <th className="pb-2 font-medium text-text-muted">Last</th>
-              <th className="pb-2 font-medium text-text-muted"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {domains.map((domain) => (
-              <PromotionRow
-                key={domain.id}
-                domain={domain}
-                stat={stats[domain.id] ?? null}
-                isConfirming={confirming === domain.id}
-                onPromoteClick={() => setConfirming(domain.id)}
-                onConfirm={() => handlePromote(domain.id)}
-                onCancel={() => setConfirming(null)}
-              />
-            ))}
-          </tbody>
-        </table>
+          <table className="w-full min-w-[500px] text-sm">
+            <thead>
+              <tr className="border-b border-border/60 text-left">
+                <th className="pb-2 font-medium text-text-muted">Domain</th>
+                <th className="pb-2 font-medium text-text-muted">Expires</th>
+                <th className="pb-2 font-medium text-text-muted">Promoted</th>
+                <th className="pb-2 font-medium text-text-muted">Last</th>
+                <th className="pb-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {domains.map((domain) => (
+                <PromotionRow
+                  key={domain.id}
+                  domain={domain}
+                  stat={stats[domain.id] ?? null}
+                  isConfirming={confirming === domain.id}
+                  onPromoteClick={() => setConfirming(domain.id)}
+                  onConfirm={() => handlePromote(domain.id)}
+                  onCancel={() => setConfirming(null)}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </div>
+    </WidgetCard>
   );
 }

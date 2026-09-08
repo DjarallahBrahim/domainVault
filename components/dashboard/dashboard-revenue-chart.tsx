@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
+import { useReducedMotion } from "motion/react";
 import {
   ComposedChart,
   Bar,
@@ -13,8 +14,11 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WidgetCard } from "@/components/ui/widget-card";
+import { Segmented } from "@/components/ui/segmented";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { fetchSalesAnalytics } from "@/lib/supabase/queries/dashboard-client";
+import { useChartTheme } from "@/lib/hooks/use-chart-theme";
 
 type RevenueMonth = {
   month: string;
@@ -24,9 +28,18 @@ type RevenueMonth = {
 };
 
 const COUNT_SCALE = 100;
+const RANGE_OPTIONS = [
+  { value: "12M", label: "12M" },
+  { value: "24M", label: "24M" },
+  { value: "all", label: "All" },
+] as const;
+
+const money = (n: number) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
 
 export function DashboardRevenueChart() {
-  const [range, setRange] = useState<"12M" | "24M" | "all">("12M");
+  const [range, setRange] = useState<(typeof RANGE_OPTIONS)[number]["value"]>("12M");
+  const reduced = useReducedMotion();
+  const colors = useChartTheme();
 
   const { data, isLoading } = useQuery({
     queryKey: ["sales", "analytics"],
@@ -34,28 +47,8 @@ export function DashboardRevenueChart() {
     staleTime: 10 * 1000,
   });
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Revenue Over Time</h3>
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Revenue Over Time</h3>
-        <p className="text-sm text-text-muted py-8 text-center">
-          No sales data yet
-        </p>
-      </div>
-    );
-  }
-
   const monthlyMap = new Map<string, { revenue: number; count: number }>();
-  for (const s of data) {
+  for (const s of data ?? []) {
     const key = format(parseISO(s.sold_at), "yyyy-MM");
     const entry = monthlyMap.get(key) || { revenue: 0, count: 0 };
     entry.revenue += s.sale_price;
@@ -65,10 +58,7 @@ export function DashboardRevenueChart() {
 
   const allMonths: RevenueMonth[] = [];
   let cumulative = 0;
-  const sortedMonths = Array.from(monthlyMap.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0])
-  );
-
+  const sortedMonths = Array.from(monthlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   for (const [key, val] of sortedMonths) {
     cumulative += val.revenue;
     allMonths.push({
@@ -79,117 +69,125 @@ export function DashboardRevenueChart() {
     });
   }
 
-  const filtered =
-    range === "all"
-      ? allMonths
-      : allMonths.slice(-(range === "12M" ? 12 : 24));
+  const filtered = range === "all" ? allMonths : allMonths.slice(-(range === "12M" ? 12 : 24));
 
   const chartData = filtered.map((d) => ({
     ...d,
     countScaled: d.count * COUNT_SCALE,
   }));
 
-  return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Revenue Over Time</h3>
-        <div className="flex gap-1">
-          {(["12M", "24M", "all"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition ${
-                range === r
-                  ? "bg-accent-primary text-white border-accent-primary"
-                  : "border-border text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {r === "all" ? "All" : r}
-            </button>
-          ))}
-        </div>
-      </div>
+  const empty = !isLoading && chartData.length === 0;
 
-      <div className="flex items-center justify-center gap-6 mb-3 text-xs text-text-muted">
+  return (
+    <WidgetCard
+      title="Revenue Over Time"
+      description="Monthly revenue with sales volume and cumulative trend"
+      loading={isLoading}
+      empty={empty}
+      emptyMessage="No sales data yet"
+      action={
+        <Segmented
+          aria-label="Revenue range"
+          options={RANGE_OPTIONS}
+          value={range}
+          onChange={setRange}
+        />
+      }
+    >
+      <div className="mb-4 flex items-center justify-center gap-6 text-xs text-text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[var(--accent-primary)]" />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors.accent }} />
           Revenue
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#f59e0b]" />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors.warning }} />
           Sales #
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-4 border-t-2 border-[var(--accent-success)] inline-block" />
+          <span
+            className="inline-block h-0 w-4 border-t-2"
+            style={{ borderColor: colors.success }}
+          />
           Cumulative
         </span>
       </div>
 
       <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+        <ComposedChart data={chartData} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
+          <CartesianGrid vertical={false} stroke={colors.grid} />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 11, fill: colors.textMuted }}
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
+          />
           <YAxis
             yAxisId="left"
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: colors.textMuted }}
+            tickLine={false}
+            axisLine={false}
             tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            width={40}
           />
           <YAxis
             yAxisId="right"
             orientation="right"
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: colors.textMuted }}
+            tickLine={false}
+            axisLine={false}
             tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            width={40}
           />
           <Tooltip
-            content={({ active, payload }) => {
-              if (active && payload?.length) {
-                const d = payload[0].payload as RevenueMonth;
-                return (
-                  <div className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-sm shadow-lg">
-                    <p className="font-medium">{d.month}</p>
-                    <p className="text-accent-primary font-medium">
-                      ${d.revenue.toLocaleString("en-US")}
-                    </p>
-                    <p style={{ color: "#f59e0b" }}>
-                      {d.count} sale{d.count !== 1 ? "s" : ""}
-                    </p>
-                    <p className="text-accent-success text-xs">
-                      Cumulative: ${d.cumulative.toLocaleString("en-US")}
-                    </p>
-                  </div>
-                );
-              }
-              return null;
-            }}
+            cursor={{ fill: colors.grid }}
+            content={
+              <ChartTooltip
+                formatter={(value, item) =>
+                  item.dataKey === "countScaled"
+                    ? `${Math.round(Number(value) / COUNT_SCALE)} sale${
+                        Math.round(Number(value) / COUNT_SCALE) === 1 ? "" : "s"
+                      }`
+                    : money(Number(value))
+                }
+              />
+            }
           />
           <Bar
             yAxisId="left"
             dataKey="revenue"
+            name="Revenue"
             stackId="a"
-            fill="var(--accent-primary)"
+            fill={colors.accent}
             radius={[0, 0, 0, 0]}
-            animationDuration={600}
+            maxBarSize={28}
+            animationDuration={reduced ? 0 : 600}
             minPointSize={1}
           />
           <Bar
             yAxisId="left"
             dataKey="countScaled"
+            name="Sales #"
             stackId="a"
-            fill="#f59e0b"
-            radius={[4, 4, 0, 0]}
-            animationDuration={600}
+            fill={colors.warning}
+            radius={[6, 6, 0, 0]}
+            maxBarSize={28}
+            animationDuration={reduced ? 0 : 600}
             minPointSize={1}
           />
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="cumulative"
-            stroke="var(--accent-success)"
+            name="Cumulative"
+            stroke={colors.success}
             strokeWidth={2}
             dot={false}
+            activeDot={{ r: 4 }}
+            animationDuration={reduced ? 0 : 600}
           />
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
+    </WidgetCard>
   );
 }

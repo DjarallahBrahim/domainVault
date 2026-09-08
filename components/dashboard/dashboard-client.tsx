@@ -1,7 +1,8 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
-import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards";
+import { DashboardGlobalStats } from "@/components/dashboard/dashboard-global-stats";
 import { DashboardMonthSnapshot } from "@/components/dashboard/dashboard-month-snapshot";
 import { DashboardExpiryDonut } from "@/components/dashboard/dashboard-expiry-donut";
 import { DashboardCriticalRenewals } from "@/components/dashboard/dashboard-critical-renewals";
@@ -19,6 +20,7 @@ import {
   type DashboardStats,
   type ExpirySegments,
 } from "@/lib/supabase/queries/dashboard-client";
+import { fadeUp } from "@/lib/motion";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -66,12 +68,21 @@ export function DashboardClient({
 
   return (
     <div className="space-y-6">
-      <DashboardKpiCards stats={stats ?? null} />
+      <motion.div variants={fadeUp(0)} initial="hidden" animate="visible">
+        <DashboardGlobalStats stats={stats ?? null} />
+      </motion.div>
 
-      <DashboardMonthSnapshot />
+      <motion.div variants={fadeUp(0.05)} initial="hidden" animate="visible">
+        <DashboardMonthSnapshot />
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <motion.div
+        variants={fadeUp(0.1)}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+      >
+        <div className="space-y-6 lg:col-span-2">
           <DashboardExpiryDonut segments={segments ?? null} />
           <PromotionSection />
         </div>
@@ -79,16 +90,25 @@ export function DashboardClient({
           <DashboardCriticalRenewals domains={expiringDomains ?? null} />
           <DashboardQuickStats stats={quickStatsData ?? null} />
         </div>
-      </div>
+      </motion.div>
 
-      <DashboardRevenueChart />
+      <motion.div variants={fadeUp(0.1)} initial="hidden" animate="visible">
+        <DashboardRevenueChart />
+      </motion.div>
 
-      <DashboardSpendSoldChart />
+      <motion.div variants={fadeUp(0.15)} initial="hidden" animate="visible">
+        <DashboardSpendSoldChart />
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <motion.div
+        variants={fadeUp(0.2)}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 gap-6 lg:grid-cols-2"
+      >
         <DashboardSalesLeaderboard />
         <DashboardPlatformBreakdown />
-      </div>
+      </motion.div>
     </div>
   );
 }

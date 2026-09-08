@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { WidgetCard } from "@/components/ui/widget-card";
 
 interface QuickStatsData {
   avg_price: number;
@@ -16,39 +16,39 @@ interface DashboardQuickStatsProps {
 }
 
 export function DashboardQuickStats({ stats }: DashboardQuickStatsProps) {
-  if (!stats) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Quick Stats</h3>
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const items = [
-    { label: "Avg Price", value: `$${stats.avg_price.toLocaleString("en-US")}` },
-    { label: "Top Registrar", value: stats.most_common_registrar },
-    { label: "Oldest Domain", value: stats.oldest_domain },
-    { label: "Newest Domain", value: stats.newest_domain },
-    { label: "Total Expired", value: String(stats.total_expired) },
-    { label: "Total Earnings", value: `$${stats.total_earnings.toLocaleString("en-US")}` },
-  ];
+  const items = stats
+    ? [
+        { label: "Avg Price", value: `$${stats.avg_price.toLocaleString("en-US")}` },
+        { label: "Top Registrar", value: stats.most_common_registrar },
+        { label: "Oldest Domain", value: stats.oldest_domain, mono: true },
+        { label: "Newest Domain", value: stats.newest_domain, mono: true },
+        { label: "Total Expired", value: String(stats.total_expired) },
+        {
+          label: "Total Earnings",
+          value: `$${stats.total_earnings.toLocaleString("en-US")}`,
+        },
+      ]
+    : [];
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <h3 className="text-sm font-semibold mb-4">Quick Stats</h3>
-      <div className="space-y-2.5">
+    <WidgetCard title="Quick Stats" loading={stats === null}>
+      <div className="divide-y divide-border/50">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-between text-sm">
+          <div
+            key={item.label}
+            className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
+          >
             <span className="text-text-muted">{item.label}</span>
-            <span className="font-medium font-mono text-right max-w-[160px] truncate">{item.value}</span>
+            <span
+              className={`max-w-[55%] truncate text-right font-medium ${
+                item.mono ? "font-mono text-[13px]" : "tabular-nums"
+              }`}
+            >
+              {item.value}
+            </span>
           </div>
         ))}
       </div>
-    </div>
+    </WidgetCard>
   );
 }

@@ -1,56 +1,36 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "motion/react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { WidgetCard } from "@/components/ui/widget-card";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { fetchSalesAnalytics } from "@/lib/supabase/queries/dashboard-client";
+import { useChartTheme } from "@/lib/hooks/use-chart-theme";
 
-const CHART_COLORS = [
-  "#6366f1", "#818cf8", "#a5b4fc", "#8b5cf6",
-  "#a78bfa", "#22d3ee", "#67e8f9", "#10b981",
-  "#34d399", "#f59e0b",
-];
+type PlatformDatum = {
+  platform: string;
+  sales_count: number;
+  total_revenue: number;
+  avg_sale_price: number;
+};
+
+const money = (n: number) => `$${Number(n).toLocaleString("en-US")}`;
 
 export function DashboardPlatformBreakdown() {
+  const reduced = useReducedMotion();
+  const colors = useChartTheme();
+
   const { data, isLoading } = useQuery({
     queryKey: ["sales", "analytics"],
     queryFn: fetchSalesAnalytics,
     staleTime: 10 * 1000,
   });
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Platform Performance</h3>
-        <Skeleton className="h-48 w-full" />
-      </div>
-    );
-  }
+  const empty = !isLoading && (!data || data.length === 0);
 
-  if (!data || data.length === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Platform Performance</h3>
-        <p className="text-sm text-text-muted py-8 text-center">
-          No sales data yet
-        </p>
-      </div>
-    );
-  }
-
-  const platformMap = new Map<
-    string,
-    { sales_count: number; total_revenue: number }
-  >();
-  for (const s of data) {
+  const platformMap = new Map<string, { sales_count: number; total_revenue: number }>();
+  for (const s of data ?? []) {
     const key = s.platform?.trim() || "Other";
     const entry = platformMap.get(key) || { sales_count: 0, total_revenue: 0 };
     entry.sales_count++;
@@ -68,55 +48,66 @@ export function DashboardPlatformBreakdown() {
     .sort((a, b) => b.total_revenue - a.total_revenue);
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <h3 className="text-sm font-semibold mb-4">Platform Performance</h3>
+    <WidgetCard
+      title="Platform Performance"
+      description="Revenue by sales platform"
+      loading={isLoading}
+      empty={empty}
+      emptyMessage="No sales data yet"
+    >
       <ResponsiveContainer width="100%" height={Math.max(80, 36 + chartData.length * 36)}>
         <BarChart
           data={[...chartData].reverse()}
           layout="vertical"
-          margin={{ left: 80, right: 20, top: 4, bottom: 4 }}
+          margin={{ left: 8, right: 8, top: 4, bottom: 4 }}
         >
+          <CartesianGrid horizontal={false} stroke={colors.grid} />
           <XAxis
             type="number"
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: colors.textMuted }}
+            tickLine={false}
+            axisLine={false}
             tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
           />
           <YAxis
             type="category"
             dataKey="platform"
-            tick={{ fontSize: 11 }}
-            width={75}
-            tickFormatter={(v) => (v.length > 12 ? `${v.slice(0, 11)}…` : v)}
+            tick={{ fontSize: 12, fill: colors.textMuted }}
+            tickLine={false}
+            axisLine={false}
+            width={90}
+            tickFormatter={(v) => (v.length > 13 ? `${v.slice(0, 12)}…` : v)}
           />
           <Tooltip
-            content={({ active, payload }) => {
-              if (active && payload?.length) {
-                const d = payload[0].payload;
-                return (
-                  <div className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-sm shadow-lg">
-                    <p className="font-medium">{d.platform}</p>
-                    <p className="text-text-muted">
-                      {d.sales_count} sale{d.sales_count !== 1 ? "s" : ""}
-                    </p>
-                    <p className="text-accent-primary font-medium">
-                      ${d.total_revenue.toLocaleString("en-US")}
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      Avg: ${d.avg_sale_price.toLocaleString("en-US")}
-                    </p>
-                  </div>
-                );
-              }
-              return null;
-            }}
+            cursor={{ fill: colors.grid }}
+            content={
+              <ChartTooltip
+                formatter={(value) => money(Number(value))}
+                footer={(item) => {
+                  const d = item.payload as unknown as PlatformDatum;
+                  if (!d) return null;
+                  return (
+                    <div className="flex justify-between gap-4 text-xs text-text-muted">
+                      <span>
+                        {d.sales_count} sale{d.sales_count === 1 ? "" : "s"}
+                      </span>
+                      <span>Avg: ${d.avg_sale_price.toLocaleString("en-US")}</span>
+                    </div>
+                  );
+                }}
+              />
+            }
           />
-          <Bar dataKey="total_revenue" radius={[0, 4, 4, 0]} animationDuration={600}>
-            {chartData.map((_, i) => (
-              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-            ))}
-          </Bar>
+          <Bar
+            dataKey="total_revenue"
+            name="Revenue"
+            fill={colors.accent}
+            radius={[0, 6, 6, 0]}
+            maxBarSize={18}
+            animationDuration={reduced ? 0 : 600}
+          />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </WidgetCard>
   );
 }

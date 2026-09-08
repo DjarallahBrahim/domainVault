@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { WidgetCard } from "@/components/ui/widget-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { updateDomain } from "@/lib/supabase/queries/domains-client";
 import type { Database } from "@/types/supabase";
 
@@ -36,95 +37,89 @@ export function DashboardCriticalRenewals({ domains }: DashboardCriticalRenewals
     },
   });
 
-  if (!domains) {
-    return (
-      <div className="rounded-xl border border-border bg-bg-surface p-6">
-        <h3 className="text-sm font-semibold mb-4">Critical Renewals</h3>
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const expiring = domains.filter((d) => {
+  const expiring = (domains ?? []).filter((d) => {
     const diff = (new Date(d.expiration_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 30;
   });
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Critical Renewals</h3>
-        {expiring.length > 0 && (
-          <Link href="/domains?expiry=1m" className="text-sm text-accent-primary hover:underline">
+    <WidgetCard
+      title="Critical Renewals"
+      description="Expiring in the next 30 days"
+      loading={domains === null}
+      empty={domains !== null && expiring.length === 0}
+      emptyMessage="All clear — nothing expiring this month"
+      action={
+        expiring.length > 0 ? (
+          <Link
+            href="/domains?expiry=1m"
+            className="text-sm font-medium text-accent-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
             View All
           </Link>
-        )}
-      </div>
-      {expiring.length === 0 ? (
-        <p className="text-sm text-text-muted">All clear — nothing expiring this month</p>
-      ) : (
-        <div className="space-y-3">
-          {expiring.slice(0, 10).map((d) => {
-            const days = Math.ceil(
-              (new Date(d.expiration_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-            );
-            const isRenewing = renewingId === d.id;
+        ) : undefined
+      }
+    >
+      <div className="space-y-1">
+        {expiring.slice(0, 10).map((d) => {
+          const days = Math.ceil(
+            (new Date(d.expiration_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          const isRenewing = renewingId === d.id;
 
-            return (
-              <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono truncate">{d.domain}</p>
-                  {isRenewing && (
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <Input
-                        type="date"
-                        value={newDate}
-                        onChange={(e) => setNewDate(e.target.value)}
-                        className="h-8 text-sm w-36"
-                      />
-                      <Button
-                        size="sm"
-                        className="h-8 text-sm"
-                        disabled={!newDate || renewMutation.isPending}
-                        onClick={() => renewMutation.mutate({ id: d.id, date: newDate })}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 text-sm"
-                        onClick={() => setRenewingId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-sm px-2 py-0.5 rounded font-medium ${
-                    days <= 7 ? "bg-accent-danger/10 text-accent-danger" :
-                    days <= 14 ? "bg-accent-warning/10 text-accent-warning" :
-                    "bg-bg-elevated text-text-muted"
-                  }`}>
-                    {days}d
-                  </span>
-                  <button
-                    onClick={() => { setRenewingId(isRenewing ? null : d.id); setNewDate(""); }}
-                    className="text-sm text-accent-primary hover:underline"
-                  >
-                    Renew
-                  </button>
-                </div>
+          return (
+            <div
+              key={d.id}
+              className="flex items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-foreground/5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono">{d.domain}</p>
+                {isRenewing && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Input
+                      type="date"
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      className="h-8 w-36 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 text-sm"
+                      disabled={!newDate || renewMutation.isPending}
+                      onClick={() => renewMutation.mutate({ id: d.id, date: newDate })}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-sm"
+                      onClick={() => setRenewingId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant={days <= 7 ? "danger" : days <= 14 ? "warning" : "neutral"}>
+                  {days}d
+                </Badge>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenewingId(isRenewing ? null : d.id);
+                    setNewDate("");
+                  }}
+                  className="text-sm font-medium text-accent-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  {isRenewing ? "Close" : "Renew"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </WidgetCard>
   );
 }
