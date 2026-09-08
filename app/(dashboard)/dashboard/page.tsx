@@ -13,6 +13,21 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
+const dateLabel = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+}).format(new Date());
+
+function PageHeader() {
+  return (
+    <div className="mb-8">
+      <h1 className="text-large-title text-text-primary">Dashboard</h1>
+      <p className="mt-1 text-sm text-text-muted">{dateLabel}</p>
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   try {
     await autoTransitionExpired();
@@ -30,7 +45,7 @@ export default async function DashboardPage() {
   if (!stats || stats.total_active === 0) {
     return (
       <div>
-        <h1 className="text-2xl font-bold font-display mb-6">Dashboard</h1>
+        <PageHeader />
         <DashboardEmptyState />
       </div>
     );
@@ -38,7 +53,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold font-display mb-6">Dashboard</h1>
+      <PageHeader />
       <DashboardClient
         initialStats={stats}
         initialSegments={segments}

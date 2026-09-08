@@ -33,16 +33,32 @@ const formatPrice = (price: number | null): string => {
   return `$${price.toLocaleString()}`;
 };
 
-export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoCreate, onSedoRefresh, sedoRefreshingIds, spaceshipListings, onSpaceshipEdit, onSpaceshipCreate, onSpaceshipRefresh, spaceshipRefreshingIds, reservedExtensions }: DomainCardProps) {
+export function DomainCard({
+  domain,
+  onDelete,
+  sedoListings,
+  onSedoEdit,
+  onSedoCreate,
+  onSedoRefresh,
+  sedoRefreshingIds,
+  spaceshipListings,
+  onSpaceshipEdit,
+  onSpaceshipCreate,
+  onSpaceshipRefresh,
+  spaceshipRefreshingIds,
+  reservedExtensions,
+}: DomainCardProps) {
   const router = useRouter();
 
   return (
-    <div className="rounded-lg border border-border bg-bg-surface p-4 space-y-2">
+    <div className="space-y-2 rounded-2xl bg-bg-surface p-4 shadow-card ring-1 ring-border/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <RenewalToggle
             domainId={domain.id}
-            toBeRenewal={(domain as Record<string, unknown>).to_be_renewal as boolean | null ?? null}
+            toBeRenewal={
+              ((domain as Record<string, unknown>).to_be_renewal as boolean | null) ?? null
+            }
           />
           <button
             onClick={() => router.push(`/domains/${domain.id}`)}
@@ -54,7 +70,7 @@ export function DomainCard({ domain, onDelete, sedoListings, onSedoEdit, onSedoC
             domainId={domain.id}
             domainName={domain.domain}
             reservedTldsCount={
-              (domain as Record<string, unknown>).reserved_tlds_count as number | null ?? null
+              ((domain as Record<string, unknown>).reserved_tlds_count as number | null) ?? null
             }
             reservedExtensions={reservedExtensions.get(domain.id) ?? []}
           />
