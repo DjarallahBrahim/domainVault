@@ -1,5 +1,7 @@
-import { createClient as createServerClient } from "@/lib/supabase/server";
-
+/**
+ * Generic active-TLD fetch. Works with any Supabase client (browser or server)
+ * and contains no server-only imports so it is safe to use from client code.
+ */
 export async function fetchActiveTlds(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any
@@ -11,9 +13,4 @@ export async function fetchActiveTlds(
     .order("sort_order");
 
   return { data, error };
-}
-
-export async function serverFetchActiveTlds() {
-  const client = await createServerClient();
-  return fetchActiveTlds(client as unknown as Parameters<typeof fetchActiveTlds>[0]);
 }

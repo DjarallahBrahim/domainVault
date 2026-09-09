@@ -27,7 +27,9 @@ import { queryKeys } from "@/lib/query-keys";
 import { manualEntrySchema, type ManualEntryInput } from "@/lib/validations/domain";
 import { insertSingleDomain, updateDomain } from "@/lib/supabase/queries/domains-client";
 import { useWhoisAnalysis } from "@/lib/hooks/useWhoisAnalysis";
+import { useTldReservedAnalysis } from "@/lib/hooks/useTldReservedAnalysis";
 import { WhoisAnalyse } from "@/components/whois/whois-analyse";
+import { TldReservedHint } from "@/components/domains/tld-reserved-hint";
 import { RegistrarAutocomplete } from "@/components/whois/registrar-autocomplete";
 import type { Database } from "@/types/supabase";
 
@@ -74,9 +76,12 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
     setRegistrar: (value) => setValue("registrar", value),
   });
 
+  const tldReserved = useTldReservedAnalysis();
+
   useEffect(() => {
     if (open) {
       whois.reset();
+      tldReserved.reset();
       if (domain) {
         reset({
           domain: domain.domain,
@@ -102,10 +107,10 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
       }
       setServerError(null);
     }
-  }, [open, domain, reset, whois.reset]);
+  }, [open, domain, reset, whois.reset, tldReserved.reset]);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: async (data: ManualEntryInput) => {
+    mutationFn: async (data: ManualEntryInput): Promise<DomainRow | null> => {
       if (isEdit && domain) {
         await updateDomain(domain.id, {
           status,
@@ -114,18 +119,25 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
           notes: data.notes ?? null,
           tags: tags.length > 0 ? tags : null,
         } as never);
-      } else {
-        await insertSingleDomain({
-          domain: data.domain,
-          expiration_date: data.expiration_date,
-          purchase_price: data.purchase_price ?? null,
-          registrar: data.registrar ?? null,
-          notes: data.notes ?? null,
-          tags: tags.length > 0 ? tags.join(",") : null,
-        });
+        return null;
       }
+      return await insertSingleDomain({
+        domain: data.domain,
+        expiration_date: data.expiration_date,
+        purchase_price: data.purchase_price ?? null,
+        registrar: data.registrar ?? null,
+        notes: data.notes ?? null,
+        tags: tags.length > 0 ? tags.join(",") : null,
+      });
     },
-    onSuccess: () => {
+    onSuccess: async (inserted) => {
+      if (inserted) {
+        try {
+          await tldReserved.persistForDomain(inserted.id);
+        } catch {
+          toast.warning("Domain added — TLD check couldn't be saved. Use refresh later.");
+        }
+      }
       toast.success(isEdit ? "Domain updated" : "Domain added");
       queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
       onOpenChange(false);
@@ -144,7 +156,9 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
     const valid = await trigger("domain");
     if (!valid) return;
     setServerError(null);
-    await whois.run(getValues("domain").trim().toLowerCase());
+    const name = getValues("domain").trim().toLowerCase();
+    whois.run(name);
+    await tldReserved.run(name);
   }
 
   function onSubmit(data: ManualEntryInput) {
@@ -184,6 +198,8 @@ export function DomainAddDialog({ open, onOpenChange, domain }: DomainAddDialogP
               onPickAllowed={whois.updateRegistrar}
             />
           )}
+
+          {!isEdit && <TldReservedHint state={tldReserved.state} />}
 
           <div className="space-y-2">
             <Label htmlFor="dialog-expiration">Expiration Date *</Label>
