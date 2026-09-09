@@ -93,8 +93,17 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
       setError("Asking Price is required");
       return;
     }
-    if (!minOffer || isNaN(Number(minOffer)) || Number(minOffer) <= 0) {
-      setError("Min Offer is required");
+
+    // In Fixed mode Min Offer is optional — when blank it defaults to the
+    // asking price so the Sedo API still receives a minprice value.
+    const minPriceValue = isFixed
+      ? minOffer && !isNaN(Number(minOffer)) && Number(minOffer) > 0
+        ? Number(minOffer)
+        : Number(askingPrice)
+      : Number(minOffer);
+
+    if (!isFixed && (!minOffer || isNaN(minPriceValue) || minPriceValue <= 0)) {
+      setError("Min Offer is required for negotiable listings");
       return;
     }
 
@@ -106,7 +115,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             price: Number(askingPrice),
-            minprice: Number(minOffer),
+            minprice: minPriceValue,
             fixedprice: (isFixed ? 1 : 0),
             domainIds: batchDomains.map((d) => d.id),
           }),
@@ -118,14 +127,12 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
           throw new Error(batchBody.error ?? "Sedo API error");
         }
 
-        
-
         for (const d of batchDomains) {
           await upsertSedoListing({
             domain_id: d.id,
             domain_name: d.domain,
             sedo_price: Number(askingPrice),
-            sedo_minprice: Number(minOffer),
+            sedo_minprice: minPriceValue,
             sedo_fixedprice: isFixed ? 1 : 0,
             sedo_currency: 1,
             sedo_forsale: 1,
@@ -148,7 +155,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
       const payload = {
         domain: domain!.domain,
         price: Number(askingPrice),
-        minprice: Number(minOffer),
+        minprice: minPriceValue,
         fixedprice: (isFixed ? 1 : 0) as 0 | 1,
       };
 
@@ -178,7 +185,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
         domain_id: domain!.id,
         domain_name: domain!.domain,
         sedo_price: Number(askingPrice),
-        sedo_minprice: Number(minOffer),
+        sedo_minprice: minPriceValue,
         sedo_fixedprice: isFixed ? 1 : 0,
         sedo_currency: 1,
         sedo_forsale: 1,
@@ -322,7 +329,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
           </div>
 
           <div className="space-y-2">
-            <Label>Min Offer *</Label>
+            <Label>{isFixed ? "Min Offer (optional)" : "Min Offer *"}</Label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
@@ -331,7 +338,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
                 min="0"
                 value={minOffer}
                 onChange={(e) => setMinOffer(e.target.value)}
-                placeholder="0.00"
+                placeholder={isFixed ? "Defaults to asking price" : "0.00"}
                 className="pl-9"
                 disabled={loading || noCredentials}
               />
