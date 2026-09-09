@@ -20,6 +20,49 @@ interface TldBatchCheckParams {
   userId: string;
 }
 
+/** How many domains to check in parallel (each parallel check has its own pool). */
+const DOMAIN_CONCURRENCY = 2;
+/** Per-domain TLD pool when running in parallel. */
+const TLD_CONCURRENCY = 15;
+
+async function runWithConcurrency<T>(
+  items: T[],
+  worker: (item: T, index: number) => Promise<void>,
+  concurrency: number,
+  isAborted: () => boolean
+): Promise<void> {
+  if (items.length === 0) return;
+
+  let nextIndex = 0;
+  let inFlight = 0;
+
+  return new Promise<void>((resolve) => {
+    const startNext = () => {
+      while (nextIndex < items.length && inFlight < concurrency && !isAborted()) {
+        const idx = nextIndex++;
+        inFlight++;
+
+        worker(items[idx], idx)
+          .catch(() => {})
+          .finally(() => {
+            inFlight--;
+            if (inFlight === 0 && nextIndex >= items.length) {
+              resolve();
+            } else {
+              startNext();
+            }
+          });
+      }
+    };
+
+    startNext();
+
+    if (inFlight === 0 && nextIndex >= items.length) {
+      resolve();
+    }
+  });
+}
+
 export function useTldBatchCheck() {
   const supabase = useRef(createClient());
   const [state, setState] = useState<BatchState>({
@@ -34,15 +77,18 @@ export function useTldBatchCheck() {
   const run = useCallback(async (params: TldBatchCheckParams) => {
     const { domains, tlds, userId } = params;
 
-    if (state.isRunning) return;
+    if (state.isRunning || domains.length === 0 || tlds.length === 0) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
+    const isAborted = () => controller.signal.aborted;
+
+    const total = domains.length * tlds.length;
 
     setState({
       isRunning: true,
       done: 0,
-      total: domains.length * tlds.length,
+      total,
       error: null,
       completed: false,
     });
@@ -50,33 +96,39 @@ export function useTldBatchCheck() {
     let pairDone = 0;
 
     try {
-      for (let i = 0; i < domains.length; i++) {
-        if (controller.signal.aborted) break;
+      await runWithConcurrency(
+        domains,
+        async (domain) => {
+          if (isAborted()) return;
 
-        const domain = domains[i];
-        const root = extractRootWord(domain.domain);
+          const root = extractRootWord(domain.domain);
 
-        const results = await checkAllExtensionsForRoot(
-          root,
-          tlds,
-          "cloudflare",
-          { signal: controller.signal }
-        );
+          const results = await checkAllExtensionsForRoot(
+            root,
+            tlds,
+            "cloudflare",
+            { signal: controller.signal, concurrency: TLD_CONCURRENCY }
+          );
 
-        if (controller.signal.aborted) break;
+          if (isAborted()) return;
 
-        await persistResults(
-          supabase.current as unknown as Record<string, unknown>,
-          domain.id,
-          userId,
-          results
-        );
+          await persistResults(
+            supabase.current as unknown as Record<string, unknown>,
+            domain.id,
+            userId,
+            results
+          );
 
-        pairDone += tlds.length;
-        setState((prev) => ({ ...prev, done: pairDone }));
-      }
+          if (isAborted()) return;
+
+          pairDone += tlds.length;
+          setState((prev) => ({ ...prev, done: pairDone }));
+        },
+        DOMAIN_CONCURRENCY,
+        isAborted
+      );
     } catch (err: unknown) {
-      if (controller.signal.aborted) return;
+      if (isAborted()) return;
       setState((prev) => ({
         ...prev,
         isRunning: false,
@@ -88,9 +140,9 @@ export function useTldBatchCheck() {
     setState({
       isRunning: false,
       done: pairDone,
-      total: domains.length * tlds.length,
+      total,
       error: null,
-      completed: !controller.signal.aborted,
+      completed: !isAborted(),
     });
   }, [state.isRunning]);
 
