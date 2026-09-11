@@ -15,7 +15,7 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
   const params = await searchParams;
 
   const filters = {
-    status: typeof params.status === "string" ? params.status : undefined,
+    status: typeof params.status === "string" ? params.status : "all",
     tld: typeof params.tld === "string" ? params.tld : undefined,
     search: typeof params.search === "string" ? params.search : undefined,
     sort: typeof params.sort === "string" ? params.sort : undefined,
@@ -23,6 +23,8 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
     page: typeof params.page === "string" ? Number(params.page) : undefined,
     pageSize: typeof params.pageSize === "string" ? Number(params.pageSize) : undefined,
     expiry: typeof params.expiry === "string" ? params.expiry : undefined,
+    expiryMin: typeof params.expiryMin === "string" ? params.expiryMin : undefined,
+    expiryMax: typeof params.expiryMax === "string" ? params.expiryMax : undefined,
     created: typeof params.created === "string" ? params.created : undefined,
     renewal: typeof params.renewal === "string" ? params.renewal : undefined,
     registrars: typeof params.registrar === "string" ? params.registrar : undefined,

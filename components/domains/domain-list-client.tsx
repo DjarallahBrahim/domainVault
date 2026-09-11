@@ -12,10 +12,8 @@ import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
 import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { SedoOverlay } from "@/components/domains/SedoOverlay";
-import { SedoSyncButton } from "@/components/domains/SedoSyncButton";
 import { SpaceshipOverlay } from "@/components/domains/SpaceshipOverlay";
-import { SpaceshipSyncButton } from "@/components/domains/SpaceshipSyncButton";
-import { TldSyncModal } from "@/components/domains/TldSyncModal";
+import { SyncMenu } from "@/components/domains/SyncMenu";
 import { useSedoListings } from "@/lib/hooks/useSedoListings";
 import { useSedoRefreshOne } from "@/lib/hooks/useSedoRefreshOne";
 import { useSpaceshipListings } from "@/lib/hooks/useSpaceshipListings";
@@ -46,7 +44,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
     queryKey: queryKeys.domains.list(filters),
     queryFn: () =>
       fetchDomains({
-        status: filters.status,
+        status: filters.status ?? "all",
         tld: filters.tld,
         search: filters.search,
         sort: filters.sort,
@@ -54,6 +52,8 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         page: filters.page ? Number(filters.page) : 1,
         pageSize: filters.pageSize ? Number(filters.pageSize) : undefined,
         expiry: filters.expiry,
+        expiryMin: filters.expiryMin,
+        expiryMax: filters.expiryMax,
         created: filters.created,
         renewal: filters.renewal,
         registrars: filters.registrar,
@@ -211,12 +211,14 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
       const params = new URLSearchParams(searchParams.toString());
       const filters = Object.fromEntries(params.entries());
       const { domains: allDomains } = await fetchDomains({
-        status: filters.status,
+        status: filters.status ?? "all",
         tld: filters.tld,
         search: filters.search,
         sort: filters.sort,
         order: filters.order,
         expiry: filters.expiry,
+        expiryMin: filters.expiryMin,
+        expiryMax: filters.expiryMax,
         created: filters.created,
         renewal: filters.renewal,
         registrars: filters.registrar,
@@ -296,14 +298,12 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           Add Domain
         </Button>
         <div className="flex items-center gap-2">
-          <TldSyncModal
+          <SyncMenu
             totalDomains={data.total}
             currentPageDomainIds={data.domains.map((d) => d.id)}
             domains={data.domains.map((d) => ({ id: d.id, domain: d.domain }))}
             userId={userId}
           />
-          <SedoSyncButton />
-          <SpaceshipSyncButton />
         </div>
       </div>
       <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,9 @@ interface TldSyncModalProps {
   currentPageDomainIds: string[];
   domains: Array<{ id: string; domain: string }>;
   userId: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 export function TldSyncModal({
@@ -22,30 +25,44 @@ export function TldSyncModal({
   currentPageDomainIds,
   domains,
   userId,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger,
 }: TldSyncModalProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [scope, setScope] = useState<"all" | "page">("all");
   const [confirmed, setConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (open) setConfirmed(false);
+  }, [open]);
 
   const pageCount = currentPageDomainIds.length;
   const canConfirm = scope === "all" || pageCount > 0;
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          setConfirmed(false);
-          setOpen(true);
-        }}
-        className="font-mono text-xs"
-        disabled={confirmed}
-      >
-        Sync TLDs
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen(true)}
+          className="font-mono text-xs"
+          disabled={confirmed}
+        >
+          Sync TLDs
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setConfirmed(false);
+          setOpen(next);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-mono text-sm">

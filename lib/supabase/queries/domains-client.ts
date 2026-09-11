@@ -16,6 +16,8 @@ export interface DomainFilters {
   page?: number;
   pageSize?: number;
   expiry?: string;
+  expiryMin?: string;
+  expiryMax?: string;
   registrars?: string;
   notListed?: string;
   renewal?: string;
@@ -71,7 +73,21 @@ export async function fetchDomains(filters: DomainFilters) {
     }
   }
 
-  if (filters.expiry) {
+  const expiryMin = filters.expiryMin ? Number(filters.expiryMin) : NaN;
+  const expiryMax = filters.expiryMax ? Number(filters.expiryMax) : NaN;
+  const hasExpiryMin = !isNaN(expiryMin) && expiryMin >= 0;
+  const hasExpiryMax = !isNaN(expiryMax) && expiryMax >= 0;
+
+  if (hasExpiryMin || hasExpiryMax) {
+    const now = new Date();
+    const toDate = (months: number) => addMonths(now, months).toISOString().split("T")[0];
+    if (hasExpiryMin) {
+      query = query.gte("expiration_date", toDate(expiryMin));
+    }
+    if (hasExpiryMax) {
+      query = query.lte("expiration_date", toDate(expiryMax));
+    }
+  } else if (filters.expiry) {
     const now = new Date();
     if (filters.expiry === "1m") {
       query = query.lte("expiration_date", addMonths(now, 1).toISOString().split("T")[0]);

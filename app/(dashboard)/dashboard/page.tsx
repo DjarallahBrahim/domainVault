@@ -8,6 +8,8 @@ import {
 } from "@/lib/supabase/queries/dashboard";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { SensitiveVisibilityProvider } from "@/components/dashboard/sensitive-visibility";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -18,15 +20,6 @@ const dateLabel = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
 }).format(new Date());
-
-function PageHeader() {
-  return (
-    <div className="mb-8">
-      <h1 className="text-large-title text-text-primary">Dashboard</h1>
-      <p className="mt-1 text-sm text-text-muted">{dateLabel}</p>
-    </div>
-  );
-}
 
 export default async function DashboardPage() {
   try {
@@ -44,22 +37,22 @@ export default async function DashboardPage() {
 
   if (!stats || stats.total_active === 0) {
     return (
-      <div>
-        <PageHeader />
+      <SensitiveVisibilityProvider>
+        <DashboardHeader dateLabel={dateLabel} />
         <DashboardEmptyState />
-      </div>
+      </SensitiveVisibilityProvider>
     );
   }
 
   return (
-    <div>
-      <PageHeader />
+    <SensitiveVisibilityProvider>
+      <DashboardHeader dateLabel={dateLabel} />
       <DashboardClient
         initialStats={stats}
         initialSegments={segments}
         initialExpiringDomains={expiringDomains}
         initialQuickStats={quickStatsData}
       />
-    </div>
+    </SensitiveVisibilityProvider>
   );
 }

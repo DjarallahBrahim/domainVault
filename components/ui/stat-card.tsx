@@ -32,6 +32,7 @@ export interface StatCardProps {
   sub?: string | null;
   href?: string;
   loading?: boolean;
+  masked?: boolean;
   size?: "lg" | "md";
   className?: string;
 }
@@ -50,11 +51,13 @@ function StatCard({
   sub,
   href,
   loading = false,
+  masked = false,
   size = "lg",
   className,
 }: StatCardProps) {
   const display = useCountUp(value, !loading);
   const numCls = size === "lg" ? "text-2xl xl:text-[1.75rem]" : "text-xl xl:text-2xl";
+  const valueText = `${prefix ?? ""}${Math.round(display).toLocaleString("en-US")}${suffix ?? ""}`;
 
   const body = (
     <div
@@ -79,15 +82,14 @@ function StatCard({
             ) : (
               <p
                 className={cn(
-                  "font-semibold tabular-nums tracking-tight",
+                  "font-semibold tabular-nums tracking-tight transition-[filter] duration-200",
                   accentText[accent],
                   numCls,
-                  "leading-none"
+                  "leading-none",
+                  masked && "select-none blur-[8px]"
                 )}
               >
-                {prefix}
-                {Math.round(display).toLocaleString("en-US")}
-                {suffix}
+                {valueText}
               </p>
             )}
             {sub && !loading ? (

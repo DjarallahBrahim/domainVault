@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Search, X, Download, RotateCcw } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
+import { Search, X, Download, SlidersHorizontal, ChevronDown } from "lucide-react";
+
+const EXPIRY_MAX_MONTHS = 12;
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "expired", label: "Expired" },
+  { value: "pending", label: "Pending" },
+] as const;
 
 interface DomainSearchProps {
   tlds: string[];
@@ -28,16 +38,30 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const searchParams = useSearchParams();
 
   const urlSearch = searchParams.get("search") ?? "";
-  const currentStatus = searchParams.get("status") ?? "active";
+  const currentStatus = searchParams.get("status") ?? "all";
   const currentTld = searchParams.get("tld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
+  const currentExpiryMin = searchParams.get("expiryMin") ?? "";
+  const currentExpiryMax = searchParams.get("expiryMax") ?? "";
   const currentCreated = searchParams.get("created") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
   const currentRenewal = searchParams.get("renewal") ?? "";
-  const currentPageSize = searchParams.get("pageSize") ?? "50";
 
   const [searchValue, setSearchValue] = useState(urlSearch.replace(/,/g, " "));
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [expiryMin, setExpiryMin] = useState(currentExpiryMin);
+  const [expiryMax, setExpiryMax] = useState(currentExpiryMax);
+  const [expiryRange, setExpiryRange] = useState<[number, number]>([
+    currentExpiryMin === "" ? 0 : Number(currentExpiryMin),
+    currentExpiryMax === "" ? EXPIRY_MAX_MONTHS : Number(currentExpiryMax),
+  ]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    setExpiryRange([
+      expiryMin === "" ? 0 : Number(expiryMin),
+      expiryMax === "" ? EXPIRY_MAX_MONTHS : Number(expiryMax),
+    ]);
+  }, [expiryMin, expiryMax]);
 
   const updateParam = useCallback(
     (updates: Record<string, string>) => {
@@ -55,6 +79,22 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     [router, pathname, searchParams]
   );
 
+  const commitExpiry = useCallback(
+    ([lo, hi]: number[]) => {
+      const nextMin = lo <= 0 ? "" : String(lo);
+      const nextMax = hi >= EXPIRY_MAX_MONTHS ? "" : String(hi);
+      setExpiryMin(nextMin);
+      setExpiryMax(nextMax);
+      updateParam({ expiryMin: nextMin, expiryMax: nextMax });
+    },
+    [updateParam]
+  );
+
+  const expiryLabel =
+    expiryRange[0] <= 0 && expiryRange[1] >= EXPIRY_MAX_MONTHS
+      ? "Any expiry"
+      : `${expiryRange[0]}–${expiryRange[1]} months`;
+
   function triggerSearch() {
     const val = searchValue.trim().replace(/\s+/g, ",");
     const params = new URLSearchParams(searchParams.toString());
@@ -69,29 +109,36 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
   function clearAll() {
     setSearchValue("");
-    router.push(pathname);
+    setExpiryMin("");
+    setExpiryMax("");
+    const params = new URLSearchParams();
+    const pageSize = searchParams.get("pageSize");
+    if (pageSize) params.set("pageSize", pageSize);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   const hasFilters =
     urlSearch ||
-    currentStatus !== "active" ||
+    currentStatus !== "all" ||
     currentTld ||
     currentExpiry ||
+    currentExpiryMin ||
+    currentExpiryMax ||
     currentCreated ||
     currentRegistrars ||
     currentRenewal;
+
   const activeFilterCount = [
-    currentStatus !== "active" ? currentStatus : "",
+    currentStatus !== "all" ? currentStatus : "",
     currentTld,
-    currentExpiry,
+    currentExpiry || currentExpiryMin || currentExpiryMax ? "expiry" : "",
     currentCreated,
     currentRegistrars,
     currentRenewal,
   ].filter(Boolean).length;
 
-  const filterGridCols = showAdvanced
-    ? "grid-cols-1 sm:grid-cols-3 lg:grid-cols-6"
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+  const sectionLabel = "text-[11px] font-medium tracking-wide text-text-muted";
 
   return (
     <Card className="max-w-7xl mx-auto rounded-xl border shadow-sm">
@@ -134,172 +181,182 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
-          <Checkbox checked={showAdvanced} onCheckedChange={(c) => setShowAdvanced(!!c)} />
-          Show advanced filters
-        </label>
-
-        <div className={`grid ${filterGridCols} gap-3 items-end`}>
-          {showAdvanced && (
-            <div className="space-y-1">
-              <Label className="text-xs text-text-muted font-medium">Status</Label>
-              <Select
-                value={currentStatus}
-                onValueChange={(value) => updateParam({ status: value })}
-              >
-                <SelectTrigger className="h-10 rounded-lg">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                  <SelectItem value="sold">Sold</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label className="text-xs text-text-muted font-medium">Expiry</Label>
-            <Select
-              value={currentExpiry}
-              onValueChange={(value) => updateParam({ expiry: value === "all" ? "" : value })}
-            >
-              <SelectTrigger className="h-10 rounded-lg">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="1m">≤1 month</SelectItem>
-                <SelectItem value="3m">≤3 months</SelectItem>
-                <SelectItem value="6m">≤6 months</SelectItem>
-                <SelectItem value="9m">≤9 months</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-text-muted font-medium">Acquired</Label>
-            <Select
-              value={currentCreated}
-              onValueChange={(value) => updateParam({ created: value === "all" ? "" : value })}
-            >
-              <SelectTrigger className="h-10 rounded-lg">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="1m">This Month</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showAdvanced && (
-            <div className="space-y-1">
-              <Label className="text-xs text-text-muted font-medium">Renewal</Label>
-              <Select
-                value={currentRenewal}
-                onValueChange={(value) => updateParam({ renewal: value === "all" ? "" : value })}
-              >
-                <SelectTrigger className="h-10 rounded-lg">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="decided">Not decided</SelectItem>
-                  <SelectItem value="yes">Will renew</SelectItem>
-                  <SelectItem value="no">Will not renew</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {showAdvanced && (
-            <div className="space-y-1">
-              <Label className="text-xs text-text-muted font-medium">TLD</Label>
-              <Select
-                value={currentTld}
-                onValueChange={(value) => updateParam({ tld: value === "all" ? "" : value })}
-              >
-                <SelectTrigger className="h-10 rounded-lg">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {tlds.map((tld) => (
-                    <SelectItem key={tld} value={tld}>
-                      .{tld}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label className="text-xs text-text-muted font-medium">Registrar</Label>
-            <Select
-              value={currentRegistrars}
-              onValueChange={(value) => updateParam({ registrar: value === "all" ? "" : value })}
-            >
-              <SelectTrigger className="h-10 rounded-lg">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {registrars.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Existing filter grid continues */}
-          <div className="space-y-1">
-            <Label className="text-xs text-text-muted font-medium">Page Size</Label>
-            <Select
-              value={currentPageSize}
-              onValueChange={(value) => updateParam({ pageSize: value })}
-            >
-              <SelectTrigger className="h-10 rounded-lg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {hasFilters ? (
-            <div className="space-y-1">
-              <Label className="text-xs text-text-muted font-medium invisible">Actions</Label>
-              <Button
-                variant="ghost"
-                size="default"
-                onClick={clearAll}
-                className="h-10 rounded-lg text-text-muted hover:text-text-primary w-full justify-start"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                Reset Filters
-                <span className="ml-1 text-xs opacity-60">({activeFilterCount} active)</span>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <Label className="text-xs text-text-muted font-medium invisible">Actions</Label>
-              <span className="inline-flex items-center h-10 text-xs text-text-muted">
-                <RotateCcw className="h-3.5 w-3.5 mr-1.5 opacity-40" />
-                No filters
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            className="h-9 rounded-lg"
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-primary px-1.5 text-[11px] font-semibold text-white tabular-nums">
+                {activeFilterCount}
               </span>
-            </div>
+            )}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 ml-1 transition-transform duration-200",
+                showFilters && "rotate-180"
+              )}
+            />
+          </Button>
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+            >
+              Clear all
+            </button>
           )}
         </div>
+
+        {showFilters && (
+          <div className="space-y-5 pt-1">
+            <div className="space-y-2">
+              <Label className="text-xs text-text-muted font-medium">Status</Label>
+              <div className="flex flex-wrap gap-2">
+                {STATUS_OPTIONS.map((option) => {
+                  const selected = currentStatus === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateParam({ status: option.value })}
+                      aria-pressed={selected}
+                      className={cn(
+                        "h-8 rounded-full px-3.5 text-xs font-medium transition-colors",
+                        selected
+                          ? "bg-accent-primary text-white"
+                          : "border border-border text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-3">
+              <p className={sectionLabel}>Dates</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-text-muted font-medium">Expiry</Label>
+                    <span className="text-xs font-medium text-text-primary tabular-nums">
+                      {expiryLabel}
+                    </span>
+                  </div>
+                  <div className="flex h-10 items-center px-1">
+                    <Slider
+                      min={0}
+                      max={EXPIRY_MAX_MONTHS}
+                      step={1}
+                      minStepsBetweenThumbs={1}
+                      value={expiryRange}
+                      onValueChange={(v) => setExpiryRange([v[0], v[1]] as [number, number])}
+                      onValueCommit={commitExpiry}
+                      aria-label="Expiry range in months"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">Acquired</Label>
+                  <Select
+                    value={currentCreated}
+                    onValueChange={(value) =>
+                      updateParam({ created: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="1m">This Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">Renewal</Label>
+                  <Select
+                    value={currentRenewal}
+                    onValueChange={(value) =>
+                      updateParam({ renewal: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="decided">Not decided</SelectItem>
+                      <SelectItem value="yes">Will renew</SelectItem>
+                      <SelectItem value="no">Will not renew</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-3">
+              <p className={sectionLabel}>Classification</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">TLD</Label>
+                  <Select
+                    value={currentTld}
+                    onValueChange={(value) => updateParam({ tld: value === "all" ? "" : value })}
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {tlds.map((tld) => (
+                        <SelectItem key={tld} value={tld}>
+                          .{tld}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">Registrar</Label>
+                  <Select
+                    value={currentRegistrars}
+                    onValueChange={(value) =>
+                      updateParam({ registrar: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {registrars.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

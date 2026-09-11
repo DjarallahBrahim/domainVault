@@ -10,6 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
@@ -83,6 +90,7 @@ export function DomainTable({
 
   const currentSort = searchParams.get("sort") ?? "created_at";
   const currentOrder = searchParams.get("order") ?? "desc";
+  const currentPageSize = searchParams.get("pageSize") ?? "50";
 
   const [showAllColumns, setShowAllColumns] = useState(false);
 
@@ -119,6 +127,13 @@ export function DomainTable({
   const goToPage = (p: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(p));
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const updatePageSize = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("pageSize", value);
+    params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -362,25 +377,40 @@ export function DomainTable({
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-border/40 px-5 py-3 text-sm text-text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/40 px-5 py-3 text-sm text-text-muted">
           <span className="tabular-nums">
             {total} domains · Page {page} of {totalPages}
           </span>
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page >= totalPages}
-              className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-text-muted">Rows per page</span>
+              <Select value={currentPageSize} onValueChange={updatePageSize}>
+                <SelectTrigger className="h-8 w-[72px] rounded-lg text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                className="rounded-lg px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>
