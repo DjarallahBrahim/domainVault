@@ -1,7 +1,5 @@
-"use client";
-
-import { DnsCheckerContent } from "@/components/dns-checker/DnsCheckerContent";
+import { redirect } from "next/navigation";
 
 export default function DnsCheckerPage() {
-  return <DnsCheckerContent />;
+  redirect("/tools");
 }

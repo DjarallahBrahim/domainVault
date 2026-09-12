@@ -9,8 +9,7 @@ import {
   Upload,
   DollarSign,
   Settings,
-  Search,
-  Network,
+  Wrench,
   Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,8 +18,7 @@ import { springSnappy } from "@/lib/motion";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/domains", label: "Domains", icon: Globe },
-  { href: "/dns-checker", label: "DNS Checker", icon: Search },
-  { href: "/tld-checker", label: "TLD Checker", icon: Network },
+  { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/promoting", label: "Promoting", icon: Megaphone },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/sales", label: "Sales", icon: DollarSign },

@@ -54,3 +54,5 @@ infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
 infra/terraform/.terraform.lock.hcl
 terraform-key.json
+
+./next-env.d.ts

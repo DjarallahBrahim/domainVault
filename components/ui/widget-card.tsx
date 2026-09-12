@@ -1,6 +1,10 @@
+"use client";
+
 import * as React from "react";
+import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDragHandle } from "@/components/dashboard/drag-handle-context";
 
 export interface WidgetCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
@@ -33,6 +37,8 @@ function WidgetCard({
   children,
   ...props
 }: WidgetCardProps) {
+  const dragHandle = useDragHandle();
+
   return (
     <section
       className={cn(
@@ -41,8 +47,20 @@ function WidgetCard({
       )}
       {...props}
     >
-      <header className="mb-5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
+      <header className="mb-5 flex items-center gap-3">
+        {dragHandle ? (
+          <button
+            ref={dragHandle.setActivatorNodeRef}
+            {...dragHandle.listeners}
+            {...dragHandle.attributes}
+            type="button"
+            aria-label="Drag to reorder"
+            className="-ml-1.5 flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-text-muted/50 transition-colors hover:bg-foreground/5 hover:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        ) : null}
+        <div className="min-w-0 flex-1">
           <h3 className="text-card-title text-text-primary">{title}</h3>
           {description && <p className="mt-0.5 truncate text-sm text-text-muted">{description}</p>}
         </div>

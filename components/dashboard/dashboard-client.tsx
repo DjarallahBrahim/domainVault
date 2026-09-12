@@ -4,14 +4,7 @@ import { motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardGlobalStats } from "@/components/dashboard/dashboard-global-stats";
 import { DashboardMonthSnapshot } from "@/components/dashboard/dashboard-month-snapshot";
-import { DashboardExpiryDonut } from "@/components/dashboard/dashboard-expiry-donut";
-import { DashboardCriticalRenewals } from "@/components/dashboard/dashboard-critical-renewals";
-import { PromotionSection } from "@/components/dashboard/dashboard-promotion-section";
-import { DashboardQuickStats } from "@/components/dashboard/dashboard-quick-stats";
-import { DashboardRevenueChart } from "@/components/dashboard/dashboard-revenue-chart";
-import { DashboardSpendSoldChart } from "@/components/dashboard/dashboard-spend-sold-chart";
-import { DashboardSalesLeaderboard } from "@/components/dashboard/dashboard-sales-leaderboard";
-import { DashboardPlatformBreakdown } from "@/components/dashboard/dashboard-platform-breakdown";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import {
   fetchDashboardStats,
   fetchExpirySegments,
@@ -76,38 +69,15 @@ export function DashboardClient({
         <DashboardMonthSnapshot />
       </motion.div>
 
-      <motion.div
-        variants={fadeUp(0.1)}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
-      >
-        <div className="space-y-6 lg:col-span-2">
-          <DashboardExpiryDonut segments={segments ?? null} />
-          <PromotionSection />
-        </div>
-        <div className="space-y-6">
-          <DashboardCriticalRenewals domains={expiringDomains ?? null} />
-          <DashboardQuickStats stats={quickStatsData ?? null} />
-        </div>
-      </motion.div>
-
       <motion.div variants={fadeUp(0.1)} initial="hidden" animate="visible">
-        <DashboardRevenueChart />
-      </motion.div>
-
-      <motion.div variants={fadeUp(0.15)} initial="hidden" animate="visible">
-        <DashboardSpendSoldChart />
-      </motion.div>
-
-      <motion.div
-        variants={fadeUp(0.2)}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 gap-6 lg:grid-cols-2"
-      >
-        <DashboardSalesLeaderboard />
-        <DashboardPlatformBreakdown />
+        <DashboardLayout
+          data={{
+            stats: stats ?? null,
+            segments: segments ?? null,
+            expiringDomains: expiringDomains ?? null,
+            quickStats: quickStatsData ?? null,
+          }}
+        />
       </motion.div>
     </div>
   );

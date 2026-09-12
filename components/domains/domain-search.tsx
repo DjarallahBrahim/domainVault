@@ -141,10 +141,10 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const sectionLabel = "text-[11px] font-medium tracking-wide text-text-muted";
 
   return (
-    <Card className="max-w-7xl mx-auto rounded-xl border shadow-sm">
+    <Card className="rounded-2xl">
       <CardContent className="p-4 md:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 lg:max-w-2xl">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
               placeholder="Search domains (comma or space to separate)"
@@ -174,6 +174,26 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
               <Search className="h-4 w-4 mr-1.5" />
               Search
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+              className="h-11 flex-1 sm:flex-none"
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-primary px-1.5 text-[11px] font-semibold text-white tabular-nums">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 ml-1 transition-transform duration-200",
+                  showFilters && "rotate-180"
+                )}
+              />
+            </Button>
             <Button variant="outline" onClick={onExport} className="h-11 flex-1 sm:flex-none">
               <Download className="h-4 w-4 mr-1.5" />
               Export CSV
@@ -181,41 +201,19 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters((v) => !v)}
-            aria-expanded={showFilters}
-            className="h-9 rounded-lg"
-          >
-            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-primary px-1.5 text-[11px] font-semibold text-white tabular-nums">
-                {activeFilterCount}
-              </span>
-            )}
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 ml-1 transition-transform duration-200",
-                showFilters && "rotate-180"
-              )}
-            />
-          </Button>
-
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
-            >
-              Clear all
-            </button>
-          )}
-        </div>
-
         {showFilters && (
           <div className="space-y-5 pt-1">
+            {hasFilters && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-xs text-text-muted font-medium">Status</Label>
               <div className="flex flex-wrap gap-2">

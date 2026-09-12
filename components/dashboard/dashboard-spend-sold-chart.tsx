@@ -17,6 +17,15 @@ type SpendSoldPoint = {
 
 const money = (n: number) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
 
+const axisMoney = (v: number) => {
+  const abs = Math.abs(v);
+  if (abs >= 1000) {
+    const k = v / 1000;
+    return `$${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+  }
+  return `$${Math.round(v)}`;
+};
+
 export function DashboardSpendSoldChart() {
   const reduced = useReducedMotion();
   const colors = useChartTheme();
@@ -50,7 +59,7 @@ export function DashboardSpendSoldChart() {
     >
       <div className="mb-4 flex items-center justify-center gap-6 text-xs text-text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors.accent }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors.warning }} />
           Spend
         </span>
         <span className="flex items-center gap-1.5">
@@ -72,7 +81,7 @@ export function DashboardSpendSoldChart() {
             tick={{ fontSize: 11, fill: colors.textMuted }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={axisMoney}
             width={40}
           />
           <Tooltip
@@ -82,7 +91,7 @@ export function DashboardSpendSoldChart() {
           <Bar
             dataKey="spend"
             name="Spend"
-            fill={colors.accent}
+            fill={colors.warning}
             radius={[6, 6, 0, 0]}
             maxBarSize={24}
             animationDuration={reduced ? 0 : 600}

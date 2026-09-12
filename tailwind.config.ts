@@ -37,6 +37,10 @@ const config: Config = {
         "muted-foreground": "rgb(var(--muted-foreground) / <alpha-value>)",
         accent: "rgb(var(--accent) / <alpha-value>)",
         "accent-foreground": "rgb(var(--accent-foreground) / <alpha-value>)",
+        card: "rgb(var(--card) / <alpha-value>)",
+        "card-foreground": "rgb(var(--card-foreground) / <alpha-value>)",
+        tint: "rgb(var(--tint) / <alpha-value>)",
+        "primary-deep": "rgb(var(--primary-deep) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "sans-serif"],

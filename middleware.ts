@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-const PROTECTED_ROUTES = ["/dashboard", "/domains", "/import", "/sales", "/settings"];
+const PROTECTED_ROUTES = ["/dashboard", "/domains", "/tools", "/import", "/sales", "/settings"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

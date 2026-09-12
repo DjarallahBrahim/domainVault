@@ -4,7 +4,7 @@ import { DomainListClient } from "@/components/domains/domain-list-client";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Domains",
+  title: "Domain Management",
 };
 
 interface DomainsPageProps {
@@ -43,7 +43,7 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-large-title text-text-primary">Domains</h1>
+        <h1 className="text-large-title text-text-primary">Domain Management</h1>
         <p className="mt-1 text-sm text-text-muted">
           {initialData.total} domain{initialData.total === 1 ? "" : "s"}
         </p>

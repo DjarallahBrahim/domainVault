@@ -1,7 +1,5 @@
-"use client";
-
-import { TldCheckerContent } from "@/components/tld-checker/TldCheckerContent";
+import { redirect } from "next/navigation";
 
 export default function TldCheckerPage() {
-  return <TldCheckerContent />;
+  redirect("/tools?tool=tld");
 }
