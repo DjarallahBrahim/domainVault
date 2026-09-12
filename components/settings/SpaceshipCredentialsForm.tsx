@@ -140,31 +140,29 @@ export function SpaceshipCredentialsForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={handleTestConnection}
-              disabled={connectionStatus === "testing" || !apiKey || !apiSecret}
-            >
-              {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Credentials"}
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <Button
+            variant="outline"
+            onClick={handleTestConnection}
+            disabled={connectionStatus === "testing" || !apiKey || !apiSecret}
+          >
+            {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Credentials"}
+          </Button>
 
           {connectionStatus === "connected" && (
-            <div className="flex items-center gap-2 text-accent-success">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-accent-success">
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">Connected</span>
-            </div>
+              Connected
+            </span>
           )}
           {connectionStatus === "invalid" && (
-            <div className="flex items-center gap-2 text-accent-danger">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-accent-danger">
               <XCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">Invalid credentials</span>
-            </div>
+              Invalid credentials
+            </span>
           )}
         </div>
 

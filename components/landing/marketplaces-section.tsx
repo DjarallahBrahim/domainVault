@@ -1,4 +1,4 @@
-import { CheckGlyph } from "./shared";
+import { CheckGlyph, SectionLabel } from "./shared";
 import { marketplaceLogos, type MarketplaceLogo } from "./data";
 
 function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
@@ -95,10 +95,8 @@ export function MarketplacesSection() {
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid items-center gap-14 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="max-w-xl">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#16A34A]">
-              Automate your marketplaces
-            </p>
-            <h2 className="text-4xl font-bold leading-[1.15] tracking-[-0.04em] text-[#10213F] sm:text-5xl">
+            <SectionLabel>Automate your marketplaces</SectionLabel>
+            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
               One portfolio.
               <br />
               Every marketplace.

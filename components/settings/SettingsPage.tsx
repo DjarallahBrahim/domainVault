@@ -71,35 +71,55 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-5xl space-y-10">
       <div>
-        <h1 className="text-2xl font-bold font-display">Settings</h1>
-        <p className="text-text-muted mt-1">Manage your account</p>
+        <h1 className="text-large-title text-text-primary">Settings</h1>
+        <p className="mt-1 text-sm text-text-muted">
+          Manage your account, security and marketplace connections.
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-text-muted" />
-            <div>
-              <CardTitle>Account</CardTitle>
-              <CardDescription>Your account details</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-text-muted">Email</p>
-            <p className="font-medium">{user?.email ?? "—"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-text-muted">Member since</p>
-            <p className="font-medium">{memberSince}</p>
-          </div>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section text-text-primary">Account</h2>
+          <p className="mt-1 text-sm text-text-muted">Your profile details and password.</p>
+        </div>
 
-          <div className="border-t border-border pt-4 mt-4">
-            <p className="font-medium mb-3">Change Password</p>
-            <div className="space-y-3">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-primary/10">
+                  <User className="h-5 w-5 text-accent-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-card-title">Profile</CardTitle>
+                  <CardDescription>Your account details</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                  Email
+                </p>
+                <p className="mt-1 font-medium">{user?.email ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                  Member since
+                </p>
+                <p className="mt-1 font-medium">{memberSince}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-card-title">Change password</CardTitle>
+              <CardDescription>At least 8 characters including 1 number</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="new-password">New password</Label>
                 <Input
@@ -108,7 +128,7 @@ export function SettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min 8 characters, 1 number"
-                  className="mt-1"
+                  className="mt-1.5"
                 />
               </div>
               <div>
@@ -119,41 +139,51 @@ export function SettingsPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  className="mt-1"
+                  className="mt-1.5"
                 />
               </div>
-              {passwordError && (
-                <p className="text-sm text-accent-danger">{passwordError}</p>
-              )}
+              {passwordError && <p className="text-sm text-accent-danger">{passwordError}</p>}
               <Button
                 onClick={handleSavePassword}
                 disabled={savingPassword || !newPassword || !confirmPassword}
               >
-                {savingPassword ? "Saving..." : "Save Password"}
+                {savingPassword ? "Saving..." : "Save password"}
               </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
-      <SedoCredentialsForm />
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section text-text-primary">Marketplace integrations</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Connect marketplaces to publish and sync your listings automatically.
+          </p>
+        </div>
 
-      <SpaceshipCredentialsForm />
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <SedoCredentialsForm />
+          <SpaceshipCredentialsForm />
+        </div>
+      </section>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
+      <section>
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
             <div>
-              <p className="font-medium">Logout</p>
-              <p className="text-sm text-text-muted">Sign out of your account</p>
+              <p className="font-medium">Sign out</p>
+              <p className="text-sm text-text-muted">
+                Sign out of your DomainVault account on this device.
+              </p>
             </div>
             <Button variant="outline" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
