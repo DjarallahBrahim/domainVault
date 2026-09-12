@@ -48,7 +48,7 @@ export function DashboardGlobalStats({ stats }: DashboardGlobalStatsProps) {
       accent: "warning" as const,
       value: stats?.expiring_90d ?? 0,
       sub: stats && stats.expiring_90d_all > 0 ? `of ${stats.expiring_90d_all}` : null,
-      href: "/domains?expiry=3m",
+      href: "/domains?status=active&expiryMax=3&renewal=decided",
       sensitive: false,
     },
     {

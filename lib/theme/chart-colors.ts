@@ -33,19 +33,19 @@ export function blend(a: string, b: string, w: number): string {
 }
 
 const FALLBACK: ChartTheme = {
-  accent: "rgb(79, 70, 229)",
-  success: "rgb(5, 150, 105)",
-  warning: "rgb(217, 119, 6)",
-  danger: "rgb(220, 38, 38)",
-  text: "rgb(29, 29, 31)",
-  textMuted: "rgb(110, 110, 115)",
-  grid: "rgb(227, 227, 232)",
+  accent: "rgb(0, 163, 74)",
+  success: "rgb(0, 143, 66)",
+  warning: "rgb(254, 154, 0)",
+  danger: "rgb(231, 0, 11)",
+  text: "rgb(13, 31, 22)",
+  textMuted: "rgb(90, 111, 99)",
+  grid: "rgb(226, 232, 240)",
   tooltipBg: "rgb(255, 255, 255)",
-  tooltipBorder: "rgb(227, 227, 232)",
+  tooltipBorder: "rgb(226, 232, 240)",
   category: [
-    "rgb(79, 70, 229)",
-    "rgb(5, 150, 105)",
-    "rgb(245, 158, 11)",
+    "rgb(0, 163, 74)",
+    "rgb(0, 143, 66)",
+    "rgb(254, 154, 0)",
     "rgb(14, 165, 233)",
     "rgb(236, 72, 153)",
     "rgb(168, 85, 247)",
@@ -83,14 +83,14 @@ export function getChartTheme(mode: "light" | "dark"): ChartTheme {
   const border = c("--border", FALLBACK.grid);
   const surface = c("--bg-surface", FALLBACK.tooltipBg);
   const text = c("--text-primary", FALLBACK.text);
-  const bg = light ? "rgb(255, 255, 255)" : "rgb(28, 28, 30)";
-  const base = light ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+  const bg = light ? "rgb(255, 255, 255)" : "rgb(15, 23, 43)";
+  const base = light ? "rgb(255, 255, 255)" : "rgb(2, 6, 24)";
 
   // Gridlines should whisper, not shout — blend the border well toward the
   // background so the series stays the visual anchor.
   const grid = light
     ? blend(border, "rgb(255, 255, 255)", 0.6)
-    : blend(border, "rgb(0, 0, 0)", 0.45);
+    : blend(border, "rgb(2, 6, 24)", 0.45);
 
   return {
     accent,

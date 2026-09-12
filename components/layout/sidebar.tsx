@@ -13,6 +13,7 @@ import {
   Search,
   Network,
   Megaphone,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -41,36 +42,27 @@ export function Sidebar() {
       onMouseEnter={() => !pinned && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
-        "hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen shrink-0 z-30 material border-r border-border/50 transition-all duration-200 ease-in-out",
+        "hidden md:flex md:flex-col md:sticky md:top-4 md:h-[calc(100vh-2rem)] shrink-0 z-30",
+        "mx-3 rounded-2xl border border-border bg-gradient-to-b from-accent-primary/[0.05] to-bg-surface",
+        "shadow-card transition-all duration-200 ease-in-out",
         isExpanded ? "md:w-64" : "md:w-[4.5rem]"
       )}
     >
-      <div className="flex h-14 items-center justify-between px-3 border-b border-border/50">
-        {isExpanded ? (
+      <div className="flex h-16 items-center gap-2 px-4 pt-4 pb-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-primary text-primary-foreground shadow-sm">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        {isExpanded && (
           <Link
             href="/dashboard"
-            className="font-bold text-lg text-accent-primary tracking-tight truncate"
+            className="font-semibold text-[15px] text-text-primary tracking-tight truncate"
           >
             DomainVault
           </Link>
-        ) : (
-          <Link href="/dashboard" className="font-bold text-lg text-accent-primary mx-auto">
-            DV
-          </Link>
         )}
-        <div className="flex items-center gap-1">
-          {isExpanded && <ThemeToggle />}
-          <button
-            onClick={() => setPinned(!pinned)}
-            className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-foreground/5 transition-colors"
-            aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
-          >
-            {pinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
-          </button>
-        </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
@@ -80,26 +72,42 @@ export function Sidebar() {
               href={item.href}
               title={!isExpanded ? item.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
-                !isExpanded && "justify-center px-2",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                !isExpanded && "justify-center px-0",
                 isActive
-                  ? "bg-foreground/10 text-text-primary"
-                  : "text-text-muted hover:bg-foreground/5 hover:text-text-primary"
+                  ? "bg-accent-primary text-primary-foreground shadow-sm shadow-accent-primary/20"
+                  : "text-text-muted hover:bg-accent-primary/10 hover:text-accent-primary"
               )}
             >
-              <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-accent-primary" : "")} />
+              <Icon
+                className={cn(
+                  "h-[18px] w-[18px] shrink-0",
+                  isActive ? "text-primary-foreground" : "text-text-muted"
+                )}
+              />
               {isExpanded && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {isExpanded && <SidebarFooter />}
-      {!isExpanded && (
-        <div className="border-t border-border/50 p-3 flex justify-center">
-          <ThemeToggle />
+      <div className="mt-auto border-t border-border p-3">
+        <div className={cn("flex items-center", isExpanded ? "justify-between" : "justify-center")}>
+          {isExpanded && <ThemeToggle />}
+          <button
+            onClick={() => setPinned(!pinned)}
+            className="p-1.5 rounded-md text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors"
+            aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
+          >
+            {pinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+          </button>
         </div>
-      )}
+        {isExpanded && (
+          <div className="mt-2">
+            <SidebarFooter />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
