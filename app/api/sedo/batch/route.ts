@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     const { data: allDomains } = await supabase
       .from("domains")
       .select("id, domain")
+      .eq("user_id", user.id)
       .in("id", domainIds);
 
     const domains = (allDomains ?? []) as unknown as Array<{ id: string; domain: string }>;

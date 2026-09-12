@@ -37,9 +37,15 @@ export async function fetchCandidates(
 ) {
   const { from, to } = getBucketRange(bucket);
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("domains")
     .select("id, domain, expiration_date")
+    .eq("user_id", user.id)
     .eq("status", "active")
     .gte("expiration_date", from)
     .lte("expiration_date", to)
@@ -103,9 +109,16 @@ export async function searchByKeywords(
   if (keywords.length === 0) return [];
 
   const ilikePatterns = keywords.map((k) => `%${k}%`);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("domains")
     .select("id, domain, expiration_date")
+    .eq("user_id", user.id)
     .eq("status", "active")
     .or(ilikePatterns.map((p) => `domain.ilike.${p}`).join(","))
     .limit(50);

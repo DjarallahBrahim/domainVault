@@ -18,13 +18,20 @@ const PAGE_SIZE = 50;
 export async function fetchSales(filters: SalesFilters) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const page = filters.page ?? 1;
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   let query = supabase
     .from("sales")
-    .select("*", { count: "exact" });
+    .select("*", { count: "exact" })
+    .eq("user_id", user.id);
 
   if (filters.startDate) {
     query = query.gte("sold_at", filters.startDate);
@@ -82,6 +89,7 @@ export async function createSale(
   const { data: domainData } = await supabase
     .from("domains")
     .select("id, status")
+    .eq("user_id", user.id)
     .ilike("domain", normalized)
     .limit(1);
 
@@ -123,7 +131,8 @@ export async function createSale(
     await supabase
       .from("domains")
       .update({ status: "sold" } as never)
-      .eq("id", matchedDomain.id);
+      .eq("id", matchedDomain.id)
+      .eq("user_id", user.id);
   }
 
   return {
@@ -138,10 +147,17 @@ export async function updateSale(
 ) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data: current, error: fetchError } = await supabase
     .from("sales")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .single();
 
   if (fetchError || !current) throw new Error("Sale not found");
@@ -150,6 +166,7 @@ export async function updateSale(
   const { data: domainData } = await supabase
     .from("domains")
     .select("id, status")
+    .eq("user_id", user.id)
     .ilike("domain", normalized)
     .limit(1);
 
@@ -168,6 +185,7 @@ export async function updateSale(
     const { count: remainingCount } = await supabase
       .from("sales")
       .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
       .eq("domain_id", currentSale.domain_id)
       .neq("id", id);
 
@@ -175,7 +193,8 @@ export async function updateSale(
       await supabase
         .from("domains")
         .update({ status: "active" } as never)
-        .eq("id", currentSale.domain_id);
+        .eq("id", currentSale.domain_id)
+        .eq("user_id", user.id);
     }
   }
 
@@ -193,6 +212,7 @@ export async function updateSale(
     .from("sales")
     .update(payload as never)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select()
     .single();
 
@@ -202,7 +222,8 @@ export async function updateSale(
     await supabase
       .from("domains")
       .update({ status: "sold" } as never)
-      .eq("id", matchedDomain.id);
+      .eq("id", matchedDomain.id)
+      .eq("user_id", user.id);
   }
 
   return updated as unknown as SaleRow;
@@ -211,23 +232,35 @@ export async function updateSale(
 export async function deleteSale(id: string) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data: current, error: fetchError } = await supabase
     .from("sales")
     .select("domain_id")
     .eq("id", id)
+    .eq("user_id", user.id)
     .single();
 
   if (fetchError || !current) throw new Error("Sale not found");
 
   const currentSale = current as unknown as { domain_id: string | null };
 
-  const { error } = await supabase.from("sales").delete().eq("id", id);
+  const { error } = await supabase
+    .from("sales")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw error;
 
   if (currentSale.domain_id) {
     const { count: remainingCount } = await supabase
       .from("sales")
       .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
       .eq("domain_id", currentSale.domain_id);
 
     if (!remainingCount || remainingCount === 0) {
@@ -235,6 +268,7 @@ export async function deleteSale(id: string) {
         .from("domains")
         .update({ status: "active" } as never)
         .eq("id", currentSale.domain_id)
+        .eq("user_id", user.id)
         .eq("status", "sold");
     }
   }

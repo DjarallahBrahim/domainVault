@@ -48,6 +48,7 @@ export async function generatePromotionBatch(pool: string) {
   let query = supabase
     .from("domains")
     .select("id, domain, registrar, expiration_date")
+    .eq("user_id", user.id)
     .eq("status", "active");
 
   const now = new Date();
@@ -103,13 +104,22 @@ export interface DashboardStats {
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const supabase = createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data: domains, error } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date, to_be_renewal");
+    .select("purchase_price, status, expiration_date, to_be_renewal")
+    .eq("user_id", user.id);
   if (error) throw error;
   const { data: salesRaw, error: sErr } = await supabase
     .from("sales")
-    .select("sold_at, sale_price");
+    .select("sold_at, sale_price")
+    .eq("user_id", user.id);
   if (sErr) throw sErr;
   const sales = (salesRaw ?? []) as unknown as Array<{ sold_at: string; sale_price: number }>;
   const now = new Date();
@@ -145,7 +155,17 @@ export interface ExpirySegments {
 
 export async function fetchExpirySegments(): Promise<ExpirySegments> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("domains").select("expiration_date, status");
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("domains")
+    .select("expiration_date, status")
+    .eq("user_id", user.id);
   if (error) throw error;
   const active = ((data ?? []) as unknown as DomainRow[]).filter((d) => d.status === "active");
   const total_active = active.length;
@@ -182,17 +202,25 @@ export interface MonthSnapshot {
 export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const monthKey = format(new Date(), "yyyy-MM");
   const monthLabel = format(new Date(), "MMMM");
 
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("created_at, purchase_price");
+    .select("created_at, purchase_price")
+    .eq("user_id", user.id);
   if (domainError) throw domainError;
 
   const { data: sales, error: salesError } = await supabase
     .from("sales")
-    .select("sold_at, sale_price");
+    .select("sold_at, sale_price")
+    .eq("user_id", user.id);
   if (salesError) throw salesError;
 
   let invested = 0;
@@ -225,13 +253,21 @@ export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
 export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("created_at, purchase_price");
+    .select("created_at, purchase_price")
+    .eq("user_id", user.id);
   if (domainError) throw domainError;
   const { data: sales, error: salesError } = await supabase
     .from("sales")
-    .select("sold_at, sale_price");
+    .select("sold_at, sale_price")
+    .eq("user_id", user.id);
   if (salesError) throw salesError;
 
   const byMonth = new Map<string, { spend: number; sold: number }>();
@@ -260,6 +296,13 @@ export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
 
 export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
   const supabase = createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 31)
     .toISOString()
@@ -267,6 +310,7 @@ export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
   const { data, error } = await supabase
     .from("domains")
     .select("*")
+    .eq("user_id", user.id)
     .eq("status", "active")
     .lte("expiration_date", end)
     .order("expiration_date", { ascending: true })
@@ -284,7 +328,17 @@ export async function fetchQuickStats(): Promise<{
   total_earnings: number;
 }> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("domains").select("*");
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("domains")
+    .select("*")
+    .eq("user_id", user.id);
   if (error) throw error;
   const rows = (data ?? []) as unknown as DomainRow[];
   const active = rows.filter((d) => d.status === "active");
@@ -306,7 +360,10 @@ export async function fetchQuickStats(): Promise<{
   const sorted = [...active].sort(
     (a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime()
   );
-  const { data: salesRaw } = await supabase.from("sales").select("sale_price");
+  const { data: salesRaw } = await supabase
+    .from("sales")
+    .select("sale_price")
+    .eq("user_id", user.id);
   const sales = (salesRaw ?? []) as unknown as Array<{ sale_price: number }>;
   return {
     avg_price: Math.round(avg * 100) / 100,
@@ -334,6 +391,12 @@ export interface PromotionWithDomain {
 export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -355,6 +418,7 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
       )
     `
     )
+    .eq("user_id", user.id)
     .eq("week_start", weekStart)
     .order("domain_id");
 
@@ -376,6 +440,7 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
   const { data: history, error: histError } = await supabase
     .from("promotions")
     .select("domain_id, promoted_at")
+    .eq("user_id", user.id)
     .in("domain_id", domainIds)
     .not("promoted_at", "is", null)
     .order("promoted_at", { ascending: false });
@@ -427,6 +492,12 @@ export interface SalesAnalyticsRow {
 export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("sales")
     .select(
@@ -445,6 +516,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       )
     `
     )
+    .eq("user_id", user.id)
     .order("sold_at", { ascending: false });
 
   if (error) throw error;

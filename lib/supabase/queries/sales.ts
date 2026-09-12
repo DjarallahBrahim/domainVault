@@ -17,13 +17,19 @@ export async function fetchSales(filters: SalesFilters) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const page = filters.page ?? 1;
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   let query = resolved
     .from("sales")
-    .select("*", { count: "exact" });
+    .select("*", { count: "exact" })
+    .eq("user_id", user.id);
 
   if (filters.startDate) {
     query = query.gte("sold_at", filters.startDate);
@@ -57,10 +63,16 @@ export async function fetchSaleById(id: string) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await resolved
     .from("sales")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .single();
 
   if (error) throw error;
@@ -74,9 +86,15 @@ export async function lookupDomain(
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await resolved
     .from("domains")
     .select("id, status")
+    .eq("user_id", user.id)
     .ilike("domain", name.trim())
     .limit(1);
 
@@ -92,10 +110,16 @@ export async function countSalesForDomain(
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { count, error } = await resolved
     .from("sales")
     .select("*", { count: "exact", head: true })
-    .eq("domain_id", domainId);
+    .eq("domain_id", domainId)
+    .eq("user_id", user.id);
 
   if (error) throw error;
 

@@ -32,6 +32,11 @@ export async function fetchDomains(filters: DomainFilters) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
   const page = filters.page ?? 1;
   const from = (page - 1) * pageSize;
@@ -47,7 +52,10 @@ export async function fetchDomains(filters: DomainFilters) {
       : "*, spaceship_listings(spaceship_price)"
     : "*";
 
-  let query = resolved.from("domains").select(selectFields, { count: "exact" });
+  let query = resolved
+    .from("domains")
+    .select(selectFields, { count: "exact" })
+    .eq("user_id", user.id);
 
   if (filters.status === "all") {
     // No status filter — show all statuses
@@ -214,7 +222,17 @@ export async function fetchDomain(id: string) {
   const supabase = createServerClient();
   const resolved = await supabase;
 
-  const { data, error } = await resolved.from("domains").select("*").eq("id", id).single();
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await resolved
+    .from("domains")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
 
   if (error) throw error;
 
@@ -225,7 +243,12 @@ export async function fetchAllTlds(): Promise<string[]> {
   const supabase = createServerClient();
   const resolved = await supabase;
 
-  const { data, error } = await resolved.from("domains").select("tld");
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await resolved.from("domains").select("tld").eq("user_id", user.id);
 
   if (error) throw error;
 
@@ -242,9 +265,15 @@ export async function checkExistingDomains(normalizedNames: string[]): Promise<S
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await resolved
     .from("domains")
     .select("domain")
+    .eq("user_id", user.id)
     .in("domain", normalizedNames);
 
   if (error) throw error;
@@ -260,9 +289,15 @@ export async function fetchAllRegistrars(): Promise<string[]> {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await resolved
     .from("domains")
     .select("registrar")
+    .eq("user_id", user.id)
     .not("registrar", "is", null)
     .order("registrar");
 

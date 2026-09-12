@@ -8,9 +8,15 @@ export async function autoTransitionExpired(): Promise<number> {
   const supabase = createServerClient();
   const resolved = await supabase;
 
+  const {
+    data: { user },
+  } = await resolved.auth.getUser();
+  if (!user) return 0;
+
   const { data, error } = await resolved
     .from("domains")
     .update({ status: "expired" } as never)
+    .eq("user_id", user.id)
     .eq("status", "active")
     .lt("expiration_date", new Date().toISOString().split("T")[0]);
 
@@ -32,15 +38,22 @@ export interface DashboardStats {
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const supabase = await createServerClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date, to_be_renewal");
+    .select("purchase_price, status, expiration_date, to_be_renewal")
+    .eq("user_id", user.id);
 
   if (domainError) throw domainError;
 
   const { data: salesRaw, error: salesError } = await supabase
     .from("sales")
-    .select("sold_at, sale_price");
+    .select("sold_at, sale_price")
+    .eq("user_id", user.id);
 
   if (salesError) throw salesError;
 
@@ -96,7 +109,15 @@ export interface ExpirySegments {
 export async function fetchExpirySegments(): Promise<ExpirySegments> {
   const supabase = await createServerClient();
 
-  const { data, error } = await supabase.from("domains").select("expiration_date, status, domain");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("domains")
+    .select("expiration_date, status, domain")
+    .eq("user_id", user.id);
 
   if (error) throw error;
 
@@ -144,6 +165,11 @@ export interface PromotionWithDomain {
 export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
   const supabase = await createServerClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -165,6 +191,7 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
       )
     `
     )
+    .eq("user_id", user.id)
     .eq("week_start", weekStart)
     .order("domain_id");
 
@@ -193,11 +220,18 @@ export async function fetchCurrentPromotions(): Promise<PromotionWithDomain[]> {
 
 export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
   const supabase = await createServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const now = new Date();
 
   const { data, error } = await supabase
     .from("domains")
     .select("*")
+    .eq("user_id", user.id)
     .eq("status", "active")
     .lte(
       "expiration_date",
@@ -221,7 +255,15 @@ export async function fetchQuickStats(): Promise<{
 }> {
   const supabase = await createServerClient();
 
-  const { data: domains, error } = await supabase.from("domains").select("*");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: domains, error } = await supabase
+    .from("domains")
+    .select("*")
+    .eq("user_id", user.id);
 
   if (error) throw error;
 
@@ -252,7 +294,10 @@ export async function fetchQuickStats(): Promise<{
   const oldest_domain = sorted.length > 0 ? sorted[0].domain : "—";
   const newest_domain = sorted.length > 0 ? sorted[sorted.length - 1].domain : "—";
 
-  const { data: salesRaw } = await supabase.from("sales").select("sale_price");
+  const { data: salesRaw } = await supabase
+    .from("sales")
+    .select("sale_price")
+    .eq("user_id", user.id);
   const sales = (salesRaw ?? []) as unknown as Array<{ sale_price: number }>;
   const total_earnings = sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0);
 
@@ -281,6 +326,11 @@ export interface SalesAnalyticsRow {
 export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
   const supabase = await createServerClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("sales")
     .select(
@@ -299,6 +349,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       )
     `
     )
+    .eq("user_id", user.id)
     .order("sold_at", { ascending: false });
 
   if (error) throw error;

@@ -30,6 +30,10 @@ export function useSpaceshipSync() {
       }>;
 
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const matchedDomainIds: string[] = [];
 
       for (const listing of listings) {
@@ -38,6 +42,7 @@ export function useSpaceshipSync() {
         const { data: domainData } = await supabase
           .from("domains")
           .select("id")
+          .eq("user_id", user.id)
           .ilike("domain", domainName)
           .limit(1);
 

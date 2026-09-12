@@ -32,6 +32,12 @@ const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
 export async function fetchDomains(filters: DomainFilters) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
   const page = filters.page ?? 1;
   const from = (page - 1) * pageSize;
@@ -47,7 +53,10 @@ export async function fetchDomains(filters: DomainFilters) {
       : "*, spaceship_listings(spaceship_price)"
     : "*";
 
-  let query = supabase.from("domains").select(selectFields, { count: "exact" });
+  let query = supabase
+    .from("domains")
+    .select(selectFields, { count: "exact" })
+    .eq("user_id", user.id);
 
   if (filters.status === "all") {
     // No status filter — show all statuses
@@ -213,6 +222,12 @@ export async function fetchDomains(filters: DomainFilters) {
 export async function updateDomain(id: string, updates: DomainUpdate) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const normalized: Record<string, unknown> = { ...updates };
   if (typeof normalized.registrar === "string") {
     const trimmed = normalized.registrar.trim();
@@ -222,7 +237,8 @@ export async function updateDomain(id: string, updates: DomainUpdate) {
   const { error } = await supabase
     .from("domains")
     .update(normalized as never)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) throw error;
 }
@@ -230,7 +246,17 @@ export async function updateDomain(id: string, updates: DomainUpdate) {
 export async function deleteDomain(id: string) {
   const supabase = createClient();
 
-  const { error } = await supabase.from("domains").delete().eq("id", id);
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("domains")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) throw error;
 }
@@ -238,7 +264,17 @@ export async function deleteDomain(id: string) {
 export async function deleteDomains(ids: string[]) {
   const supabase = createClient();
 
-  const { error } = await supabase.from("domains").delete().in("id", ids);
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("domains")
+    .delete()
+    .in("id", ids)
+    .eq("user_id", user.id);
 
   if (error) throw error;
 }
@@ -295,9 +331,16 @@ export async function upsertDomains(rows: UpsertRow[], mode: "skip" | "update") 
 export async function checkExistingDomains(normalizedNames: string[]): Promise<Set<string>> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("domains")
     .select("domain")
+    .eq("user_id", user.id)
     .in("domain", normalizedNames);
 
   if (error) throw error;
@@ -329,6 +372,7 @@ export async function insertSingleDomain(input: {
   const { data: existing } = await supabase
     .from("domains")
     .select("id")
+    .eq("user_id", user.id)
     .ilike("domain", input.domain)
     .maybeSingle();
 
@@ -364,9 +408,16 @@ export async function insertSingleDomain(input: {
 export async function fetchRegistrarList(): Promise<string[]> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("domains")
     .select("registrar")
+    .eq("user_id", user.id)
     .not("registrar", "is", null)
     .order("registrar");
 

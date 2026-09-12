@@ -6,9 +6,16 @@ import type { PromotingDomainOption } from "@/types/promoting";
 async function fetchPromotingDomains(): Promise<PromotingDomainOption[]> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
   const { data, error } = await supabase
     .from("domains")
     .select("id, domain, reserved_tlds_count, tlds_last_checked_at")
+    .eq("user_id", user.id)
     .eq("status", "active")
     .order("domain");
 

@@ -26,6 +26,7 @@ export async function processJob(job: TldCheckJobRow) {
           .from("domains")
           .select("domain")
           .eq("id", domainId)
+          .eq("user_id", job.user_id)
           .single();
 
         if (!domainRow) continue;
