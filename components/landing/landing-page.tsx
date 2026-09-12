@@ -21,9 +21,9 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
       <NavBar ctaHref={ctaHref} />
       <HeroSection ctaHref={ctaHref} />
       <MarketplacesSection />
+      <AnalyticsSection />
       <FeaturesSection />
       <ComparisonSection />
-      <AnalyticsSection />
       <ExpirySection ctaHref={ctaHref} />
       <WorkflowSection />
       <CtaSection ctaHref={ctaHref} />
