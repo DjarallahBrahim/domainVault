@@ -154,6 +154,105 @@
   .landing .font-display {
     font-family: var(--font-display), var(--font-sans), sans-serif;
   }
+
+  /* Marketplace diagram animations — "marching ants" flow, a heartbeat pill
+     dot, a dot that travels each branch, and a glow pulse on each card when
+     the dot lands. All run on the CSS Animations timeline. */
+  .diagram-flow {
+    stroke-dasharray: 4 5;
+    animation: diagram-dash-flow 1s linear infinite;
+  }
+
+  .diagram-pill-dot {
+    transform-origin: center;
+    animation: diagram-heartbeat 1.1s ease-in-out infinite;
+  }
+
+  .diagram-pill-ring {
+    animation: diagram-ripple 1.1s ease-out infinite;
+  }
+
+  .diagram-card-pulse {
+    animation: diagram-card-pulse 2.4s ease-in-out 0.8s infinite both;
+  }
+
+  /* Traveling dot — same CSS clock as .diagram-card-pulse (2.4s, travel in
+     the first 0.8s / 33.333%), so the glow can't drift from the arrival. */
+  .diagram-dot {
+    animation: diagram-dot-travel 2.4s linear infinite;
+  }
+  .diagram-dot--left {
+    offset-path: path("M350 170 C300 200 140 195 120 252");
+  }
+  .diagram-dot--center {
+    offset-path: path("M350 170 C350 205 350 205 350 252");
+  }
+  .diagram-dot--right {
+    offset-path: path("M350 170 C400 200 560 195 580 252");
+  }
+}
+
+@keyframes diagram-dash-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@keyframes diagram-heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.35);
+  }
+  35% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  70%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes diagram-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes diagram-dot-travel {
+  0% {
+    offset-distance: 0%;
+    opacity: 1;
+  }
+  33.333% {
+    offset-distance: 100%;
+    opacity: 1;
+  }
+  34%,
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes diagram-card-pulse {
+  0%,
+  45%,
+  100% {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  6% {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 0 0 5px rgba(34, 197, 94, 0.18);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -164,6 +263,11 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The traveling dots are motion-path driven — hide them entirely. */
+  .diagram-dot {
+    display: none;
   }
 }
 

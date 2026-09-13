@@ -4,7 +4,7 @@ import { marketplaceLogos, type MarketplaceLogo } from "./data";
 function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
   return (
     <div
-      className="force-light relative min-h-[430px] w-full"
+      className="force-light relative min-h-[384px] w-full"
       aria-label="DomainVault publishing workflow"
     >
       {/* DomainVault card */}
@@ -39,34 +39,43 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
       {/* Connector lines */}
       <svg
         className="pointer-events-none absolute inset-0 z-10 h-full w-full text-primary"
-        viewBox="0 0 700 430"
+        viewBox="0 0 700 384"
         fill="none"
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <path d="M350 84 C350 105 350 112 350 135" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" strokeDasharray="4 5" />
-        <path d="M350 170 C300 200 140 195 120 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" strokeDasharray="4 5" />
-        <path d="M350 170 C350 205 350 205 350 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" strokeDasharray="4 5" />
-        <path d="M350 170 C400 200 560 195 580 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" strokeDasharray="4 5" />
+        <path className="diagram-flow" d="M350 84 C350 105 350 112 350 135" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
+        <path className="diagram-flow" d="M350 170 C300 200 140 195 120 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
+        <path className="diagram-flow" d="M350 170 C350 205 350 205 350 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
+        <path className="diagram-flow" d="M350 170 C400 200 560 195 580 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
         <path d="M115 243 L120 252 L125 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M345 243 L350 252 L355 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M575 243 L580 252 L585 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Plain circles — movement comes from CSS offset-path + the
+            diagram-dot-travel keyframes, sharing the card glow's clock. */}
+        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--left" />
+        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--center" />
+        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--right" />
       </svg>
 
       {/* Pill */}
       <div className="absolute left-1/2 top-[125px] z-30 -translate-x-1/2">
         <div className="flex items-center gap-2 whitespace-nowrap rounded-full border border-primary/40 bg-card px-5 py-2.5 text-xs font-semibold text-primary shadow-sm">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
+            <span className="diagram-pill-ring absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-primary" />
+            <span className="diagram-pill-dot relative z-[2] h-2 w-2 rounded-full bg-primary" />
+          </span>
           Update price ONCE, Sync everywhere
         </div>
       </div>
 
       {/* Marketplace cards */}
-      <div className="absolute inset-x-0 bottom-12 z-20 grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="absolute inset-x-0 bottom-0 z-20 grid grid-cols-3 gap-2 sm:gap-4">
         {logos.map((logo) => (
           <div
             key={logo.alt}
-            className="rounded-2xl border border-border bg-card px-4 py-7 text-center shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-raised"
+            className="diagram-card-pulse rounded-2xl border border-border bg-card px-4 py-7 text-center shadow-card transition-transform hover:-translate-y-1"
           >
             <div className="flex h-10 items-center justify-center">
               <img src={logo.src} alt={logo.alt} className="max-h-10 max-w-full rounded-md object-contain" />
@@ -88,7 +97,7 @@ export function MarketplacesSection() {
   const listLogos = marketplaceLogos.filter((logo) => logo.alt !== "Afternic");
 
   return (
-    <section id="marketplaces" className="relative overflow-hidden bg-tint py-24">
+    <section id="marketplaces" className="relative overflow-hidden bg-tint py-20">
       <div className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
 
