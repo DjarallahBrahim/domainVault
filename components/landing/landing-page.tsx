@@ -18,7 +18,7 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
 
   return (
     <div className="landing min-h-screen bg-background text-foreground">
-      <NavBar ctaHref={ctaHref} />
+      <NavBar ctaHref={ctaHref} isAuthenticated={isAuthenticated} />
       <HeroSection ctaHref={ctaHref} />
       <MarketplacesSection />
       <AnalyticsSection />

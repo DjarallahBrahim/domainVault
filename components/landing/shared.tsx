@@ -34,7 +34,7 @@ export function CheckGlyph({
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
       <path
         d="M20 6L9 17L4 12"
-        stroke="#16A34A"
+        stroke="currentColor"
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"

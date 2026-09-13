@@ -4,7 +4,7 @@ import { SectionLabel } from "./shared";
 
 const renewalRows = [
   { icon: AlertTriangle, n: "3 domains", t: "7 days", c: "text-destructive" },
-  { icon: AlertTriangle, n: "12 domains", t: "30 days", c: "text-amber-500" },
+  { icon: AlertTriangle, n: "12 domains", t: "30 days", c: "text-accent-warning" },
   { icon: CheckCircle2, n: "1,269 domains", t: "> 30 days", c: "text-primary-deep" },
 ];
 

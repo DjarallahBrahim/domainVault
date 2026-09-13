@@ -35,6 +35,7 @@ export interface StatCardProps {
   masked?: boolean;
   size?: "lg" | "md";
   className?: string;
+  valueClassName?: string;
 }
 
 /**
@@ -54,6 +55,7 @@ function StatCard({
   masked = false,
   size = "lg",
   className,
+  valueClassName,
 }: StatCardProps) {
   const display = useCountUp(value, !loading);
   const numCls = size === "lg" ? "text-2xl xl:text-[1.75rem]" : "text-xl xl:text-2xl";
@@ -84,6 +86,7 @@ function StatCard({
                 className={cn(
                   "font-semibold tabular-nums tracking-tight transition-[filter] duration-200",
                   accentText[accent],
+                  valueClassName,
                   numCls,
                   "leading-none",
                   masked && "select-none blur-[8px]"

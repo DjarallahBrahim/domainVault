@@ -2,9 +2,15 @@ export {
   registerSchema,
   loginSchema,
   resetPasswordSchema,
+  updatePasswordSchema,
 } from "./auth";
 
-export type { RegisterInput, LoginInput, ResetPasswordInput } from "./auth";
+export type {
+  RegisterInput,
+  LoginInput,
+  ResetPasswordInput,
+  UpdatePasswordInput,
+} from "./auth";
 
 export {
   csvRowSchema,

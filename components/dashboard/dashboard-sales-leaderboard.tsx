@@ -56,115 +56,108 @@ export function DashboardSalesLeaderboard() {
       }
     >
       <div className="overflow-x-auto -mx-6 px-6">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/60 text-left">
-              <th className="w-8 pb-2 font-medium text-text-muted">#</th>
-              <th className="pb-2 font-medium text-text-muted">Domain</th>
-              <th className="pb-2 text-right font-medium text-text-muted">Price</th>
-              <th className="pb-2 text-right font-medium text-text-muted">ROI</th>
-              <th className="pb-2 text-right font-medium text-text-muted">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayed.map((s, i) => {
-              const roiPct = s.purchase_price
-                ? ((s.sale_price - s.purchase_price) / s.purchase_price) * 100
-                : null;
-              const isExpanded = expandedId === s.id;
-              const holdDays = s.created_at
-                ? differenceInDays(parseISO(s.sold_at), parseISO(s.created_at))
-                : null;
+        <div className="flex items-center gap-3 border-b border-border/60 pb-2 text-xs font-medium text-text-muted">
+          <span className="w-8 shrink-0 text-center">#</span>
+          <span className="min-w-0 flex-1">Domain</span>
+          <span className="w-20 shrink-0 text-right">Price</span>
+          <span className="w-16 shrink-0 text-right">ROI</span>
+          <span className="w-20 shrink-0 text-right">Date</span>
+        </div>
 
-              return (
-                <tr
-                  key={s.id}
-                  className={cn("border-b border-border/40", !isExpanded && "last:border-0")}
+        {displayed.map((s, i) => {
+          const roiPct = s.purchase_price
+            ? ((s.sale_price - s.purchase_price) / s.purchase_price) * 100
+            : null;
+          const isExpanded = expandedId === s.id;
+          const holdDays = s.created_at
+            ? differenceInDays(parseISO(s.sold_at), parseISO(s.created_at))
+            : null;
+
+          return (
+            <div
+              key={s.id}
+              className={cn("border-b border-border/40", !isExpanded && "last:border-0")}
+            >
+              <button
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                className="flex w-full items-center gap-3 rounded-md py-2.5 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="w-8 shrink-0 text-center text-xs font-semibold tabular-nums text-text-muted">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-mono text-sm">{s.domain}</span>
+                <span className="w-20 shrink-0 text-right font-medium tabular-nums">
+                  ${s.sale_price.toLocaleString("en-US")}
+                </span>
+                <span
+                  className={cn(
+                    "w-16 shrink-0 text-right font-medium tabular-nums",
+                    roiPct === null
+                      ? "text-text-muted"
+                      : roiPct >= 0
+                        ? "text-accent-success"
+                        : "text-accent-danger"
+                  )}
                 >
-                  <td colSpan={isExpanded ? 5 : 1} className={isExpanded ? "p-0" : "py-0"}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(isExpanded ? null : s.id)}
-                      className="flex w-full items-center gap-3 rounded-md py-2.5 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="w-8 shrink-0 text-center text-xs font-semibold tabular-nums text-text-muted">
-                        {i + 1}
+                  {roiPct !== null ? `${roiPct >= 0 ? "+" : ""}${Math.round(roiPct)}%` : "—"}
+                </span>
+                <span className="w-20 shrink-0 text-right text-text-muted tabular-nums">
+                  {format(parseISO(s.sold_at), "MMM d, yy")}
+                </span>
+              </button>
+              {isExpanded && (
+                <div className="mb-2 rounded-xl bg-bg-elevated/50 px-12 py-3 text-xs">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Purchase Price</span>
+                      <span className="tabular-nums">
+                        {s.purchase_price
+                          ? `$${s.purchase_price.toLocaleString("en-US")}`
+                          : "—"}
                       </span>
-                      <span className="truncate font-mono text-sm">{s.domain}</span>
-                      <span className="w-20 shrink-0 text-right font-medium tabular-nums">
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Sale Price</span>
+                      <span className="tabular-nums">
                         ${s.sale_price.toLocaleString("en-US")}
                       </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Profit</span>
                       <span
                         className={cn(
-                          "w-16 shrink-0 text-right font-medium tabular-nums",
-                          roiPct === null
-                            ? "text-text-muted"
-                            : roiPct >= 0
+                          "tabular-nums",
+                          s.purchase_price
+                            ? s.sale_price - s.purchase_price >= 0
                               ? "text-accent-success"
                               : "text-accent-danger"
+                            : "text-text-muted"
                         )}
                       >
-                        {roiPct !== null ? `${roiPct >= 0 ? "+" : ""}${Math.round(roiPct)}%` : "—"}
+                        {s.purchase_price
+                          ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
+                          : "—"}
                       </span>
-                      <span className="w-20 shrink-0 text-right text-text-muted tabular-nums">
-                        {format(parseISO(s.sold_at), "MMM d, yy")}
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Hold Duration</span>
+                      <span className="tabular-nums">
+                        {holdDays !== null
+                          ? `${holdDays} days (${Math.round(holdDays / 30)} months)`
+                          : "—"}
                       </span>
-                    </button>
-                    {isExpanded && (
-                      <div className="mb-2 rounded-xl bg-bg-elevated/50 px-12 py-3 text-xs">
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                          <div className="flex justify-between">
-                            <span className="text-text-muted">Purchase Price</span>
-                            <span className="tabular-nums">
-                              {s.purchase_price
-                                ? `$${s.purchase_price.toLocaleString("en-US")}`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-text-muted">Sale Price</span>
-                            <span className="tabular-nums">
-                              ${s.sale_price.toLocaleString("en-US")}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-text-muted">Profit</span>
-                            <span
-                              className={cn(
-                                "tabular-nums",
-                                s.purchase_price
-                                  ? s.sale_price - s.purchase_price >= 0
-                                    ? "text-accent-success"
-                                    : "text-accent-danger"
-                                  : "text-text-muted"
-                              )}
-                            >
-                              {s.purchase_price
-                                ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-text-muted">Hold Duration</span>
-                            <span className="tabular-nums">
-                              {holdDays !== null
-                                ? `${holdDays} days (${Math.round(holdDays / 30)} months)`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="col-span-2 flex justify-between">
-                            <span className="text-text-muted">Platform</span>
-                            <span>{s.platform || "—"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </div>
+                    <div className="col-span-2 flex justify-between">
+                      <span className="text-text-muted">Platform</span>
+                      <span>{s.platform || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       {!empty && sorted.length > 5 && (
         <div className="mt-3 text-center">

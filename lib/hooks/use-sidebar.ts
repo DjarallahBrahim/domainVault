@@ -10,7 +10,7 @@ interface SidebarState {
 }
 
 export const useSidebarStore = create<SidebarState>((set) => ({
-  pinned: true,
+  pinned: false,
   hovered: false,
   setPinned: (pinned) => set({ pinned }),
   setHovered: (hovered) => set({ hovered }),

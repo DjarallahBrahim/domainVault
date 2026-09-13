@@ -22,6 +22,7 @@ export function DashboardMonthSnapshot() {
       accent: "primary" as const,
       prefix: "$",
       value: data?.invested ?? 0,
+      valueClassName: "text-text-primary",
       sub: data
         ? `${data.acquiredCount} domain${data.acquiredCount === 1 ? "" : "s"} acquired`
         : null,
@@ -62,6 +63,7 @@ export function DashboardMonthSnapshot() {
             sub={cell.sub}
             loading={isPending}
             size="md"
+            valueClassName={cell.valueClassName}
           />
         ))}
       </div>
