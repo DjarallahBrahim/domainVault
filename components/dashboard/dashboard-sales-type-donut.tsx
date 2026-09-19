@@ -6,7 +6,9 @@ import { useReducedMotion } from "motion/react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { WidgetCard } from "@/components/ui/widget-card";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { useSensitiveVisibility } from "@/components/dashboard/sensitive-visibility";
 import { useChartTheme } from "@/lib/hooks/use-chart-theme";
+import { cn } from "@/lib/utils";
 import { fetchSalesAnalytics } from "@/lib/supabase/queries/dashboard-client";
 
 const money = (n: number) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
@@ -26,7 +28,9 @@ interface TypeBucket {
 export function DashboardSalesTypeDonut() {
   const reduced = useReducedMotion();
   const colors = useChartTheme();
+  const { hidden } = useSensitiveVisibility();
   const [mounted, setMounted] = React.useState(false);
+  const mask = hidden ? "select-none blur-[8px]" : "";
 
   // Theme-dependent colours resolve client-side only; defer the coloured
   // render until after hydration to avoid an SSR mismatch.
@@ -97,7 +101,7 @@ export function DashboardSalesTypeDonut() {
                 wrapperStyle={{ zIndex: 10 }}
                 content={
                   <ChartTooltip
-                    formatter={(value) => money(Number(value))}
+                    formatter={(value) => (hidden ? "••••" : money(Number(value)))}
                     footer={(item) => {
                       const bucket = item.payload as unknown as TypeBucket;
                       if (!bucket) return null;
@@ -114,7 +118,7 @@ export function DashboardSalesTypeDonut() {
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <p className="text-3xl font-semibold tabular-nums tracking-tight text-text-primary">
+              <p className={cn("text-3xl font-semibold tabular-nums tracking-tight text-text-primary", mask)}>
                 {compactMoney(total)}
               </p>
               <p className="text-xs text-text-muted">revenue</p>
@@ -136,7 +140,7 @@ export function DashboardSalesTypeDonut() {
               <span className="ml-auto text-xs tabular-nums text-text-muted">
                 {bucket.count} sale{bucket.count === 1 ? "" : "s"}
               </span>
-              <span className="w-24 text-right font-medium tabular-nums text-text-primary">
+              <span className={cn("w-24 text-right font-medium tabular-nums text-text-primary", mask)}>
                 {money(bucket.revenue)}
               </span>
               <span className="w-10 text-right text-xs tabular-nums text-text-muted">
