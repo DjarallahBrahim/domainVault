@@ -8,6 +8,7 @@ import { type RegisterInput, registerSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
 import { authCallbackUrl } from "@/lib/site";
 import { mapAuthError } from "@/lib/errors/supabase";
+import { EMAIL_CONFIRMATION_REQUIRED } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,14 +50,29 @@ export function RegisterForm() {
       return;
     }
 
-    // Email confirmation disabled → already signed in; otherwise send them to
-    // a dedicated "check your inbox" screen with the address pre-filled.
+    // Already signed in (email confirmation disabled) → straight in.
     if (result.session) {
       router.push("/dashboard");
       router.refresh();
       return;
     }
 
+    // Email confirmation is not required: sign the user in directly instead of
+    // sending them to a verification screen.
+    if (!EMAIL_CONFIRMATION_REQUIRED) {
+      const { data: signIn, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+      if (!signInError && signIn.session) {
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+    }
+
+    // Confirmation is still enforced server-side → send them to their inbox.
     router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   }
 
