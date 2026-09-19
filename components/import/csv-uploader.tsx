@@ -12,7 +12,7 @@ interface CsvUploaderProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const CSV_HEADER = "domain,expiration_date,purchase_price,bin,registrar,notes,tags";
+const CSV_HEADER = "domain,price,registrar,expiration_date,purchase_price";
 
 export function CsvUploader({
   onFileReady,
@@ -102,7 +102,7 @@ export function CsvUploader({
     if (invalid) {
       toast.error("Invalid format", {
         description:
-          "Each line must be comma-separated. Example: acme.com, 2025-12-31, GoDaddy, client1",
+          "Each line must be comma-separated. Example: premium-saas.com, 4999, Sav, 2027-06-15, 2500",
       });
       return;
     }
@@ -122,7 +122,7 @@ export function CsvUploader({
           Expected format (no header needed):
           <br />
           <code className="text-xs bg-bg-elevated px-1 rounded break-all">
-            domain, expiration_date, purchase_price, bin, registrar, notes, tags
+            domain, price, registrar, expiration_date, purchase_price
           </code>
           <br />
           <span className="text-xs">
@@ -133,15 +133,15 @@ export function CsvUploader({
           Example:
           <br />
           <code className="text-xs bg-bg-elevated px-1 rounded break-all">
-            acme.com, 2025-12-31, 16.00, 120, GoDaddy, client renewal, client1
+            premium-saas.com, 4999, Sav, 2027-06-15, 2500
             <br />
-            store.io, 2026-06-15, , , Namecheap, ,
+            crypto-wallet.io, 1999, Namecheap, 2027-12-01, 800
           </code>
         </p>
         <textarea
           className="flex-1 min-h-[140px] w-full rounded-md border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y font-mono"
           placeholder={
-            "acme.com, 2025-12-31, 16.00, 120, GoDaddy, client renewal, client1\nstore.io, 2026-06-15, , , Namecheap, ,"
+            "premium-saas.com, 4999, Sav, 2027-06-15, 2500\ncrypto-wallet.io, 1999, Namecheap, 2027-12-01, 800"
           }
           value={pasteValue}
           onChange={(e) => setPasteValue(e.target.value)}

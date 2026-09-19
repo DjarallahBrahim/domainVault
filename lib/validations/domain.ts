@@ -90,6 +90,23 @@ export const csvRowSchema = z.object({
       (v) => !v || v.trim() === "" || (!isNaN(Number(v)) && Number(v) >= 0),
       "BIN price must be a non-negative number"
     ),
+  /** Friendly alias for `bin` (the asking price) used in CSV templates. */
+  price: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .replace(/^[$\u20AC\u00A3]/, "")
+            .replace(/[$\u20AC\u00A3]$/, "")
+            .replace(/,/g, "")
+            .trim()
+        : v
+    )
+    .refine(
+      (v) => !v || v.trim() === "" || (!isNaN(Number(v)) && Number(v) >= 0),
+      "Price must be a non-negative number"
+    ),
   registrar: z.string().optional(),
   notes: z.string().optional(),
   tags: z.string().optional(),

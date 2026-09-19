@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Papa from "papaparse";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 import { CsvUploader } from "@/components/import/csv-uploader";
 import { CsvOptionToggle } from "@/components/import/csv-option-toggle";
@@ -32,6 +33,30 @@ interface ImportResult {
   imported: number;
   skipped: number;
   errors: ImportError[];
+}
+
+const CSV_HEADER = "domain,price,registrar,expiration_date,purchase_price";
+
+const SAMPLE_CSV = [
+  CSV_HEADER,
+  "premium-saas.com,4999,Sav,2027-06-15,2500",
+  "crypto-wallet.io,1999,Namecheap,2027-12-01,800",
+  "ai-toolkit.dev,3500,GoDaddy,2027-03-10,1200",
+  "luxury-travel.co,12000,Spaceship,2027-01-20,3000",
+].join("\n");
+
+function downloadSampleCsv() {
+  const blob = new Blob(["\uFEFF" + SAMPLE_CSV], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "dnfly-import-template.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export default function ImportPage() {
@@ -167,7 +192,9 @@ export default function ImportPage() {
               bin:
                 parsed.bin && parsed.bin.trim()
                   ? Number(parsed.bin)
-                  : null,
+                  : parsed.price && parsed.price.trim()
+                    ? Number(parsed.price)
+                    : null,
               registrar: parsed.registrar?.trim() || null,
               notes: parsed.notes?.trim() || null,
               tags: parseTags(parsed.tags),
@@ -240,39 +267,52 @@ export default function ImportPage() {
 
       {activeTab === "csv" && (
         <>
+          <div className="rounded-xl border border-accent-warning/30 bg-accent-warning/10 p-4">
+            <p className="text-sm font-semibold text-text-primary">
+              Heads up: this is the most important — and honestly the most
+              annoying — step 😅
+            </p>
+            <p className="text-sm text-text-muted mt-1">
+              Sorry, but there&apos;s no way around it: no CSV, no portfolio. We
+              literally can&apos;t show you anything until your domains are in
+              here. Do it once now and you&apos;re set forever 😂
+            </p>
+          </div>
+
           <div className="rounded-md bg-bg-elevated border border-border p-4">
             <div className="flex flex-col gap-3">
               <div>
                 <p className="text-sm font-medium text-text-primary">CSV Format</p>
                 <p className="text-xs text-text-muted mt-0.5">
-                  Required: <span className="text-text-primary">Domain, Expiration Date</span>{" "}
-                  &middot; Optional: Price, Registrar, Notes, Tags
+                  Required:{" "}
+                  <span className="text-text-primary">
+                    domain, expiration_date
+                  </span>{" "}
+                  &middot; Optional: price, registrar, purchase_price
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText("Domain,Expiration Date,Price,Registrar,Notes,Tags");
-                    toast.success("Header row copied to clipboard");
-                  }}
-                  className="text-xs px-2 py-1 rounded bg-bg-surface border border-border text-text-muted hover:text-text-primary"
+                  onClick={downloadSampleCsv}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md bg-accent-primary text-white font-medium hover:bg-accent-primary/90 transition-colors"
                 >
-                  Copy Header
+                  <Download className="h-3.5 w-3.5" />
+                  Download template CSV
                 </button>
                 <button
                   onClick={() => {
-                    const csv = "Domain,Expiration Date,Price,Registrar,Notes,Tags\nexample.com,2026-12-31,1000,GoDaddy,premium\ntest.org,2027-06-15,500,Namecheap,brandable";
-                    const blob = new Blob([csv], { type: "text/csv" });
-                    const a = document.createElement("a");
-                    a.href = URL.createObjectURL(blob);
-                    a.download = "sample-domains.csv";
-                    a.click();
+                    navigator.clipboard.writeText(CSV_HEADER);
+                    toast.success("Header copied to clipboard");
                   }}
-                  className="text-xs px-2 py-1 rounded bg-bg-surface border border-border text-text-muted hover:text-text-primary"
+                  className="text-xs px-2.5 py-1.5 rounded-md bg-bg-surface border border-border text-text-muted hover:text-text-primary transition-colors"
                 >
-                  Download Sample
+                  Copy header
                 </button>
               </div>
+              <p className="text-xs text-text-muted">
+                Not sure where to start? Grab the template — it has the exact
+                columns and a few example rows you can replace.
+              </p>
             </div>
           </div>
 
