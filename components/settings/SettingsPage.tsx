@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { useTheme } from "next-themes";
+import { LogOut, User, Sun, Moon, Monitor } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Segmented } from "@/components/ui/segmented";
 import { toast } from "sonner";
 import { SedoCredentialsForm } from "@/components/settings/SedoCredentialsForm";
 import { SpaceshipCredentialsForm } from "@/components/settings/SpaceshipCredentialsForm";
@@ -22,6 +24,15 @@ export function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const { theme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+
+  useEffect(() => setThemeMounted(true), []);
+
+  const themeValue = themeMounted
+    ? ((theme as "light" | "dark" | "system") ?? "system")
+    : null;
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString("en-US", {
@@ -152,6 +163,59 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section text-text-primary">Appearance</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Choose how DNfly.io looks on this device.
+          </p>
+        </div>
+
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-card-title">Theme</CardTitle>
+            <CardDescription>Light, dark, or match your system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Segmented
+              size="sm"
+              aria-label="Theme"
+              options={[
+                {
+                  value: "light",
+                  label: (
+                    <span className="flex items-center gap-1.5">
+                      <Sun className="h-3.5 w-3.5" />
+                      Light
+                    </span>
+                  ),
+                },
+                {
+                  value: "dark",
+                  label: (
+                    <span className="flex items-center gap-1.5">
+                      <Moon className="h-3.5 w-3.5" />
+                      Dark
+                    </span>
+                  ),
+                },
+                {
+                  value: "system",
+                  label: (
+                    <span className="flex items-center gap-1.5">
+                      <Monitor className="h-3.5 w-3.5" />
+                      System
+                    </span>
+                  ),
+                },
+              ]}
+              value={themeValue}
+              onChange={setTheme}
+            />
+          </CardContent>
+        </Card>
       </section>
 
       <section className="space-y-4">
