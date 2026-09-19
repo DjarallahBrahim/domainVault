@@ -13,6 +13,7 @@ import { SalesList } from "@/components/sales/sales-list";
 import { SalesLogForm } from "@/components/sales/sales-log-form";
 import { SalesDeleteDialog } from "@/components/sales/sales-delete-dialog";
 import { SalesEmptyState } from "@/components/sales/sales-empty-state";
+import { RemoveFromPlatformsPrompt } from "@/components/platforms/remove-from-platforms-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Database } from "@/types/supabase";
 
@@ -30,6 +31,10 @@ export function SalesClient({ initialData }: SalesClientProps) {
   const [showForm, setShowForm] = useState(!!prefilledDomain);
   const [editingSale, setEditingSale] = useState<SaleRow | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [removalDomain, setRemovalDomain] = useState<{
+    id: string;
+    domain: string;
+  } | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,6 +141,7 @@ export function SalesClient({ initialData }: SalesClientProps) {
                 : undefined
             }
             onSuccess={handleFormSuccess}
+            onSaleSaved={setRemovalDomain}
           />
         </div>
       )}
@@ -169,6 +175,11 @@ export function SalesClient({ initialData }: SalesClientProps) {
           if (!open) setDeletingSaleId(null);
         }}
         onConfirm={handleDelete}
+      />
+
+      <RemoveFromPlatformsPrompt
+        domain={removalDomain}
+        onClose={() => setRemovalDomain(null)}
       />
     </div>
   );

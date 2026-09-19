@@ -34,12 +34,15 @@ interface SalesLogFormProps {
     notes: string | null;
   };
   onSuccess?: () => void;
+  /** Called after a new sale is logged, with the matched portfolio domain. */
+  onSaleSaved?: (domain: { id: string; domain: string } | null) => void;
 }
 
 export function SalesLogForm({
   prefilledDomain,
   saleToEdit,
   onSuccess,
+  onSaleSaved,
 }: SalesLogFormProps) {
   const queryClient = useQueryClient();
   const isEdit = !!saleToEdit;
@@ -96,6 +99,11 @@ export function SalesLogForm({
       reset();
       setWarning(null);
       setWarningConfirmed(false);
+      onSaleSaved?.(
+        result.sale?.domain_id
+          ? { id: result.sale.domain_id, domain: result.sale.domain_name }
+          : null
+      );
       onSuccess?.();
     },
     onError: (error: Error) => {

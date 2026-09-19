@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Save, DollarSign } from "lucide-react";
 
@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
+import { RemoveFromPlatformsPrompt } from "@/components/platforms/remove-from-platforms-dialog";
 import { domainEditSchema, type DomainEdit } from "@/lib/validations/domain";
 import { updateDomain, deleteDomain } from "@/lib/supabase/queries/domains-client";
 import { createSale, deleteSale } from "@/lib/supabase/queries/sales-client";
@@ -49,6 +50,11 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
   const [salePlatform, setSalePlatform] = useState("Direct");
   const [saleType, setSaleType] = useState<"inbound" | "outbound">("inbound");
   const [saleNotes, setSaleNotes] = useState("");
+  const becameSoldRef = useRef(false);
+  const [removalDomain, setRemovalDomain] = useState<{
+    id: string;
+    domain: string;
+  } | null>(null);
 
   const { data: existingSale } = useQuery({
     queryKey: ["sale", domain.id],
@@ -154,6 +160,10 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["sale", domain.id] });
       toast.success("Domain updated");
+      if (becameSoldRef.current) {
+        becameSoldRef.current = false;
+        setRemovalDomain({ id: domain.id, domain: domain.domain });
+      }
     },
     onError: (error: Error) => {
       toast.error("Save failed", { description: error.message });
@@ -161,6 +171,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
   });
 
   const onSave = (data: DomainEdit) => {
+    becameSoldRef.current = domain.status !== "sold" && data.status === "sold";
     saveMutation.mutate(data);
   };
 
@@ -345,6 +356,11 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
       </Card>
 
       <DomainDeleteDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} count={1} onConfirm={handleDelete} />
+
+      <RemoveFromPlatformsPrompt
+        domain={removalDomain}
+        onClose={() => setRemovalDomain(null)}
+      />
     </div>
   );
 }
