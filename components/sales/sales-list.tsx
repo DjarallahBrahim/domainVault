@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -96,16 +95,14 @@ export function SalesList({
             {sales.map((sale) => (
               <TableRow key={sale.id}>
                 <TableCell>
-                  {sale.domain_id ? (
-                    <Link
-                      href={`/domains/${sale.domain_id}`}
-                      className="font-mono text-sm text-accent-primary hover:underline"
-                    >
-                      {sale.domain_name}
-                    </Link>
-                  ) : (
-                    <span className="font-mono text-sm">{sale.domain_name}</span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onEdit(sale)}
+                    title="Edit sale details"
+                    className="font-mono text-sm text-accent-primary hover:underline"
+                  >
+                    {sale.domain_name}
+                  </button>
                 </TableCell>
                 <TableCell className="text-sm font-medium text-accent-success">
                   ${sale.sale_price.toLocaleString()}

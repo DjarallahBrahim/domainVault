@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -30,6 +30,13 @@ export function SalesClient({ initialData }: SalesClientProps) {
   const [showForm, setShowForm] = useState(!!prefilledDomain);
   const [editingSale, setEditingSale] = useState<SaleRow | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showForm && editingSale) {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showForm, editingSale]);
 
   const filters = Object.fromEntries(searchParams.entries());
 
@@ -111,24 +118,26 @@ export function SalesClient({ initialData }: SalesClientProps) {
       </div>
 
       {showForm && (
-        <SalesLogForm
-          prefilledDomain={prefilledDomain}
-          saleToEdit={
-            editingSale
-              ? {
-                  id: editingSale.id,
-                  domain_name: editingSale.domain_name,
-                  sale_price: editingSale.sale_price,
-                  sold_at: editingSale.sold_at,
-                  buyer: editingSale.buyer,
-                  platform: editingSale.platform,
-                  sale_type: editingSale.sale_type,
-                  notes: editingSale.notes,
-                }
-              : undefined
-          }
-          onSuccess={handleFormSuccess}
-        />
+        <div ref={formRef} className="scroll-mt-4">
+          <SalesLogForm
+            prefilledDomain={prefilledDomain}
+            saleToEdit={
+              editingSale
+                ? {
+                    id: editingSale.id,
+                    domain_name: editingSale.domain_name,
+                    sale_price: editingSale.sale_price,
+                    sold_at: editingSale.sold_at,
+                    buyer: editingSale.buyer,
+                    platform: editingSale.platform,
+                    sale_type: editingSale.sale_type,
+                    notes: editingSale.notes,
+                  }
+                : undefined
+            }
+            onSuccess={handleFormSuccess}
+          />
+        </div>
       )}
 
       {data.sales.length === 0 ? (
