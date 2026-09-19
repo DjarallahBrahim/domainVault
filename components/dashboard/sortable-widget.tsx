@@ -35,7 +35,7 @@ export function SortableWidget({ id, span, children }: SortableWidgetProps) {
         transition,
         filter: isDragging ? "drop-shadow(0 16px 32px rgba(0, 0, 0, 0.18))" : undefined,
       }}
-      className={cn("min-w-0", span, isDragging && "z-10")}
+      className={cn("h-full min-w-0", span, isDragging && "z-10")}
     >
       <DragHandleContext.Provider value={{ attributes, listeners, setActivatorNodeRef }}>
         {children}

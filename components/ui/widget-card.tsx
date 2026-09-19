@@ -42,7 +42,7 @@ function WidgetCard({
   return (
     <section
       className={cn(
-        "rounded-2xl bg-bg-surface p-6 text-text-primary shadow-card ring-1 ring-border/50",
+        "flex h-full flex-col rounded-2xl bg-bg-surface p-6 text-text-primary shadow-card ring-1 ring-border/50",
         className
       )}
       {...props}
@@ -68,17 +68,21 @@ function WidgetCard({
       </header>
 
       {loading ? (
-        (loadingSkeleton ?? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ))
+        <div className="flex-1">
+          {loadingSkeleton ?? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
+        </div>
       ) : empty ? (
-        <p className="py-6 text-center text-sm text-text-muted">{emptyMessage}</p>
+        <div className="flex flex-1 items-center justify-center py-6">
+          <p className="text-center text-sm text-text-muted">{emptyMessage}</p>
+        </div>
       ) : (
-        children
+        <div className="flex-1">{children}</div>
       )}
     </section>
   );
