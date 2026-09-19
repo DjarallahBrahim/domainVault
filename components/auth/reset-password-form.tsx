@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { type ResetPasswordInput, resetPasswordSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
+import { authCallbackUrl } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,7 @@ export function ResetPasswordForm({ defaultEmail = "" }: { defaultEmail?: string
 
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
+      redirectTo: authCallbackUrl("/update-password"),
     });
 
     if (error) {

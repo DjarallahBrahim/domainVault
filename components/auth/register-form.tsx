@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type RegisterInput, registerSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
+import { authCallbackUrl } from "@/lib/site";
 import { mapAuthError } from "@/lib/errors/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ export function RegisterForm() {
       email: data.email,
       password: data.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authCallbackUrl(),
       },
     });
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { authCallbackUrl } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 
 export function VerifyEmailContent({ email }: { email: string }) {
@@ -23,7 +24,7 @@ export function VerifyEmailContent({ email }: { email: string }) {
       type: "signup",
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authCallbackUrl(),
       },
     });
     setIsSending(false);
