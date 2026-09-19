@@ -15,7 +15,7 @@ export function NavBar({
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/">
-          <Logo />
+          <Logo className="h-9 sm:h-10" />
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
           {navLinks.map((link) => (

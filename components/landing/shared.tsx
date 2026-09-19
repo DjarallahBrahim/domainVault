@@ -1,18 +1,7 @@
-import { ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
-export function Logo({ light = false }: { light?: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-        <ShieldCheck className="h-4 w-4 text-primary-foreground" />
-      </span>
-      <span
-        className={`font-display text-lg font-bold ${light ? "text-primary-foreground" : "text-foreground"}`}
-      >
-        DNfly.io
-      </span>
-    </div>
-  );
+export function Logo({ className }: { className?: string }) {
+  return <BrandLogo className={className ?? "h-8"} />;
 }
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {

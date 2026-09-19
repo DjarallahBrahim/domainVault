@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Check, Lock, ShieldCheck } from "lucide-react";
+import { Check, Lock } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 const highlights = [
   "Import thousands of domains in seconds",
@@ -15,14 +16,7 @@ const stickers = [
 ];
 
 function BrandMark() {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-        <ShieldCheck className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
-      </span>
-      <span className="text-lg font-bold tracking-tight text-text-primary">DNfly.io</span>
-    </span>
-  );
+  return <BrandLogo className="h-12" />;
 }
 
 export function AuthShell({ children }: { children: React.ReactNode }) {

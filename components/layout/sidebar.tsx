@@ -12,9 +12,9 @@ import {
   PinOff,
   Wrench,
   Megaphone,
-  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo, BrandIcon } from "@/components/ui/brand-logo";
 import { ThemeToggle } from "./theme-toggle";
 import { SidebarFooter } from "./sidebar-footer";
 import { useSidebarStore } from "@/lib/hooks/use-sidebar";
@@ -55,15 +55,12 @@ export function Sidebar() {
         <Link
           href="/"
           title={!isExpanded ? "DNfly.io" : undefined}
-          className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-primary text-primary-foreground shadow-sm">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          {isExpanded && (
-            <span className="font-semibold text-[15px] text-text-primary tracking-tight truncate">
-              DNfly.io
-            </span>
+          {isExpanded ? (
+            <BrandLogo className="h-7" />
+          ) : (
+            <BrandIcon className="h-8 w-8" />
           )}
         </Link>
 
