@@ -484,6 +484,7 @@ export interface SalesAnalyticsRow {
   purchase_price: number | null;
   sold_at: string;
   platform: string | null;
+  sale_type: "inbound" | "outbound";
   buyer: string | null;
   notes: string | null;
   created_at: string | null;
@@ -506,6 +507,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       sale_price,
       sold_at,
       platform,
+      sale_type,
       buyer,
       notes,
       domain_id,
@@ -527,6 +529,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       sale_price: number;
       sold_at: string;
       platform: string | null;
+      sale_type: "inbound" | "outbound";
       buyer: string | null;
       notes: string | null;
       domain_id: string;
@@ -539,6 +542,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
     purchase_price: s.domains?.purchase_price ?? null,
     sold_at: s.sold_at,
     platform: s.platform,
+    sale_type: s.sale_type,
     buyer: s.buyer,
     notes: s.notes,
     created_at: s.domains?.created_at ?? null,

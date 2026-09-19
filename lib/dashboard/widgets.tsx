@@ -9,6 +9,7 @@ import { DashboardRevenueChart } from "@/components/dashboard/dashboard-revenue-
 import { DashboardSpendSoldChart } from "@/components/dashboard/dashboard-spend-sold-chart";
 import { DashboardSalesLeaderboard } from "@/components/dashboard/dashboard-sales-leaderboard";
 import { DashboardPlatformBreakdown } from "@/components/dashboard/dashboard-platform-breakdown";
+import { DashboardSalesTypeDonut } from "@/components/dashboard/dashboard-sales-type-donut";
 import type {
   DashboardStats,
   ExpirySegments,
@@ -33,7 +34,8 @@ export type WidgetId =
   | "revenue"
   | "spend"
   | "sales"
-  | "platforms";
+  | "platforms"
+  | "salestype-donut";
 
 export interface WidgetDef {
   id: WidgetId;
@@ -92,6 +94,12 @@ export const WIDGETS: Record<WidgetId, WidgetDef> = {
     span: "lg:col-span-3",
     render: () => <DashboardPlatformBreakdown />,
   },
+  "salestype-donut": {
+    id: "salestype-donut",
+    title: "Revenue by Sales Type",
+    span: "lg:col-span-3",
+    render: () => <DashboardSalesTypeDonut />,
+  },
 };
 
 export const DEFAULT_ORDER: WidgetId[] = [
@@ -103,6 +111,7 @@ export const DEFAULT_ORDER: WidgetId[] = [
   "spend",
   "sales",
   "platforms",
+  "salestype-donut",
 ];
 
 const WIDGET_IDS = new Set<string>(Object.keys(WIDGETS));
