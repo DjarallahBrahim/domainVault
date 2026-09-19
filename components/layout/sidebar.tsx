@@ -54,7 +54,7 @@ export function Sidebar() {
       >
         <Link
           href="/"
-          title={!isExpanded ? "DomainVault" : undefined}
+          title={!isExpanded ? "DNfly.io" : undefined}
           className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-primary text-primary-foreground shadow-sm">
@@ -62,7 +62,7 @@ export function Sidebar() {
           </div>
           {isExpanded && (
             <span className="font-semibold text-[15px] text-text-primary tracking-tight truncate">
-              DomainVault
+              DNfly.io
             </span>
           )}
         </Link>

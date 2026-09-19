@@ -102,7 +102,7 @@ export function SpaceshipCredentialsForm() {
       <CardHeader>
         <CardTitle>Spaceship API Credentials</CardTitle>
         <CardDescription>
-          Connect your Spaceship account to manage SellerHub listings directly from DomainVault
+          Connect your Spaceship account to manage SellerHub listings directly from DNfly.io
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

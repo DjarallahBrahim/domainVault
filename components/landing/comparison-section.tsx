@@ -31,7 +31,7 @@ export function ComparisonSection() {
         </p>
       </div>
       <div className="rounded-2xl border border-primary/30 bg-tint p-8">
-        <SectionLabel>With DomainVault</SectionLabel>
+        <SectionLabel>With DNfly.io</SectionLabel>
         <h3 className="text-2xl font-extrabold">
           Just a few clicks. Everything else is automatic.
         </h3>

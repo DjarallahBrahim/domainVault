@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 export const metadata: Metadata = {
-  title: "Reset Password — DomainVault",
+  title: "Reset Password — DNfly.io",
 };
 
 export default function ResetPasswordPage() {

@@ -95,7 +95,7 @@ export function SedoCredentialsForm() {
       <CardHeader>
         <CardTitle>Sedo API Credentials</CardTitle>
         <CardDescription>
-          Connect your Sedo account to manage listings directly from DomainVault
+          Connect your Sedo account to manage listings directly from DNfly.io
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

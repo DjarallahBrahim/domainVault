@@ -28,8 +28,8 @@ const sora = Sora({
 
 export const metadata: Metadata = {
   title: {
-    default: "DomainVault",
-    template: "%s — DomainVault",
+    default: "DNfly.io",
+    template: "%s — DNfly.io",
   },
   description: "Professional domain portfolio management",
 };

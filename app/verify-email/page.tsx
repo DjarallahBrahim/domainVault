@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VerifyEmailContent } from "./verify-email-content";
 
 export const metadata: Metadata = {
-  title: "Verify Email — DomainVault",
+  title: "Verify Email — DNfly.io",
 };
 
 export default function VerifyEmailPage() {

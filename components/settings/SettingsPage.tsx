@@ -174,7 +174,7 @@ export function SettingsPage() {
             <div>
               <p className="font-medium">Sign out</p>
               <p className="text-sm text-text-muted">
-                Sign out of your DomainVault account on this device.
+                Sign out of your DNfly.io account on this device.
               </p>
             </div>
             <Button variant="outline" onClick={handleLogout}>

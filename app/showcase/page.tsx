@@ -113,9 +113,9 @@ export function ShowcasePageContent() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <a href="/" className="flex items-center gap-2 font-display text-lg font-bold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary text-white text-sm font-bold">
-              DV
+              DN
             </div>
-            <span className="text-xl">DomainVault</span>
+            <span className="text-xl">DNfly.io</span>
           </a>
           <div className="flex items-center gap-3">
             <a href="/login" className="text-sm font-medium text-text-muted hover:text-text-primary">
@@ -324,7 +324,7 @@ export function ShowcasePageContent() {
       <footer className="border-t border-border px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm text-text-muted">
-            &copy; {new Date().getFullYear()} DomainVault. All rights reserved.
+            &copy; {new Date().getFullYear()} DNfly.io. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <a href="/login" className="text-sm text-text-muted hover:text-text-primary">

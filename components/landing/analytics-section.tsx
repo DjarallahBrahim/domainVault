@@ -16,7 +16,7 @@ export function AnalyticsSection() {
       <div className="order-2 lg:order-1">
         <Screenshot
           src="/images/portfolio-performance.png"
-          alt="DomainVault portfolio analytics dashboard showing expiry overview, critical renewals, top sales and platform performance"
+          alt="DNfly.io portfolio analytics dashboard showing expiry overview, critical renewals, top sales and platform performance"
           className="w-full rounded-2xl border border-border shadow-2xl shadow-primary/10"
         />
       </div>

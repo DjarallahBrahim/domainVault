@@ -9,7 +9,7 @@ export function Logo({ light = false }: { light?: boolean }) {
       <span
         className={`font-display text-lg font-bold ${light ? "text-primary-foreground" : "text-foreground"}`}
       >
-        DomainVault
+        DNfly.io
       </span>
     </div>
   );

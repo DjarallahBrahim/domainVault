@@ -58,7 +58,7 @@ export function HeroSection({ ctaHref }: { ctaHref: string }) {
         <div className="rounded-2xl bg-gradient-to-b from-primary/10 to-transparent p-px">
           <Screenshot
             src="/images/dashboard-hero.png"
-            alt="DomainVault portfolio dashboard overview"
+            alt="DNfly.io portfolio dashboard overview"
             className="h-auto w-full rounded-2xl shadow-2xl shadow-primary/10"
           />
         </div>

@@ -51,7 +51,7 @@ export function LoginForm({ initialError = null }: { initialError?: string | nul
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to your DomainVault account</CardDescription>
+        <CardDescription>Sign in to your DNfly.io account</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">

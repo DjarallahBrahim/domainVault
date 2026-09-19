@@ -5,9 +5,9 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
   return (
     <div
       className="force-light relative min-h-[384px] w-full"
-      aria-label="DomainVault publishing workflow"
+      aria-label="DNfly.io publishing workflow"
     >
-      {/* DomainVault card */}
+      {/* DNfly.io card */}
       <div className="absolute left-1/2 top-0 z-20 w-[260px] -translate-x-1/2">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
@@ -29,7 +29,7 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
               </svg>
             </span>
             <div>
-              <p className="text-[15px] font-bold text-card-foreground">DomainVault</p>
+              <p className="text-[15px] font-bold text-card-foreground">DNfly.io</p>
               <p className="mt-0.5 text-xs text-muted-foreground">1,284 domains managed</p>
             </div>
           </div>

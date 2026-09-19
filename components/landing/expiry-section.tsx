@@ -20,7 +20,7 @@ export function ExpirySection({ ctaHref }: { ctaHref: string }) {
             Never lose a valuable domain to an expiry date.
           </h2>
           <p className="mt-4 max-w-sm text-muted-foreground">
-            DomainVault monitors your domain expiry dates and gives you clear warnings before
+            DNfly.io monitors your domain expiry dates and gives you clear warnings before
             domains need attention.
           </p>
           <Link

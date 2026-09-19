@@ -14,7 +14,7 @@ export function Footer() {
           ))}
         </nav>
         <p className="text-xs text-muted-foreground">
-          © 2025 DomainVault. All rights reserved.
+          © 2025 DNfly.io. All rights reserved.
         </p>
       </div>
     </footer>
