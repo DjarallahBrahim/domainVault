@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchSpaceshipApiSecret } from "@/lib/supabase/queries/settings-client";
+import { SecretField } from "@/components/settings/secret-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,7 @@ import { toast } from "sonner";
 export function SpaceshipCredentialsForm() {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
-  const [showSecret, setShowSecret] = useState(false);
+  const [hasStoredSecret, setHasStoredSecret] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "connected" | "invalid">("idle");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -20,12 +22,16 @@ export function SpaceshipCredentialsForm() {
   useEffect(() => {
     async function loadSettings() {
       const supabase = createClient();
-      const { data } = await supabase.from("user_settings").select("spaceship_api_key, spaceship_api_secret").single();
+      // Never preload the secret — it is fetched only when the user reveals it.
+      const { data } = await supabase
+        .from("user_settings")
+        .select("spaceship_api_key")
+        .maybeSingle();
 
       if (data) {
         const settings = data as Record<string, unknown>;
         if (settings.spaceship_api_key) setApiKey(String(settings.spaceship_api_key));
-        if (settings.spaceship_api_secret) setApiSecret(String(settings.spaceship_api_secret));
+        setHasStoredSecret(Boolean(settings.spaceship_api_key));
       }
 
       setLoaded(true);
@@ -52,8 +58,12 @@ export function SpaceshipCredentialsForm() {
   }
 
   async function handleSave() {
-    if (!apiKey || !apiSecret) {
-      toast.error("Both fields are required");
+    if (!apiKey) {
+      toast.error("API Key is required");
+      return;
+    }
+    if (!hasStoredSecret && !apiSecret) {
+      toast.error("API Secret is required");
       return;
     }
 
@@ -66,19 +76,22 @@ export function SpaceshipCredentialsForm() {
 
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("user_settings").upsert(
-        {
-          user_id: user.id,
-          spaceship_api_key: apiKey,
-          spaceship_api_secret: apiSecret,
-        } as never,
-        { onConflict: "user_id" }
-      );
+      const payload: Record<string, unknown> = {
+        user_id: user.id,
+        spaceship_api_key: apiKey,
+      };
+      if (apiSecret) payload.spaceship_api_secret = apiSecret;
+
+      const { error } = await supabase
+        .from("user_settings")
+        .upsert(payload as never, { onConflict: "user_id" });
 
       if (error) throw error;
 
       toast.success("Spaceship credentials saved");
       setConnectionStatus("idle");
+      setHasStoredSecret(true);
+      setApiSecret("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save credentials");
     } finally {
@@ -118,33 +131,26 @@ export function SpaceshipCredentialsForm() {
           />
         </div>
 
-        <div>
-          <Label htmlFor="spaceship-api-secret">API Secret</Label>
-          <div className="relative mt-1">
-            <Input
-              id="spaceship-api-secret"
-              type={showSecret ? "text" : "password"}
-              value={apiSecret}
-              onChange={(e) => setApiSecret(e.target.value)}
-              placeholder={apiSecret ? "••••••••" : "Enter your API Secret"}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-              tabIndex={-1}
-            >
-              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
+        <SecretField
+          id="spaceship-api-secret"
+          label="API Secret"
+          value={apiSecret}
+          onChange={setApiSecret}
+          hasStoredSecret={hasStoredSecret}
+          fetchStoredSecret={fetchSpaceshipApiSecret}
+          placeholder={hasStoredSecret ? "••••••••  (saved)" : "Enter your API Secret"}
+          helpText="Leave blank to keep the saved secret."
+        />
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button
             variant="outline"
             onClick={handleTestConnection}
-            disabled={connectionStatus === "testing" || !apiKey || !apiSecret}
+            disabled={
+              connectionStatus === "testing" ||
+              !apiKey ||
+              (!hasStoredSecret && !apiSecret)
+            }
           >
             {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
           </Button>

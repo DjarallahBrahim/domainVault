@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { upsertSedoCredentials } from "@/lib/supabase/queries/settings-client";
+import {
+  upsertSedoCredentials,
+  fetchSedoPassword,
+} from "@/lib/supabase/queries/settings-client";
+import { SecretField } from "@/components/settings/secret-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +19,7 @@ export function SedoCredentialsForm() {
   const [signKey, setSignKey] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [hasStoredPassword, setHasStoredPassword] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "connected" | "invalid">("idle");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -23,14 +27,19 @@ export function SedoCredentialsForm() {
   useEffect(() => {
     async function loadSettings() {
       const supabase = createClient();
-      const { data } = await supabase.from("user_settings").select("*").single();
+      // Never preload the password — it is fetched only when the user
+      // explicitly reveals it.
+      const { data } = await supabase
+        .from("user_settings")
+        .select("sedo_partner_id, sedo_signkey, sedo_username")
+        .maybeSingle();
 
       if (data) {
         const settings = data as Record<string, unknown>;
         if (settings.sedo_partner_id) setPartnerId(String(settings.sedo_partner_id));
         if (settings.sedo_signkey) setSignKey(String(settings.sedo_signkey));
         if (settings.sedo_username) setUsername(String(settings.sedo_username));
-        if (settings.sedo_password) setPassword(String(settings.sedo_password));
+        setHasStoredPassword(Boolean(settings.sedo_username));
       }
 
       setLoaded(true);
@@ -56,8 +65,12 @@ export function SedoCredentialsForm() {
   }
 
   async function handleSave() {
-    if (!partnerId || !signKey || !username || !password) {
-      toast.error("All four fields are required");
+    if (!partnerId || !signKey || !username) {
+      toast.error("Partner ID, Sign Key and Username are required");
+      return;
+    }
+    if (!hasStoredPassword && !password) {
+      toast.error("Password is required");
       return;
     }
 
@@ -67,11 +80,13 @@ export function SedoCredentialsForm() {
         sedo_partner_id: Number(partnerId),
         sedo_signkey: signKey,
         sedo_username: username,
-        sedo_password: password,
+        sedo_password: password || undefined,
       });
 
       toast.success("Sedo credentials saved");
       setConnectionStatus("idle");
+      setHasStoredPassword(true);
+      setPassword("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save credentials");
     } finally {
@@ -137,35 +152,29 @@ export function SedoCredentialsForm() {
           <p className="text-xs text-text-muted mt-1">Max 25 characters</p>
         </div>
 
-        <div>
-          <Label htmlFor="sedo-password">Password</Label>
-          <div className="relative mt-1">
-            <Input
-              id="sedo-password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={password ? "••••••••" : "Your Sedo password"}
-              maxLength={16}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-              tabIndex={-1}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          <p className="text-xs text-text-muted mt-1">Max 16 characters</p>
-        </div>
+        <SecretField
+          id="sedo-password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          hasStoredSecret={hasStoredPassword}
+          fetchStoredSecret={fetchSedoPassword}
+          placeholder={hasStoredPassword ? "••••••••  (saved)" : "Your Sedo password"}
+          maxLength={16}
+          helpText="Max 16 characters. Leave blank to keep the saved password."
+        />
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button
             variant="outline"
             onClick={handleTestConnection}
-            disabled={connectionStatus === "testing" || !partnerId || !signKey || !username || !password}
+            disabled={
+              connectionStatus === "testing" ||
+              !partnerId ||
+              !signKey ||
+              !username ||
+              (!hasStoredPassword && !password)
+            }
           >
             {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
           </Button>
