@@ -12,6 +12,8 @@ import { ArrowLeft, Save, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SaleTypeCheckboxes } from "@/components/sales/sale-type-checkboxes";
+import { PlatformCombobox } from "@/components/sales/platform-combobox";
 import {
   Select,
   SelectContent,
@@ -45,6 +47,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split("T")[0]);
   const [saleBuyer, setSaleBuyer] = useState("");
   const [salePlatform, setSalePlatform] = useState("Direct");
+  const [saleType, setSaleType] = useState<"inbound" | "outbound">("inbound");
   const [saleNotes, setSaleNotes] = useState("");
 
   const { data: existingSale } = useQuery({
@@ -52,7 +55,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales")
-        .select("id, sale_price, sold_at, buyer, platform, notes")
+        .select("id, sale_price, sold_at, buyer, platform, sale_type, notes")
         .eq("domain_id", domain.id)
         .maybeSingle();
       if (error) return null;
@@ -62,6 +65,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
         sold_at: string;
         buyer: string | null;
         platform: string | null;
+        sale_type: "inbound" | "outbound";
         notes: string | null;
       } | null;
     },
@@ -74,6 +78,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
       setSaleDate(existingSale.sold_at);
       setSaleBuyer(existingSale.buyer ?? "");
       setSalePlatform(existingSale.platform ?? "Direct");
+      setSaleType(existingSale.sale_type ?? "inbound");
       setSaleNotes(existingSale.notes ?? "");
     }
   }, [existingSale]);
@@ -120,6 +125,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
           sold_at: saleDate,
           buyer: saleBuyer || undefined,
           platform: salePlatform || undefined,
+          sale_type: saleType,
           notes: saleNotes || undefined,
         } as never);
         await updateDomain(domain.id, data as Parameters<typeof updateDomain>[1]);
@@ -136,6 +142,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
           sold_at: saleDate,
           buyer: saleBuyer || undefined,
           platform: salePlatform || undefined,
+          sale_type: saleType,
           notes: saleNotes || undefined,
         } as never);
       }
@@ -274,6 +281,11 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Type</Label>
+                    <SaleTypeCheckboxes value={saleType} onChange={setSaleType} />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="sale_date">Sale Date *</Label>
                     <Input id="sale_date" type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
                   </div>
@@ -285,20 +297,11 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
                   <div className="space-y-2">
                     <Label htmlFor="sale_platform">Platform</Label>
-                    <Select value={salePlatform} onValueChange={setSalePlatform}>
-                      <SelectTrigger id="sale_platform">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Direct">Direct</SelectItem>
-                        <SelectItem value="Sedo">Sedo</SelectItem>
-                        <SelectItem value="Afternic">Afternic</SelectItem>
-                        <SelectItem value="Dan.com">Dan.com</SelectItem>
-                        <SelectItem value="Flippa">Flippa</SelectItem>
-                        <SelectItem value="GoDaddy Auctions">GoDaddy Auctions</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <PlatformCombobox
+                      id="sale_platform"
+                      value={salePlatform}
+                      onChange={setSalePlatform}
+                    />
                   </div>
                 </div>
 

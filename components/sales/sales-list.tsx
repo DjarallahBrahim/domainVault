@@ -10,6 +10,7 @@ import {
 import type { Database } from "@/types/supabase";
 import { ArrowUpDown } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
 
@@ -87,6 +88,7 @@ export function SalesList({
               </TableHead>
               <TableHead>Buyer</TableHead>
               <TableHead>Platform</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -116,6 +118,13 @@ export function SalesList({
                 </TableCell>
                 <TableCell className="text-sm text-text-muted">
                   {sale.platform || "—"}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={sale.sale_type === "outbound" ? "warning" : "neutral"}
+                  >
+                    {sale.sale_type === "outbound" ? "Outbound" : "Inbound"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

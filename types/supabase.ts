@@ -59,6 +59,7 @@ export interface Database {
           sold_at: string;
           buyer: string | null;
           platform: string | null;
+          sale_type: "inbound" | "outbound";
           notes: string | null;
           created_at: string;
         };
@@ -71,6 +72,7 @@ export interface Database {
           sold_at: string;
           buyer?: string | null;
           platform?: string | null;
+          sale_type?: "inbound" | "outbound";
           notes?: string | null;
           created_at?: string;
         };
@@ -83,6 +85,7 @@ export interface Database {
           sold_at?: string;
           buyer?: string | null;
           platform?: string | null;
+          sale_type?: "inbound" | "outbound";
           notes?: string | null;
           created_at?: string;
         };

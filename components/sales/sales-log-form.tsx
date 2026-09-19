@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,6 +18,8 @@ import {
   type CreateSaleResult,
 } from "@/lib/supabase/queries/sales-client";
 import { saleFormSchema, type SaleFormInput } from "@/lib/validations/sales";
+import { SaleTypeCheckboxes } from "@/components/sales/sale-type-checkboxes";
+import { PlatformCombobox } from "@/components/sales/platform-combobox";
 
 interface SalesLogFormProps {
   prefilledDomain?: string;
@@ -28,6 +30,7 @@ interface SalesLogFormProps {
     sold_at: string;
     buyer: string | null;
     platform: string | null;
+    sale_type: "inbound" | "outbound";
     notes: string | null;
   };
   onSuccess?: () => void;
@@ -45,6 +48,7 @@ export function SalesLogForm({
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     reset,
@@ -57,6 +61,7 @@ export function SalesLogForm({
           sold_at: saleToEdit.sold_at,
           buyer: saleToEdit.buyer ?? "",
           platform: saleToEdit.platform ?? "",
+          sale_type: saleToEdit.sale_type,
           notes: saleToEdit.notes ?? "",
         }
       : {
@@ -65,6 +70,7 @@ export function SalesLogForm({
           sold_at: "",
           buyer: "",
           platform: "",
+          sale_type: "inbound",
           notes: "",
         },
   });
@@ -77,6 +83,7 @@ export function SalesLogForm({
         sold_at: data.sold_at,
         buyer: data.buyer || null,
         platform: data.platform || null,
+        sale_type: data.sale_type,
         notes: data.notes || null,
       }),
     onSuccess: (result: CreateSaleResult) => {
@@ -104,6 +111,7 @@ export function SalesLogForm({
         sold_at: data.sold_at,
         buyer: data.buyer || null,
         platform: data.platform || null,
+        sale_type: data.sale_type,
         notes: data.notes || null,
       }),
     onSuccess: () => {
@@ -187,6 +195,20 @@ export function SalesLogForm({
             </div>
 
             <div className="space-y-2">
+              <Label>Type</Label>
+              <Controller
+                control={control}
+                name="sale_type"
+                render={({ field }) => (
+                  <SaleTypeCheckboxes value={field.value} onChange={field.onChange} />
+                )}
+              />
+              <p className="text-xs text-text-muted">
+                Inbound = buyer came to you · Outbound = you contacted the buyer
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="sold_at">Sale Date</Label>
               <Input
                 id="sold_at"
@@ -212,11 +234,25 @@ export function SalesLogForm({
 
             <div className="space-y-2">
               <Label htmlFor="platform">Platform (optional)</Label>
-              <Input
-                id="platform"
-                {...register("platform")}
-                placeholder="e.g., Afternic, Sedo, Private"
+              <Controller
+                control={control}
+                name="platform"
+                render={({ field }) => (
+                  <PlatformCombobox
+                    id="platform"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
+                )}
               />
+              <p className="text-xs text-text-muted">
+                Press Tab to accept the closest match, or type your own.
+              </p>
+              {errors.platform && (
+                <p className="text-xs text-accent-danger">
+                  {errors.platform.message}
+                </p>
+              )}
             </div>
           </div>
 

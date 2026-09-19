@@ -122,6 +122,7 @@ export function SalesClient({ initialData }: SalesClientProps) {
                   sold_at: editingSale.sold_at,
                   buyer: editingSale.buyer,
                   platform: editingSale.platform,
+                  sale_type: editingSale.sale_type,
                   notes: editingSale.notes,
                 }
               : undefined

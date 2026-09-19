@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { normalizePlatform } from "@/lib/constants/marketplaces";
 import type { Database } from "@/types/supabase";
 
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
@@ -66,6 +67,7 @@ export interface CreateSaleData {
   sold_at: string;
   buyer?: string | null;
   platform?: string | null;
+  sale_type?: "inbound" | "outbound";
   notes?: string | null;
 }
 
@@ -115,7 +117,8 @@ export async function createSale(
     sale_price: data.sale_price,
     sold_at: data.sold_at,
     buyer: data.buyer ?? null,
-    platform: data.platform ?? null,
+    platform: normalizePlatform(data.platform ?? "") || null,
+    sale_type: data.sale_type ?? "inbound",
     notes: data.notes ?? null,
   } as unknown as SaleInsert;
 
@@ -204,7 +207,8 @@ export async function updateSale(
     sale_price: data.sale_price,
     sold_at: data.sold_at,
     buyer: data.buyer ?? null,
-    platform: data.platform ?? null,
+    platform: normalizePlatform(data.platform ?? "") || null,
+    sale_type: data.sale_type ?? "inbound",
     notes: data.notes ?? null,
   } as unknown as SaleUpdate;
 

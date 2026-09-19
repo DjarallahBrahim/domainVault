@@ -18,7 +18,8 @@ export const saleFormSchema = z.object({
       "Sale date cannot be in the future"
     ),
   buyer: z.string().optional().nullable(),
-  platform: z.string().optional().nullable(),
+  platform: z.string().max(100, "Platform name is too long").optional().nullable(),
+  sale_type: z.enum(["inbound", "outbound"]),
   notes: z.string().optional().nullable(),
 });
 
