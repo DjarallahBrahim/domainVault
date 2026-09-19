@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -11,24 +10,31 @@ import { mapAuthError } from "@/lib/errors/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { PasswordInput } from "./password-input";
+import { FieldError } from "./field-error";
+import { FormAlert } from "./form-alert";
 
 export function LoginForm({ initialError = null }: { initialError?: string | null }) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(initialError);
-
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    mode: "onBlur",
   });
 
+  const email = watch("email");
+  const resetHref = email
+    ? `/reset-password?email=${encodeURIComponent(email)}`
+    : "/reset-password";
+
   async function onSubmit(data: LoginInput) {
-    setIsLoading(true);
-    setServerError(null);
+    clearErrors("root");
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -36,10 +42,8 @@ export function LoginForm({ initialError = null }: { initialError?: string | nul
       password: data.password,
     });
 
-    setIsLoading(false);
-
     if (error) {
-      setServerError(mapAuthError(error));
+      setError("root", { message: mapAuthError(error) });
       return;
     }
 
@@ -48,59 +52,67 @@ export function LoginForm({ initialError = null }: { initialError?: string | nul
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to your DNfly.io account</CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              {...register("email")}
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <p className="text-sm text-accent-danger">{errors.email.message}</p>
-            )}
-          </div>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Welcome back</h1>
+        <p className="mt-1.5 text-sm text-text-muted">
+          Sign in to continue to your domain portfolio.
+        </p>
+      </div>
 
-          <div className="space-y-2">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <FormAlert>{errors.root?.message ?? initialError}</FormAlert>
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            autoFocus
+            className="h-10 bg-bg-surface"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          <FieldError id="email-error">{errors.email?.message}</FieldError>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-4">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              {...register("password")}
-              disabled={isLoading}
-            />
-            {errors.password && (
-              <p className="text-sm text-accent-danger">{errors.password.message}</p>
-            )}
-          </div>
-
-          {serverError && (
-            <p className="text-sm text-accent-danger">{serverError}</p>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
-          </Button>
-          <div className="flex w-full justify-between text-sm text-text-muted">
-            <Link href="/reset-password" className="hover:text-accent-primary hover:underline">
+            <Link
+              href={resetHref}
+              className="rounded text-xs font-medium text-accent-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               Forgot password?
             </Link>
-            <Link href="/register" className="text-accent-primary hover:underline">
-              Don&apos;t have an account? Register
-            </Link>
           </div>
-        </CardFooter>
+          <PasswordInput
+            id="password"
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            className="h-10 bg-bg-surface"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          <FieldError id="password-error">{errors.password?.message}</FieldError>
+        </div>
+
+        <Button type="submit" size="lg" className="h-11 w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Signing in…" : "Sign in"}
+        </Button>
       </form>
-    </Card>
+
+      <p className="mt-6 text-center text-sm text-text-muted">
+        New to DNfly.io?{" "}
+        <Link href="/register" className="font-medium text-accent-primary hover:underline">
+          Create an account
+        </Link>
+      </p>
+    </div>
   );
 }

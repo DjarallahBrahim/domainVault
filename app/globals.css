@@ -190,6 +190,21 @@
   .diagram-dot--right {
     offset-path: path("M350 170 C400 200 560 195 580 252");
   }
+
+  /* Auth page — gentle float for decorative marketplace "stickers". */
+  .auth-sticker {
+    animation: auth-float 7s ease-in-out infinite;
+  }
+}
+
+@keyframes auth-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes diagram-dash-flow {

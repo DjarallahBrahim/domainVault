@@ -5,10 +5,12 @@ export const metadata: Metadata = {
   title: "Reset Password — DNfly.io",
 };
 
-export default function ResetPasswordPage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <ResetPasswordForm />
-    </main>
-  );
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const { email } = await searchParams;
+
+  return <ResetPasswordForm defaultEmail={email ?? ""} />;
 }

@@ -1,27 +1,21 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-
 export default function AuthLoading() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md animate-pulse">
-        <CardHeader>
-          <div className="h-6 w-32 bg-bg-elevated rounded" />
-          <div className="h-4 w-48 bg-bg-elevated rounded mt-2" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="h-4 w-12 bg-bg-elevated rounded" />
-            <div className="h-9 w-full bg-bg-elevated rounded" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-4 w-16 bg-bg-elevated rounded" />
-            <div className="h-9 w-full bg-bg-elevated rounded" />
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="h-9 w-full bg-bg-elevated rounded" />
-        </CardFooter>
-      </Card>
-    </main>
+    <div className="animate-pulse">
+      <div className="mb-8">
+        <div className="h-7 w-40 rounded bg-bg-elevated" />
+        <div className="mt-2.5 h-4 w-56 rounded bg-bg-elevated" />
+      </div>
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <div className="h-4 w-12 rounded bg-bg-elevated" />
+          <div className="h-10 w-full rounded-md bg-bg-elevated" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-16 rounded bg-bg-elevated" />
+          <div className="h-10 w-full rounded-md bg-bg-elevated" />
+        </div>
+        <div className="h-11 w-full rounded-md bg-bg-elevated" />
+      </div>
+    </div>
   );
 }

@@ -6,9 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function UpdatePasswordPage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <UpdatePasswordForm />
-    </main>
-  );
+  return <UpdatePasswordForm />;
 }

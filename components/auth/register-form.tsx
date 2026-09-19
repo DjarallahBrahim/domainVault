@@ -1,38 +1,41 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { type RegisterInput, registerSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
 import { mapAuthError } from "@/lib/errors/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { PasswordInput } from "./password-input";
+import { PasswordRequirements } from "./password-requirements";
+import { FieldError } from "./field-error";
+import { FormAlert } from "./form-alert";
 
 export function RegisterForm() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    mode: "onBlur",
   });
 
+  const password = watch("password") ?? "";
+
   async function onSubmit(data: RegisterInput) {
-    setIsLoading(true);
-    setServerError(null);
+    clearErrors("root");
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data: result, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -40,83 +43,79 @@ export function RegisterForm() {
       },
     });
 
-    setIsLoading(false);
-
     if (error) {
-      setServerError(mapAuthError(error));
+      setError("root", { message: mapAuthError(error) });
       return;
     }
 
-    toast.success("Check your email for a verification link");
-    router.push("/login");
+    // Email confirmation disabled → already signed in; otherwise send them to
+    // a dedicated "check your inbox" screen with the address pre-filled.
+    if (result.session) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Create your account</CardTitle>
-        <CardDescription>Start managing your domain portfolio</CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              {...register("email")}
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <p className="text-sm text-accent-danger">{errors.email.message}</p>
-            )}
-          </div>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+          Create your account
+        </h1>
+        <p className="mt-1.5 text-sm text-text-muted">
+          Start managing your domain portfolio — free, no credit card required.
+        </p>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Min. 8 characters, 1 number"
-              {...register("password")}
-              disabled={isLoading}
-            />
-            {errors.password && (
-              <p className="text-sm text-accent-danger">{errors.password.message}</p>
-            )}
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <FormAlert>{errors.root?.message}</FormAlert>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Re-enter your password"
-              {...register("confirmPassword")}
-              disabled={isLoading}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-accent-danger">{errors.confirmPassword.message}</p>
-            )}
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            autoFocus
+            className="h-10 bg-bg-surface"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          <FieldError id="email-error">{errors.email?.message}</FieldError>
+        </div>
 
-          {serverError && (
-            <p className="text-sm text-accent-danger">{serverError}</p>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create account"}
-          </Button>
-          <p className="text-sm text-text-muted">
-            Already have an account?{" "}
-            <Link href="/login" className="text-accent-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </CardFooter>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            placeholder="Create a password"
+            className="h-10 bg-bg-surface"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          <FieldError id="password-error">{errors.password?.message}</FieldError>
+          <PasswordRequirements value={password} />
+        </div>
+
+        <Button type="submit" size="lg" className="h-11 w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Creating account…" : "Create free account"}
+        </Button>
       </form>
-    </Card>
+
+      <p className="mt-6 text-center text-sm text-text-muted">
+        Already have an account?{" "}
+        <Link href="/login" className="font-medium text-accent-primary hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </div>
   );
 }

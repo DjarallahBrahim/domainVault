@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { VerifyEmailContent } from "./verify-email-content";
 
 export const metadata: Metadata = {
   title: "Verify Email — DNfly.io",
 };
 
-export default function VerifyEmailPage() {
+export default async function VerifyEmailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const { email } = await searchParams;
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <VerifyEmailContent />
-    </main>
+    <AuthShell>
+      <VerifyEmailContent email={email ?? ""} />
+    </AuthShell>
   );
 }

@@ -6,33 +6,34 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { Clock, KeyRound } from "lucide-react";
 import { type UpdatePasswordInput, updatePasswordSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PasswordInput } from "./password-input";
+import { PasswordRequirements } from "./password-requirements";
+import { FieldError } from "./field-error";
+import { FormAlert } from "./form-alert";
 
 export function UpdatePasswordForm() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [hasSession, setHasSession] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<UpdatePasswordInput>({
     resolver: zodResolver(updatePasswordSchema),
+    mode: "onBlur",
   });
+
+  const password = watch("password") ?? "";
 
   useEffect(() => {
     const supabase = createClient();
@@ -43,15 +44,15 @@ export function UpdatePasswordForm() {
   }, []);
 
   async function onSubmit(data: UpdatePasswordInput) {
-    setIsLoading(true);
+    clearErrors("root");
 
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: data.password });
 
-    setIsLoading(false);
-
     if (error) {
-      toast.error(error.message || "Failed to update password. Please try again.");
+      setError("root", {
+        message: error.message || "Failed to update password. Please try again.",
+      });
       return;
     }
 
@@ -62,83 +63,75 @@ export function UpdatePasswordForm() {
 
   if (checking) {
     return (
-      <Card className="w-full max-w-md">
-        <CardContent className="flex items-center justify-center p-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-accent-primary" />
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center py-16">
+        <div
+          role="status"
+          aria-label="Checking your reset link"
+          className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-accent-primary"
+        />
+      </div>
     );
   }
 
   if (!hasSession) {
     return (
-      <Card className="w-full max-w-md text-center">
-        <CardHeader>
-          <CardTitle>Link expired</CardTitle>
-          <CardDescription>
-            This password reset link is invalid or has expired. Request a new one
-            to continue.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="flex justify-center">
-          <Link href="/reset-password">
-            <Button>Request a new link</Button>
-          </Link>
-        </CardFooter>
-      </Card>
+      <div>
+        <div className="mb-8">
+          <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-accent-warning/10 text-accent-warning">
+            <Clock className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Link expired</h1>
+          <p className="mt-1.5 text-sm leading-6 text-text-muted">
+            This password reset link is invalid or has expired. Request a new one to continue.
+          </p>
+        </div>
+
+        <Link href="/reset-password" className="block">
+          <Button size="lg" className="h-11 w-full">
+            Request a new link
+          </Button>
+        </Link>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Set a new password</CardTitle>
-        <CardDescription>At least 8 characters including 1 number</CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">New password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Min 8 characters, 1 number"
-              {...register("password")}
-              disabled={isLoading}
-            />
-            {errors.password && (
-              <p className="text-sm text-accent-danger">{errors.password.message}</p>
-            )}
-          </div>
+    <div>
+      <div className="mb-8">
+        <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <KeyRound className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+          Set a new password
+        </h1>
+        <p className="mt-1.5 text-sm text-text-muted">
+          Choose a strong password you haven&apos;t used before.
+        </p>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm new password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Re-enter new password"
-              {...register("confirmPassword")}
-              disabled={isLoading}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-accent-danger">
-                {errors.confirmPassword.message}
-              </p>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Updating..." : "Update password"}
-          </Button>
-          <Link
-            href="/login"
-            className="text-sm text-text-muted hover:text-accent-primary hover:underline"
-          >
-            Back to login
-          </Link>
-        </CardFooter>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <FormAlert>{errors.root?.message}</FormAlert>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">New password</Label>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            placeholder="Create a new password"
+            autoFocus
+            className="h-10 bg-bg-surface"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          <FieldError id="password-error">{errors.password?.message}</FieldError>
+          <PasswordRequirements value={password} />
+        </div>
+
+        <Button type="submit" size="lg" className="h-11 w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Updating…" : "Update password"}
+        </Button>
       </form>
-    </Card>
+    </div>
   );
 }

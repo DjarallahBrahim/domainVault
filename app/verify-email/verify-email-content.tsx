@@ -1,56 +1,84 @@
 "use client";
 
 import { useState } from "react";
-import { Mail } from "lucide-react";
+import Link from "next/link";
+import { MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function VerifyEmailContent() {
+export function VerifyEmailContent({ email }: { email: string }) {
   const [isSending, setIsSending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   async function handleResend() {
+    if (!email) {
+      toast.error("We don't have an email address to resend to. Please sign up again.");
+      return;
+    }
+
     setIsSending(true);
     const supabase = createClient();
     const { error } = await supabase.auth.resend({
       type: "signup",
-      email: "",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
-
     setIsSending(false);
 
     if (error) {
-      toast.error("Unable to resend. Please try again later.");
+      toast.error("Unable to resend. Please try again in a moment.");
       return;
     }
 
-    toast.success("Verification email resent. Check your inbox.");
+    setResent(true);
+    toast.success("Verification email resent");
   }
 
   return (
-    <Card className="w-full max-w-md text-center">
-      <CardHeader>
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-primary/10">
-          <Mail className="h-6 w-6 text-accent-primary" />
-        </div>
-        <CardTitle>Verify your email</CardTitle>
-        <CardDescription>
-          Check your inbox for a verification link. Click the link to activate your
-          account.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-text-muted">
-          Didn&apos;t receive the email? Check your spam folder or click below to
-          resend.
+    <div>
+      <div className="mb-8">
+        <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <MailCheck className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+          Verify your email
+        </h1>
+        <p className="mt-1.5 text-sm leading-6 text-text-muted">
+          {email ? (
+            <>
+              We sent a verification link to{" "}
+              <span className="font-medium text-text-primary">{email}</span>. Click it to
+              activate your account.
+            </>
+          ) : (
+            "Check your inbox for a verification link to activate your account."
+          )}
         </p>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <Button variant="outline" onClick={handleResend} disabled={isSending}>
-          {isSending ? "Sending..." : "Resend verification email"}
+      </div>
+
+      <div className="space-y-3">
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-11 w-full"
+          onClick={handleResend}
+          disabled={isSending || !email}
+        >
+          {isSending ? "Sending…" : resent ? "Resend again" : "Resend verification email"}
         </Button>
-      </CardFooter>
-    </Card>
+        <Link href="/login" className="block">
+          <Button size="lg" variant="ghost" className="h-11 w-full">
+            Back to sign in
+          </Button>
+        </Link>
+      </div>
+
+      <p className="mt-6 text-center text-xs text-text-muted">
+        Can&apos;t find it? Check your spam folder, then resend above.
+      </p>
+    </div>
   );
 }
