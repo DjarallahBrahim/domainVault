@@ -96,7 +96,7 @@ export const WIDGETS: Record<WidgetId, WidgetDef> = {
   },
   "salestype-donut": {
     id: "salestype-donut",
-    title: "Revenue by Sales Type",
+    title: "Sales by Type",
     span: "lg:col-span-3",
     render: () => <DashboardSalesTypeDonut />,
   },

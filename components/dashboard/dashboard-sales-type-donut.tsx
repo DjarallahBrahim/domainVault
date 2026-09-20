@@ -13,12 +13,6 @@ import { fetchSalesAnalytics } from "@/lib/supabase/queries/dashboard-client";
 
 const money = (n: number) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
 
-const compactMoney = (n: number) => {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
-  return `$${Math.round(n)}`;
-};
-
 interface TypeBucket {
   name: string;
   count: number;
@@ -52,18 +46,18 @@ export function DashboardSalesTypeDonut() {
     bucket.revenue += sale.sale_price;
   }
 
-  const total = buckets[0].revenue + buckets[1].revenue;
+  const totalCount = buckets[0].count + buckets[1].count;
   const palette = [colors.accent, colors.warning];
-  const chartData = buckets.filter((b) => b.revenue > 0);
+  const chartData = buckets.filter((b) => b.count > 0);
 
   if (!mounted || isLoading) {
-    return <WidgetCard title="Revenue by Sales Type" loading />;
+    return <WidgetCard title="Sales by Type" loading />;
   }
 
-  if (total === 0) {
+  if (totalCount === 0) {
     return (
       <WidgetCard
-        title="Revenue by Sales Type"
+        title="Sales by Type"
         empty
         emptyMessage="No sales logged yet"
       />
@@ -72,8 +66,8 @@ export function DashboardSalesTypeDonut() {
 
   return (
     <WidgetCard
-      title="Revenue by Sales Type"
-      description="Total revenue for inbound vs outbound"
+      title="Sales by Type"
+      description="Inbound vs outbound sale counts"
     >
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
         <div className="relative h-44 w-44 shrink-0">
@@ -85,7 +79,7 @@ export function DashboardSalesTypeDonut() {
                 cy="50%"
                 innerRadius={62}
                 outerRadius={82}
-                dataKey="revenue"
+                dataKey="count"
                 nameKey="name"
                 stroke="none"
                 animationDuration={reduced ? 0 : 600}
@@ -101,13 +95,15 @@ export function DashboardSalesTypeDonut() {
                 wrapperStyle={{ zIndex: 10 }}
                 content={
                   <ChartTooltip
-                    formatter={(value) => (hidden ? "••••" : money(Number(value)))}
+                    formatter={(value) =>
+                      `${Number(value)} sale${Number(value) === 1 ? "" : "s"}`
+                    }
                     footer={(item) => {
                       const bucket = item.payload as unknown as TypeBucket;
                       if (!bucket) return null;
                       return (
                         <div className="text-xs text-text-muted">
-                          {bucket.count} sale{bucket.count === 1 ? "" : "s"}
+                          Revenue {hidden ? "••••" : money(bucket.revenue)}
                         </div>
                       );
                     }}
@@ -118,10 +114,12 @@ export function DashboardSalesTypeDonut() {
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <p className={cn("text-3xl font-semibold tabular-nums tracking-tight text-text-primary", mask)}>
-                {compactMoney(total)}
+              <p className="text-3xl font-semibold tabular-nums tracking-tight text-text-primary">
+                {totalCount}
               </p>
-              <p className="text-xs text-text-muted">revenue</p>
+              <p className="text-xs text-text-muted">
+                sale{totalCount === 1 ? "" : "s"}
+              </p>
             </div>
           </div>
         </div>
@@ -144,7 +142,7 @@ export function DashboardSalesTypeDonut() {
                 {money(bucket.revenue)}
               </span>
               <span className="w-10 text-right text-xs tabular-nums text-text-muted">
-                {Math.round((bucket.revenue / total) * 100)}%
+                {Math.round((bucket.count / totalCount) * 100)}%
               </span>
             </div>
           ))}
