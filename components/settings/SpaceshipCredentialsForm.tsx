@@ -175,7 +175,7 @@ export function SpaceshipCredentialsForm() {
         <p className="text-xs text-text-muted pt-2">
           Generate your API Key and Secret in{" "}
           <a
-            href="https://spaceship.dev"
+            href="https://www.spaceship.com/application/api-manager/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-accent-primary underline"
