@@ -11,6 +11,7 @@ import { DomainSearch } from "@/components/domains/domain-search";
 import { DomainEmptyState } from "@/components/domains/domain-empty-state";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
 import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
+import { RenewDomainsDialog } from "@/components/domains/renew-domains-dialog";
 import { SedoOverlay } from "@/components/domains/SedoOverlay";
 import { SpaceshipOverlay } from "@/components/domains/SpaceshipOverlay";
 import { SyncMenu } from "@/components/domains/SyncMenu";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
 import { toast } from "sonner";
 import type { Database } from "@/types/supabase";
+import type { RenewalTarget } from "@/types/renewal";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
 
@@ -65,6 +67,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [renewTargets, setRenewTargets] = useState<RenewalTarget[]>([]);
   const [showSlideover, setShowSlideover] = useState(false);
   const [editDomain, setEditDomain] = useState<DomainRow | null>(null);
   const [sedoOverlayDomain, setSedoOverlayDomain] = useState<DomainRow | null>(null);
@@ -161,6 +164,18 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         ),
       () => toast.error("Failed to copy")
     );
+  }
+
+  function handleBulkRenew() {
+    const targets = data.domains
+      .filter((d) => selectedIds.has(d.id))
+      .map((d) => ({
+        id: d.id,
+        domain: d.domain,
+        expiration_date: d.expiration_date,
+      }));
+
+    if (targets.length > 0) setRenewTargets(targets);
   }
 
   function handleAdd() {
@@ -337,6 +352,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           onSedoBatchSync={handleSedoBatchSync}
           onSpaceshipBatchSync={handleSpaceshipBatchSync}
           onCopySelected={handleCopySelected}
+          onBulkRenew={handleBulkRenew}
           reservedExtensions={data.reservedExtensions}
         />
       </div>
@@ -373,6 +389,15 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         }}
         count={deleteTarget === "__bulk__" ? selectedIds.size : 1}
         onConfirm={confirmDelete}
+      />
+
+      <RenewDomainsDialog
+        open={renewTargets.length > 0}
+        onOpenChange={(open) => {
+          if (!open) setRenewTargets([]);
+        }}
+        targets={renewTargets}
+        onRenewed={() => setSelectedIds(new Set())}
       />
 
       <DomainAddDialog

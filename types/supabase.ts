@@ -16,6 +16,9 @@ export interface Database {
           registrar: string | null;
           notes: string | null;
           tags: string[] | null;
+          renewal_count: number;
+          renewal_cost: number;
+          total_cost: number;
           created_at: string;
           updated_at: string;
         };
@@ -30,6 +33,8 @@ export interface Database {
           registrar?: string | null;
           notes?: string | null;
           tags?: string[] | null;
+          renewal_count?: number;
+          renewal_cost?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -44,8 +49,43 @@ export interface Database {
           registrar?: string | null;
           notes?: string | null;
           tags?: string[] | null;
+          renewal_count?: number;
+          renewal_cost?: number;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      domain_renewals: {
+        Row: {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          renewed_at: string;
+          old_expiration_date: string | null;
+          new_expiration_date: string;
+          cost: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          domain_id: string;
+          renewed_at?: string;
+          old_expiration_date?: string | null;
+          new_expiration_date: string;
+          cost?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          domain_id?: string;
+          renewed_at?: string;
+          old_expiration_date?: string | null;
+          new_expiration_date?: string;
+          cost?: number;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -252,7 +292,25 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      record_domain_renewal: {
+        Args: {
+          p_domain_id: string;
+          p_new_expiration_date: string;
+          p_cost?: number;
+        };
+        Returns: {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          renewed_at: string;
+          old_expiration_date: string | null;
+          new_expiration_date: string;
+          cost: number;
+          created_at: string;
+        };
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

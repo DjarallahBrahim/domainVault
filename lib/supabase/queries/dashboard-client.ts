@@ -191,12 +191,33 @@ export interface SpendVsSoldPoint {
   sold: number;
 }
 
+export interface MonthSnapshotDomain {
+  id: string;
+  domain: string;
+  created_at: string | null;
+  purchase_price: number | null;
+  expiration_date: string;
+  status: DomainRow["status"];
+}
+
+export interface MonthSnapshotSale {
+  id: string;
+  domain_id: string | null;
+  domain_name: string;
+  sold_at: string | null;
+  sale_price: number;
+  buyer: string | null;
+  platform: string | null;
+}
+
 export interface MonthSnapshot {
   month: string;
   invested: number;
   acquiredCount: number;
   soldCount: number;
   revenue: number;
+  acquiredDomains: MonthSnapshotDomain[];
+  soldDomains: MonthSnapshotSale[];
 }
 
 export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
@@ -213,41 +234,49 @@ export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
 
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("created_at, purchase_price")
+    .select("id, domain, created_at, purchase_price, expiration_date, status")
     .eq("user_id", user.id);
   if (domainError) throw domainError;
 
   const { data: sales, error: salesError } = await supabase
     .from("sales")
-    .select("sold_at, sale_price")
+    .select("id, domain_id, domain_name, sold_at, sale_price, buyer, platform")
     .eq("user_id", user.id);
   if (salesError) throw salesError;
 
   let invested = 0;
   let acquiredCount = 0;
-  for (const d of (domains ?? []) as unknown as Array<{
-    created_at: string | null;
-    purchase_price: number | null;
-  }>) {
+  const acquiredDomains: MonthSnapshotDomain[] = [];
+  for (const d of (domains ?? []) as unknown as MonthSnapshotDomain[]) {
     if (d.created_at && d.created_at.slice(0, 7) === monthKey) {
       invested += d.purchase_price ?? 0;
       acquiredCount++;
+      acquiredDomains.push(d);
     }
   }
+  acquiredDomains.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
 
   let revenue = 0;
   let soldCount = 0;
-  for (const s of (sales ?? []) as unknown as Array<{
-    sold_at: string | null;
-    sale_price: number;
-  }>) {
+  const soldDomains: MonthSnapshotSale[] = [];
+  for (const s of (sales ?? []) as unknown as MonthSnapshotSale[]) {
     if (s.sold_at && s.sold_at.slice(0, 7) === monthKey) {
       revenue += s.sale_price ?? 0;
       soldCount++;
+      soldDomains.push(s);
     }
   }
+  soldDomains.sort((a, b) => (b.sold_at ?? "").localeCompare(a.sold_at ?? ""));
 
-  return { month: monthLabel, invested, acquiredCount, soldCount, revenue };
+  return {
+    month: monthLabel,
+    invested,
+    acquiredCount,
+    soldCount,
+    revenue,
+    acquiredDomains,
+    soldDomains,
+  };
 }
 
 export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
@@ -335,10 +364,7 @@ export async function fetchQuickStats(): Promise<{
   } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase
-    .from("domains")
-    .select("*")
-    .eq("user_id", user.id);
+  const { data, error } = await supabase.from("domains").select("*").eq("user_id", user.id);
   if (error) throw error;
   const rows = (data ?? []) as unknown as DomainRow[];
   const active = rows.filter((d) => d.status === "active");

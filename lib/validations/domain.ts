@@ -116,6 +116,10 @@ export type CsvRow = z.infer<typeof csvRowSchema>;
 
 export const domainEditSchema = z.object({
   status: z.enum(["active", "expired", "sold", "pending"]),
+  expiration_date: z
+    .string()
+    .min(1, "Expiration date is required")
+    .refine(isValidDate, "Invalid date format"),
   registrar: z.string().nullable().optional(),
   purchase_price: z
     .number()

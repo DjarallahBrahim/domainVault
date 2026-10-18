@@ -6,6 +6,7 @@ export const queryKeys = {
       [...queryKeys.domains.lists(), filters] as const,
     details: () => [...queryKeys.domains.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.domains.details(), id] as const,
+    renewals: (domainId: string) => [...queryKeys.domains.all, "renewals", domainId] as const,
   },
   importLogs: {
     all: ["import-logs"] as const,

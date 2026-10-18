@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, DollarSign } from "lucide-react";
+import { ArrowLeft, Save, DollarSign, RefreshCw } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,12 +24,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
+import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
+import { DomainRenewalHistory } from "@/components/domains/domain-renewal-history";
+import { RenewDomainsDialog } from "@/components/domains/renew-domains-dialog";
 import { RemoveFromPlatformsPrompt } from "@/components/platforms/remove-from-platforms-dialog";
 import { domainEditSchema, type DomainEdit } from "@/lib/validations/domain";
 import { updateDomain, deleteDomain } from "@/lib/supabase/queries/domains-client";
 import { createSale, deleteSale } from "@/lib/supabase/queries/sales-client";
 import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import type { RenewalTarget } from "@/types/renewal";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -51,6 +55,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
   const [saleType, setSaleType] = useState<"inbound" | "outbound">("inbound");
   const [saleNotes, setSaleNotes] = useState("");
   const becameSoldRef = useRef(false);
+  const [renewTargets, setRenewTargets] = useState<RenewalTarget[]>([]);
   const [removalDomain, setRemovalDomain] = useState<{
     id: string;
     domain: string;
@@ -99,6 +104,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
     resolver: zodResolver(domainEditSchema),
     defaultValues: {
       status: domain.status,
+      expiration_date: domain.expiration_date,
       registrar: domain.registrar,
       purchase_price: domain.purchase_price,
       bin: (domain as Record<string, unknown>).bin as number | null | undefined,
@@ -159,6 +165,7 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
       queryClient.invalidateQueries({ queryKey: queryKeys.domains.all });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["sale", domain.id] });
+      router.refresh();
       toast.success("Domain updated");
       if (becameSoldRef.current) {
         becameSoldRef.current = false;
@@ -201,18 +208,37 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
             Back to Domains
           </button>
         </div>
-        <Link
-          href={`/sales?domain=${encodeURIComponent(domain.domain)}`}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent-success/10 text-accent-success text-sm font-medium hover:bg-accent-success/20 transition-colors"
-        >
-          <DollarSign className="h-4 w-4" />
-          Log Sale
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setRenewTargets([
+                {
+                  id: domain.id,
+                  domain: domain.domain,
+                  expiration_date: domain.expiration_date,
+                },
+              ])
+            }
+            className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+          >
+            <RefreshCw className="h-4 w-4 text-accent-primary" />
+            Mark Renewed
+          </button>
+          <Link
+            href={`/sales?domain=${encodeURIComponent(domain.domain)}`}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent-success/10 text-accent-success text-sm font-medium hover:bg-accent-success/20 transition-colors"
+          >
+            <DollarSign className="h-4 w-4" />
+            Log Sale
+          </Link>
+        </div>
       </div>
 
       <div>
         <h1 className="text-2xl font-bold font-display">
           <span className="font-mono">{domain.domain}</span>
+          <DomainRenewalBadge count={domain.renewal_count} totalCost={domain.renewal_cost} />
         </h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-sm text-text-muted">.{domain.tld}</span>
@@ -229,24 +255,43 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="domain">Domain Name</Label>
-                <Input id="domain" value={domain.domain} readOnly className="font-mono bg-bg-elevated cursor-not-allowed" />
+                <Input
+                  id="domain"
+                  value={domain.domain}
+                  readOnly
+                  className="font-mono bg-bg-elevated cursor-not-allowed"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="tld">TLD</Label>
-                <Input id="tld" value={`.${domain.tld}`} readOnly className="bg-bg-elevated cursor-not-allowed" />
+                <Input
+                  id="tld"
+                  value={`.${domain.tld}`}
+                  readOnly
+                  className="bg-bg-elevated cursor-not-allowed"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="expiration_date">Expiration Date</Label>
-                <Input id="expiration_date" value={domain.expiration_date} readOnly className="bg-bg-elevated cursor-not-allowed" />
+                <Input id="expiration_date" type="date" {...register("expiration_date")} />
+                {errors.expiration_date ? (
+                  <p className="text-xs text-accent-danger">{errors.expiration_date.message}</p>
+                ) : (
+                  <p className="text-xs text-text-muted">
+                    Update manually if WHOIS is unavailable.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={statusValue}
-                  onValueChange={(value) => setValue("status", value as DomainEdit["status"], { shouldDirty: true })}
+                  onValueChange={(value) =>
+                    setValue("status", value as DomainEdit["status"], { shouldDirty: true })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -262,19 +307,63 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="registrar">Registrar</Label>
-                <Input id="registrar" {...register("registrar")} placeholder="e.g., GoDaddy, Namecheap" />
+                <Input
+                  id="registrar"
+                  {...register("registrar")}
+                  placeholder="e.g., GoDaddy, Namecheap"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="purchase_price">Purchase Price ($)</Label>
-                <Input id="purchase_price" type="number" step="0.01" min="0" {...register("purchase_price", { valueAsNumber: true })} placeholder="0.00" />
-                {errors.purchase_price && <p className="text-xs text-accent-danger">{errors.purchase_price.message}</p>}
+                <Input
+                  id="purchase_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("purchase_price", { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                {errors.purchase_price && (
+                  <p className="text-xs text-accent-danger">{errors.purchase_price.message}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="bin">BIN ($)</Label>
-                <Input id="bin" type="number" step="0.01" min="0" {...register("bin", { valueAsNumber: true })} placeholder="0.00" />
+                <Input
+                  id="bin"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("bin", { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
                 {errors.bin && <p className="text-xs text-accent-danger">{errors.bin.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="renewal_cost">
+                  Renewal Cost ($){domain.renewal_count > 0 ? ` · ${domain.renewal_count}×` : ""}
+                </Label>
+                <Input
+                  id="renewal_cost"
+                  value={(domain.renewal_cost ?? 0).toFixed(2)}
+                  readOnly
+                  className="bg-bg-elevated cursor-not-allowed tabular-nums"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="total_cost">Total Cost ($)</Label>
+                <Input
+                  id="total_cost"
+                  value={(
+                    domain.total_cost ?? (domain.purchase_price ?? 0) + (domain.renewal_cost ?? 0)
+                  ).toFixed(2)}
+                  readOnly
+                  className="bg-bg-elevated cursor-not-allowed tabular-nums"
+                />
               </div>
             </div>
 
@@ -288,7 +377,15 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="sale_price">Sale Price *</Label>
-                    <Input id="sale_price" type="number" step="0.01" min="0" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" />
+                    <Input
+                      id="sale_price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={salePrice}
+                      onChange={(e) => setSalePrice(e.target.value)}
+                      placeholder="0.00"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -298,12 +395,22 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
                   <div className="space-y-2">
                     <Label htmlFor="sale_date">Sale Date *</Label>
-                    <Input id="sale_date" type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+                    <Input
+                      id="sale_date"
+                      type="date"
+                      value={saleDate}
+                      onChange={(e) => setSaleDate(e.target.value)}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="sale_buyer">Buyer</Label>
-                    <Input id="sale_buyer" value={saleBuyer} onChange={(e) => setSaleBuyer(e.target.value)} placeholder="Buyer name or company" />
+                    <Input
+                      id="sale_buyer"
+                      value={saleBuyer}
+                      onChange={(e) => setSaleBuyer(e.target.value)}
+                      placeholder="Buyer name or company"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -318,7 +425,13 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="sale_notes">Sale Notes</Label>
-                  <Textarea id="sale_notes" value={saleNotes} onChange={(e) => setSaleNotes(e.target.value)} rows={2} placeholder="Any notes about this sale..." />
+                  <Textarea
+                    id="sale_notes"
+                    value={saleNotes}
+                    onChange={(e) => setSaleNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Any notes about this sale..."
+                  />
                 </div>
               </div>
             )}
@@ -329,7 +442,10 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
                 id="tags-input"
                 value={tagsValue?.join(", ") ?? ""}
                 onChange={(e) => {
-                  const arr = e.target.value.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+                  const arr = e.target.value
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter((t) => t.length > 0);
                   setValue("tags", arr.length > 0 ? arr : null, { shouldDirty: true });
                 }}
                 placeholder="e.g., premium, brandable (comma separated)"
@@ -338,15 +454,28 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" {...register("notes")} rows={3} placeholder="Any notes about this domain..." />
+              <Textarea
+                id="notes"
+                {...register("notes")}
+                rows={3}
+                placeholder="Any notes about this domain..."
+              />
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
-              <button type="button" onClick={() => setShowDeleteDialog(true)} className="px-4 py-2 rounded-md text-sm font-medium text-accent-danger hover:bg-accent-danger/10 transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowDeleteDialog(true)}
+                className="px-4 py-2 rounded-md text-sm font-medium text-accent-danger hover:bg-accent-danger/10 transition-colors"
+              >
                 Delete Domain
               </button>
 
-              <button type="submit" disabled={!isDirty || saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 rounded-md bg-accent-primary text-white text-sm font-medium hover:bg-accent-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              <button
+                type="submit"
+                disabled={!isDirty || saveMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-accent-primary text-white text-sm font-medium hover:bg-accent-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
                 <Save className="h-4 w-4" />
                 {saveMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
@@ -355,12 +484,27 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
         </CardContent>
       </Card>
 
-      <DomainDeleteDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} count={1} onConfirm={handleDelete} />
+      <DomainRenewalHistory domainId={domain.id} />
 
-      <RemoveFromPlatformsPrompt
-        domain={removalDomain}
-        onClose={() => setRemovalDomain(null)}
+      <RenewDomainsDialog
+        open={renewTargets.length > 0}
+        onOpenChange={(open) => {
+          if (!open) setRenewTargets([]);
+        }}
+        targets={renewTargets}
+        onRenewed={(_, newExpirationDate) =>
+          setValue("expiration_date", newExpirationDate, { shouldDirty: false })
+        }
       />
+
+      <DomainDeleteDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        count={1}
+        onConfirm={handleDelete}
+      />
+
+      <RemoveFromPlatformsPrompt domain={removalDomain} onClose={() => setRemovalDomain(null)} />
     </div>
   );
 }

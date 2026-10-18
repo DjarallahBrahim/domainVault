@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
+import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { TldCell } from "@/components/domains/TldCell";
@@ -55,6 +56,7 @@ interface DomainTableProps {
   onSedoBatchSync: () => void;
   onSpaceshipBatchSync: () => void;
   onCopySelected: () => void;
+  onBulkRenew: () => void;
   reservedExtensions: Map<string, string[]>;
 }
 
@@ -82,6 +84,7 @@ export function DomainTable({
   onSedoBatchSync,
   onSpaceshipBatchSync,
   onCopySelected,
+  onBulkRenew,
   reservedExtensions,
 }: DomainTableProps) {
   const router = useRouter();
@@ -188,10 +191,10 @@ export function DomainTable({
                 {showAllColumns && (
                   <TableHead>
                     <button
-                      onClick={() => updateSort("purchase_price")}
+                      onClick={() => updateSort("total_cost")}
                       className="flex items-center gap-1 hover:text-text-primary"
                     >
-                      Purchase{sortLabel("purchase_price")}
+                      Total Cost{sortLabel("total_cost")}
                       <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </TableHead>
@@ -294,6 +297,10 @@ export function DomainTable({
                       >
                         {domain.domain}
                       </button>
+                      <DomainRenewalBadge
+                        count={domain.renewal_count}
+                        totalCost={domain.renewal_cost}
+                      />
                     </div>
                   </TableCell>
                   <TableCell>
@@ -308,7 +315,12 @@ export function DomainTable({
                     </div>
                   </TableCell>
                   {showAllColumns && (
-                    <TableCell className="text-sm">{formatPrice(domain.purchase_price)}</TableCell>
+                    <TableCell className="text-sm">
+                      {formatPrice(
+                        domain.total_cost ??
+                          (domain.purchase_price ?? 0) + (domain.renewal_cost ?? 0)
+                      )}
+                    </TableCell>
                   )}
                   <TableCell className="text-sm">
                     {formatPrice((domain as Record<string, unknown>).bin as number | null)}
@@ -417,7 +429,13 @@ export function DomainTable({
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            onClick={onBulkRenew}
+            className="px-4 py-2 rounded-md bg-accent-primary/10 border border-accent-primary/20 text-sm font-medium text-accent-primary hover:bg-accent-primary/20 transition-colors"
+          >
+            Renew {selectedIds.size} selected
+          </button>
           <button
             onClick={onCopySelected}
             className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"

@@ -1,6 +1,7 @@
 "use client";
 
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
+import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { TldCell } from "@/components/domains/TldCell";
@@ -66,6 +67,7 @@ export function DomainCard({
           >
             {domain.domain}
           </button>
+          <DomainRenewalBadge count={domain.renewal_count} totalCost={domain.renewal_cost} />
           <TldCell
             domainId={domain.id}
             domainName={domain.domain}

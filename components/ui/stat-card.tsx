@@ -31,6 +31,7 @@ export interface StatCardProps {
   suffix?: string;
   sub?: string | null;
   href?: string;
+  onClick?: () => void;
   loading?: boolean;
   masked?: boolean;
   size?: "lg" | "md";
@@ -51,6 +52,7 @@ function StatCard({
   suffix,
   sub,
   href,
+  onClick,
   loading = false,
   masked = false,
   size = "lg",
@@ -123,6 +125,21 @@ function StatCard({
       >
         {body}
       </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "block h-full w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          className
+        )}
+      >
+        {body}
+      </button>
     );
   }
 
