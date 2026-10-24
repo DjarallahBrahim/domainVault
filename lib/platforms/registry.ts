@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { deleteSedoListing } from "@/lib/supabase/queries/sedo-listings-client";
 import { deleteSpaceshipListing } from "@/lib/supabase/queries/spaceship-listings-client";
+import { deleteAfternicListing } from "@/lib/supabase/queries/afternic-listings-client";
 
 /**
  * A marketplace a domain can be delisted from once it sells.
@@ -14,6 +15,8 @@ export interface RemovablePlatform {
   label: string;
   /** API route that removes the listing at the provider. */
   endpoint: string;
+  /** HTTP method the endpoint expects. Defaults to POST. */
+  method?: "POST" | "DELETE";
   /** React Query key for this platform's mirrored listings (for invalidation). */
   queryKey: readonly unknown[];
   /** Whether the domain currently has a mirrored listing for this platform. */
@@ -23,7 +26,7 @@ export interface RemovablePlatform {
 }
 
 async function hasListing(
-  table: "sedo_listings" | "spaceship_listings",
+  table: "sedo_listings" | "spaceship_listings" | "afternic_listings",
   domainId: string
 ): Promise<boolean> {
   const supabase = createClient();
@@ -54,6 +57,15 @@ export const REMOVABLE_PLATFORMS: RemovablePlatform[] = [
     isListed: (domainId) => hasListing("spaceship_listings", domainId),
     clearLocal: deleteSpaceshipListing,
   },
+  {
+    id: "afternic",
+    label: "Afternic",
+    endpoint: "/api/afternic/delete",
+    method: "DELETE",
+    queryKey: queryKeys.afternicListings.all,
+    isListed: (domainId) => hasListing("afternic_listings", domainId),
+    clearLocal: deleteAfternicListing,
+  },
 ];
 
 export interface RemovableDomain {
@@ -62,9 +74,7 @@ export interface RemovableDomain {
 }
 
 /** Platforms (from the registry) where the domain has a mirrored listing. */
-export async function fetchListedPlatforms(
-  domainId: string
-): Promise<RemovablePlatform[]> {
+export async function fetchListedPlatforms(domainId: string): Promise<RemovablePlatform[]> {
   const checks = await Promise.all(
     REMOVABLE_PLATFORMS.map(async (platform) =>
       (await platform.isListed(domainId)) ? platform : null
@@ -85,7 +95,7 @@ async function removeFromPlatform(
   domain: RemovableDomain
 ): Promise<void> {
   const response = await fetch(platform.endpoint, {
-    method: "POST",
+    method: platform.method ?? "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ domain: domain.domain }),
   });

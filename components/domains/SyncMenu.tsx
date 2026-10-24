@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { useSedoSync } from "@/lib/hooks/useSedoSync";
 import { useSpaceshipSync } from "@/lib/hooks/useSpaceshipSync";
+import { useAfternicSync } from "@/lib/hooks/useAfternicSync";
+import type { AfternicSyncResult } from "@/lib/hooks/useAfternicSync";
 import { TldSyncModal } from "./TldSyncModal";
 
 interface SyncMenuProps {
@@ -19,6 +22,7 @@ interface SyncMenuProps {
   currentPageDomainIds: string[];
   domains: Array<{ id: string; domain: string }>;
   userId: string;
+  onAfternicSynced?: (result: AfternicSyncResult) => void;
 }
 
 export function SyncMenu({
@@ -26,14 +30,41 @@ export function SyncMenu({
   currentPageDomainIds,
   domains,
   userId,
+  onAfternicSynced,
 }: SyncMenuProps) {
   const [tldOpen, setTldOpen] = useState(false);
+  const [hasAfternicCredentials, setHasAfternicCredentials] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("user_settings")
+        .select("afternic_api_key")
+        .maybeSingle();
+      if (cancelled) return;
+      setHasAfternicCredentials(
+        Boolean((data as Record<string, unknown> | null)?.afternic_api_key)
+      );
+    }
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const { sync: syncSedo, isSyncing: isSedoSyncing, error: sedoError } = useSedoSync();
   const {
     sync: syncSpaceship,
     isSyncing: isSpaceshipSyncing,
     error: spaceshipError,
   } = useSpaceshipSync();
+  const {
+    sync: syncAfternic,
+    isSyncing: isAfternicSyncing,
+    error: afternicError,
+  } = useAfternicSync();
 
   async function handleSedo() {
     try {
@@ -53,7 +84,19 @@ export function SyncMenu({
     }
   }
 
-  const busy = isSedoSyncing || isSpaceshipSyncing;
+  async function handleAfternic() {
+    try {
+      const result = await syncAfternic();
+      toast.success(
+        `Afternic listings synced${result.matched ? ` · ${result.matched} matched` : ""}`
+      );
+      onAfternicSynced?.(result);
+    } catch (err) {
+      toast.error(afternicError ?? (err instanceof Error ? err.message : "Sync failed"));
+    }
+  }
+
+  const busy = isSedoSyncing || isSpaceshipSyncing || isAfternicSyncing;
 
   return (
     <>
@@ -82,6 +125,16 @@ export function SyncMenu({
           <DropdownMenuItem onSelect={handleSpaceship} disabled={isSpaceshipSyncing}>
             <RefreshCw className="h-4 w-4" />
             Sync Spaceship
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={handleAfternic}
+            disabled={isAfternicSyncing || hasAfternicCredentials === false}
+            title={
+              hasAfternicCredentials === false ? "Add Afternic credentials in Settings" : undefined
+            }
+          >
+            <RefreshCw className="h-4 w-4" />
+            Sync Afternic
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -176,19 +176,16 @@
     animation: diagram-card-pulse 2.4s ease-in-out 0.8s infinite both;
   }
 
-  /* Traveling dot — same CSS clock as .diagram-card-pulse (2.4s, travel in
-     the first 0.8s / 33.333%), so the glow can't drift from the arrival. */
+  /* Card glow — fires exactly when the SMIL dots arrive (0.8s = 33.333%
+     of the 2.4s cycle). */
+  .diagram-card-pulse {
+    animation: diagram-card-pulse 2.4s ease-in-out 0s infinite both;
+  }
+
+  /* Traveling dots are driven by SVG <animateMotion> so every branch shares
+     one start time. The class is kept for reduced-motion opt-out. */
   .diagram-dot {
-    animation: diagram-dot-travel 2.4s linear infinite;
-  }
-  .diagram-dot--left {
-    offset-path: path("M350 170 C300 200 140 195 120 252");
-  }
-  .diagram-dot--center {
-    offset-path: path("M350 170 C350 205 350 205 350 252");
-  }
-  .diagram-dot--right {
-    offset-path: path("M350 170 C400 200 560 195 580 252");
+    display: inline;
   }
 
   /* Auth page — gentle float for decorative marketplace "stickers". */
@@ -243,30 +240,17 @@
   }
 }
 
-@keyframes diagram-dot-travel {
-  0% {
-    offset-distance: 0%;
-    opacity: 1;
-  }
-  33.333% {
-    offset-distance: 100%;
-    opacity: 1;
-  }
-  34%,
-  100% {
-    offset-distance: 100%;
-    opacity: 0;
-  }
-}
-
 @keyframes diagram-card-pulse {
   0%,
-  45%,
+  31%,
+  36%,
   100% {
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
   }
-  6% {
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 0 0 5px rgba(34, 197, 94, 0.18);
+  33.333% {
+    box-shadow:
+      0 10px 30px rgba(15, 23, 42, 0.06),
+      0 0 0 5px rgba(34, 197, 94, 0.18);
   }
 }
 

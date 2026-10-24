@@ -14,11 +14,25 @@ import { DomainAddDialog } from "@/components/domains/domain-add-dialog";
 import { RenewDomainsDialog } from "@/components/domains/renew-domains-dialog";
 import { SedoOverlay } from "@/components/domains/SedoOverlay";
 import { SpaceshipOverlay } from "@/components/domains/SpaceshipOverlay";
+import { AfternicOverlay } from "@/components/domains/AfternicOverlay";
+import { BulkAfternicListDialog } from "@/components/domains/BulkAfternicListDialog";
+import { BulkAfternicEditDialog } from "@/components/domains/BulkAfternicEditDialog";
+import { BulkAfternicRemoveDialog } from "@/components/domains/BulkAfternicRemoveDialog";
+import { ImportUnmatchedAfternicDialog } from "@/components/domains/ImportUnmatchedAfternicDialog";
 import { SyncMenu } from "@/components/domains/SyncMenu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SalesLogForm } from "@/components/sales/sales-log-form";
 import { useSedoListings } from "@/lib/hooks/useSedoListings";
 import { useSedoRefreshOne } from "@/lib/hooks/useSedoRefreshOne";
 import { useSpaceshipListings } from "@/lib/hooks/useSpaceshipListings";
 import { useSpaceshipRefreshOne } from "@/lib/hooks/useSpaceshipRefreshOne";
+import { useAfternicListings } from "@/lib/hooks/useAfternicListings";
+import { useAfternicRefreshOne } from "@/lib/hooks/useAfternicRefreshOne";
+import type {
+  AfternicSoldDomain,
+  AfternicSyncResult,
+  AfternicUnmatchedDomain,
+} from "@/lib/hooks/useAfternicSync";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
@@ -27,6 +41,7 @@ import type { Database } from "@/types/supabase";
 import type { RenewalTarget } from "@/types/renewal";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
+import type { AfternicListing } from "@/types/afternic";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -60,6 +75,9 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         renewal: filters.renewal,
         registrars: filters.registrar,
         notListed: filters.notListed,
+        lander: filters.lander,
+        shows: filters.shows,
+        renewed: filters.renewed,
       }),
     initialData,
     staleTime: 10 * 1000,
@@ -86,6 +104,33 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
   const { listings: spaceshipListings } = useSpaceshipListings();
   const { refreshOne: refreshSpaceshipOne, isRefreshing: isSpaceshipRefreshing } =
     useSpaceshipRefreshOne();
+
+  const [afternicOverlayDomain, setAfternicOverlayDomain] = useState<DomainRow | null>(null);
+  const [afternicExistingListing, setAfternicExistingListing] = useState<AfternicListing | null>(
+    null
+  );
+
+  const { listings: afternicListings } = useAfternicListings();
+  const { refreshOne: refreshAfternicOne, isRefreshing: isAfternicRefreshing } =
+    useAfternicRefreshOne();
+
+  const [afternicUnmatched, setAfternicUnmatched] = useState<AfternicUnmatchedDomain[]>([]);
+  const [afternicSold, setAfternicSold] = useState<AfternicSoldDomain[]>([]);
+  const [showUnmatched, setShowUnmatched] = useState(false);
+  const [soldTarget, setSoldTarget] = useState<AfternicSoldDomain | null>(null);
+
+  const [bulkListOpen, setBulkListOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditMode, setBulkEditMode] = useState<
+    | "edit"
+    | "lease-enable"
+    | "lease-disable"
+    | "ft-buynow"
+    | "lander-bn-mo"
+    | "lander-all"
+    | "lander-bn-only"
+  >("edit");
+  const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
 
   function handleSedoRefresh(domain: DomainRow) {
     refreshOne(domain.domain, domain.id);
@@ -149,6 +194,85 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
       if (domain) refreshSpaceshipOne(domain.domain, domain.id);
     }
     setSelectedIds(new Set());
+  }
+
+  function handleAfternicRefresh(domain: DomainRow) {
+    refreshAfternicOne(domain.domain, domain.id);
+  }
+
+  function handleAfternicEdit(domain: DomainRow, listing: AfternicListing) {
+    setAfternicOverlayDomain(domain);
+    setAfternicExistingListing(listing);
+  }
+
+  function handleAfternicCreate(domain: DomainRow) {
+    setAfternicOverlayDomain(domain);
+    setAfternicExistingListing(null);
+  }
+
+  function handleAfternicClose() {
+    setAfternicOverlayDomain(null);
+    setAfternicExistingListing(null);
+  }
+
+  function handleAfternicLogSale(domain: DomainRow, listing: AfternicListing) {
+    setSoldTarget({
+      domainId: domain.id,
+      domain: domain.domain,
+      buynowPrice: listing.buynow_price,
+    });
+  }
+
+  function handleAfternicSynced(result: AfternicSyncResult) {
+    setAfternicUnmatched(result.unmatched);
+    setAfternicSold(result.sold);
+  }
+
+  function binOf(domain: DomainRow): number | null {
+    return ((domain as Record<string, unknown>).bin as number | null) ?? null;
+  }
+
+  function selectedDomainRows(): DomainRow[] {
+    return data.domains.filter((d) => selectedIds.has(d.id));
+  }
+
+  function handleAfternicBulkEdit(
+    mode:
+      | "edit"
+      | "lease-enable"
+      | "lease-disable"
+      | "ft-buynow"
+      | "lander-bn-mo"
+      | "lander-all"
+      | "lander-bn-only"
+  ) {
+    let rows = selectedDomainRows().filter((d) => afternicListings.has(d.id));
+
+    if (mode === "ft-buynow") {
+      rows = rows.filter(
+        (d) => afternicListings.get(d.id)?.fast_transfer_status === "INACTIVE_BUYNOW_MISSING"
+      );
+    }
+
+    if (rows.length === 0) {
+      toast.error(
+        mode === "ft-buynow"
+          ? "No selected domains are missing a Buy Now price"
+          : "Select domains that are listed on Afternic first"
+      );
+      return;
+    }
+    setBulkEditMode(mode);
+    setBulkEditOpen(true);
+  }
+
+  function handleAfternicBulkRemove() {
+    const rows = selectedDomainRows().filter((d) => afternicListings.has(d.id));
+    if (rows.length === 0) {
+      toast.error("Select domains that are listed on Afternic first");
+      return;
+    }
+    setBulkRemoveOpen(true);
   }
 
   function handleCopySelected() {
@@ -238,6 +362,9 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         renewal: filters.renewal,
         registrars: filters.registrar,
         notListed: filters.notListed,
+        lander: filters.lander,
+        shows: filters.shows,
+        renewed: filters.renewed,
         page: 1,
         pageSize: 10000,
       });
@@ -318,9 +445,45 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             currentPageDomainIds={data.domains.map((d) => d.id)}
             domains={data.domains.map((d) => ({ id: d.id, domain: d.domain }))}
             userId={userId}
+            onAfternicSynced={handleAfternicSynced}
           />
         </div>
       </div>
+
+      {afternicUnmatched.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-warning/30 bg-accent-warning/5 px-4 py-3">
+          <p className="text-sm text-accent-warning">
+            {afternicUnmatched.length} Afternic domain
+            {afternicUnmatched.length === 1 ? " is" : "s are"} not in DomainVault.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setShowUnmatched(true)}>
+            Review
+          </Button>
+        </div>
+      )}
+
+      {afternicSold.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-success/30 bg-accent-success/5 px-4 py-3">
+          <p className="text-sm text-accent-success">
+            {afternicSold.length} domain{afternicSold.length === 1 ? "" : "s"} sold on Afternic —
+            log the sale
+            {afternicSold.length === 1 ? "" : "s"}.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {afternicSold.slice(0, 3).map((item) => (
+              <Button
+                key={item.domainId}
+                size="sm"
+                variant="outline"
+                onClick={() => setSoldTarget(item)}
+              >
+                Log {item.domain}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <DomainSearch tlds={tlds} registrars={registrars} onExport={handleExport} />
 
       <div className="hidden sm:block">
@@ -347,10 +510,26 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           spaceshipRefreshingIds={
             new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))
           }
+          afternicListings={afternicListings}
+          onAfternicEdit={handleAfternicEdit}
+          onAfternicCreate={handleAfternicCreate}
+          onAfternicRefresh={handleAfternicRefresh}
+          onAfternicLogSale={handleAfternicLogSale}
+          afternicRefreshingIds={
+            new Set(data.domains.filter((d) => isAfternicRefreshing(d.id)).map((d) => d.id))
+          }
           onSedoBatch={handleSedoBatch}
           onSpaceshipBatch={handleSpaceshipBatch}
           onSedoBatchSync={handleSedoBatchSync}
           onSpaceshipBatchSync={handleSpaceshipBatchSync}
+          onAfternicBulkList={() => setBulkListOpen(true)}
+          onAfternicBulkEdit={() => handleAfternicBulkEdit("edit")}
+          onAfternicBulkRemove={handleAfternicBulkRemove}
+          onAfternicBulkLease={(enable) =>
+            handleAfternicBulkEdit(enable ? "lease-enable" : "lease-disable")
+          }
+          onAfternicBulkFtBuynow={() => handleAfternicBulkEdit("ft-buynow")}
+          onAfternicBulkPreset={(preset) => handleAfternicBulkEdit(preset)}
           onCopySelected={handleCopySelected}
           onBulkRenew={handleBulkRenew}
           reservedExtensions={data.reservedExtensions}
@@ -376,6 +555,14 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             onSpaceshipRefresh={handleSpaceshipRefresh}
             spaceshipRefreshingIds={
               new Set(data.domains.filter((d) => isSpaceshipRefreshing(d.id)).map((d) => d.id))
+            }
+            afternicListings={afternicListings}
+            onAfternicEdit={handleAfternicEdit}
+            onAfternicCreate={handleAfternicCreate}
+            onAfternicRefresh={handleAfternicRefresh}
+            onAfternicLogSale={handleAfternicLogSale}
+            afternicRefreshingIds={
+              new Set(data.domains.filter((d) => isAfternicRefreshing(d.id)).map((d) => d.id))
             }
             reservedExtensions={data.reservedExtensions}
           />
@@ -467,6 +654,109 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             : undefined
         }
       />
+
+      <AfternicOverlay
+        open={afternicOverlayDomain !== null}
+        onClose={handleAfternicClose}
+        domain={
+          afternicOverlayDomain
+            ? {
+                id: afternicOverlayDomain.id,
+                domain: afternicOverlayDomain.domain,
+                registrar: afternicOverlayDomain.registrar,
+                expiration_date: afternicOverlayDomain.expiration_date,
+                bin: binOf(afternicOverlayDomain),
+              }
+            : null
+        }
+        existingListing={afternicExistingListing}
+        onSuccess={handleAfternicClose}
+      />
+
+      {bulkListOpen && (
+        <BulkAfternicListDialog
+          open={bulkListOpen}
+          onOpenChange={setBulkListOpen}
+          candidates={selectedDomainRows().map((d) => ({
+            id: d.id,
+            domain: d.domain,
+            bin: binOf(d),
+            alreadyListed: afternicListings.has(d.id),
+          }))}
+          onComplete={() => {
+            setBulkListOpen(false);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      {bulkEditOpen && (
+        <BulkAfternicEditDialog
+          open={bulkEditOpen}
+          onOpenChange={setBulkEditOpen}
+          mode={bulkEditMode}
+          candidates={selectedDomainRows().flatMap((d) => {
+            const listing = afternicListings.get(d.id);
+            return listing ? [{ id: d.id, domain: d.domain, bin: binOf(d), listing }] : [];
+          })}
+          onComplete={() => {
+            setBulkEditOpen(false);
+            setSelectedIds(new Set());
+          }}
+          onRecheck={(items) => {
+            for (const item of items) {
+              refreshAfternicOne(item.domain, item.id, { silent: true });
+            }
+          }}
+        />
+      )}
+
+      {bulkRemoveOpen && (
+        <BulkAfternicRemoveDialog
+          open={bulkRemoveOpen}
+          onOpenChange={setBulkRemoveOpen}
+          candidates={selectedDomainRows().flatMap((d) =>
+            afternicListings.has(d.id) ? [{ id: d.id, domain: d.domain }] : []
+          )}
+          onComplete={() => {
+            setBulkRemoveOpen(false);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      <ImportUnmatchedAfternicDialog
+        open={showUnmatched}
+        onOpenChange={setShowUnmatched}
+        domains={afternicUnmatched}
+        onImported={() => setAfternicUnmatched([])}
+      />
+
+      <Dialog
+        open={soldTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setSoldTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Log Afternic sale</DialogTitle>
+          </DialogHeader>
+          {soldTarget && (
+            <SalesLogForm
+              prefilledDomain={soldTarget.domain}
+              prefilledPlatform="Afternic"
+              defaultSoldAt={new Date().toISOString().slice(0, 10)}
+              onSuccess={() => {
+                setAfternicSold((prev) =>
+                  prev.filter((item) => item.domainId !== soldTarget.domainId)
+                );
+                setSoldTarget(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

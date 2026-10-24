@@ -12,17 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  createSale,
-  updateSale,
-  type CreateSaleResult,
-} from "@/lib/supabase/queries/sales-client";
+import { createSale, updateSale, type CreateSaleResult } from "@/lib/supabase/queries/sales-client";
 import { saleFormSchema, type SaleFormInput } from "@/lib/validations/sales";
 import { SaleTypeCheckboxes } from "@/components/sales/sale-type-checkboxes";
 import { PlatformCombobox } from "@/components/sales/platform-combobox";
 
 interface SalesLogFormProps {
   prefilledDomain?: string;
+  /** Pre-selects the platform for a new sale (e.g. "Afternic"). */
+  prefilledPlatform?: string;
+  /** Pre-fills the sale date for a new sale (YYYY-MM-DD). */
+  defaultSoldAt?: string;
   saleToEdit?: {
     id: string;
     domain_name: string;
@@ -40,6 +40,8 @@ interface SalesLogFormProps {
 
 export function SalesLogForm({
   prefilledDomain,
+  prefilledPlatform,
+  defaultSoldAt,
   saleToEdit,
   onSuccess,
   onSaleSaved,
@@ -70,9 +72,9 @@ export function SalesLogForm({
       : {
           domain_name: prefilledDomain ?? "",
           sale_price: undefined as unknown as number,
-          sold_at: "",
+          sold_at: defaultSoldAt ?? "",
           buyer: "",
-          platform: "",
+          platform: prefilledPlatform ?? "",
           sale_type: "inbound",
           notes: "",
         },
@@ -145,9 +147,7 @@ export function SalesLogForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">
-          {isEdit ? "Edit Sale" : "Log Sale"}
-        </CardTitle>
+        <CardTitle className="text-base">{isEdit ? "Edit Sale" : "Log Sale"}</CardTitle>
       </CardHeader>
       <CardContent>
         {warning && !warningConfirmed && (
@@ -179,9 +179,7 @@ export function SalesLogForm({
                 className={!!prefilledDomain && !isEdit ? "bg-bg-elevated cursor-not-allowed" : ""}
               />
               {errors.domain_name && (
-                <p className="text-xs text-accent-danger">
-                  {errors.domain_name.message}
-                </p>
+                <p className="text-xs text-accent-danger">{errors.domain_name.message}</p>
               )}
             </div>
 
@@ -196,9 +194,7 @@ export function SalesLogForm({
                 placeholder="500.00"
               />
               {errors.sale_price && (
-                <p className="text-xs text-accent-danger">
-                  {errors.sale_price.message}
-                </p>
+                <p className="text-xs text-accent-danger">{errors.sale_price.message}</p>
               )}
             </div>
 
@@ -225,19 +221,13 @@ export function SalesLogForm({
                 max={new Date().toISOString().split("T")[0]}
               />
               {errors.sold_at && (
-                <p className="text-xs text-accent-danger">
-                  {errors.sold_at.message}
-                </p>
+                <p className="text-xs text-accent-danger">{errors.sold_at.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="buyer">Buyer (optional)</Label>
-              <Input
-                id="buyer"
-                {...register("buyer")}
-                placeholder="e.g., John Doe"
-              />
+              <Input id="buyer" {...register("buyer")} placeholder="e.g., John Doe" />
             </div>
 
             <div className="space-y-2">
@@ -257,9 +247,7 @@ export function SalesLogForm({
                 Press Tab to accept the closest match, or type your own.
               </p>
               {errors.platform && (
-                <p className="text-xs text-accent-danger">
-                  {errors.platform.message}
-                </p>
+                <p className="text-xs text-accent-danger">{errors.platform.message}</p>
               )}
             </div>
           </div>

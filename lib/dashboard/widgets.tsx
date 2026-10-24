@@ -10,6 +10,7 @@ import { DashboardSpendSoldChart } from "@/components/dashboard/dashboard-spend-
 import { DashboardSalesLeaderboard } from "@/components/dashboard/dashboard-sales-leaderboard";
 import { DashboardPlatformBreakdown } from "@/components/dashboard/dashboard-platform-breakdown";
 import { DashboardSalesTypeDonut } from "@/components/dashboard/dashboard-sales-type-donut";
+import { DashboardMarketplaceCoverage } from "@/components/dashboard/dashboard-marketplace-coverage";
 import type {
   DashboardStats,
   ExpirySegments,
@@ -35,7 +36,8 @@ export type WidgetId =
   | "spend"
   | "sales"
   | "platforms"
-  | "salestype-donut";
+  | "salestype-donut"
+  | "coverage";
 
 export interface WidgetDef {
   id: WidgetId;
@@ -100,6 +102,12 @@ export const WIDGETS: Record<WidgetId, WidgetDef> = {
     span: "lg:col-span-3",
     render: () => <DashboardSalesTypeDonut />,
   },
+  coverage: {
+    id: "coverage",
+    title: "Marketplace Coverage",
+    span: "lg:col-span-3",
+    render: (d) => <DashboardMarketplaceCoverage totalActive={d.stats?.total_active ?? 0} />,
+  },
 };
 
 export const DEFAULT_ORDER: WidgetId[] = [
@@ -112,6 +120,7 @@ export const DEFAULT_ORDER: WidgetId[] = [
   "sales",
   "platforms",
   "salestype-donut",
+  "coverage",
 ];
 
 const WIDGET_IDS = new Set<string>(Object.keys(WIDGETS));

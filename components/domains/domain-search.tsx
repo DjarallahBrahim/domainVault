@@ -46,6 +46,18 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentCreated = searchParams.get("created") ?? "";
   const currentRegistrars = searchParams.get("registrar") ?? "";
   const currentRenewal = searchParams.get("renewal") ?? "";
+  const currentRenewed = searchParams.get("renewed") ?? "";
+  const currentNotListed = searchParams.get("notListed") ?? "";
+  const currentLander = searchParams.get("lander") ?? "";
+  const currentShows = searchParams.get("shows") ?? "";
+  const showMethods = currentShows
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const notListedPlatforms = currentNotListed
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   const [searchValue, setSearchValue] = useState(urlSearch.replace(/,/g, " "));
   const [expiryMin, setExpiryMin] = useState(currentExpiryMin);
@@ -127,7 +139,11 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     currentExpiryMax ||
     currentCreated ||
     currentRegistrars ||
-    currentRenewal;
+    currentRenewal ||
+    currentRenewed ||
+    currentNotListed ||
+    currentLander ||
+    currentShows;
 
   const activeFilterCount = [
     currentStatus !== "all" ? currentStatus : "",
@@ -136,7 +152,25 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     currentCreated,
     currentRegistrars,
     currentRenewal,
+    currentRenewed,
+    currentNotListed ? "notListed" : "",
+    currentLander,
+    currentShows,
   ].filter(Boolean).length;
+
+  function toggleNotListed(platform: string) {
+    const next = new Set(notListedPlatforms);
+    if (next.has(platform)) next.delete(platform);
+    else next.add(platform);
+    updateParam({ notListed: Array.from(next).join(",") });
+  }
+
+  function toggleShowMethod(method: string) {
+    const next = new Set(showMethods);
+    if (next.has(method)) next.delete(method);
+    else next.add(method);
+    updateParam({ shows: Array.from(next).join(",") });
+  }
 
   const sectionLabel = "text-[11px] font-medium tracking-wide text-text-muted";
 
@@ -350,6 +384,113 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-2">
+              <p className={sectionLabel}>Renewal history</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateParam({
+                      renewed: currentRenewed === "yes" ? "" : "yes",
+                    })
+                  }
+                  aria-pressed={currentRenewed === "yes"}
+                  className={cn(
+                    "h-8 rounded-full px-3.5 text-xs font-medium transition-colors",
+                    currentRenewed === "yes"
+                      ? "bg-accent-primary text-white"
+                      : "border border-border text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                  )}
+                >
+                  Renewed before
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-2">
+              <p className={sectionLabel}>Marketplace</p>
+              <Label className="text-xs font-medium text-text-muted">Not listed on</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "sedo", label: "Sedo" },
+                  { value: "spaceship", label: "Spaceship" },
+                  { value: "afternic", label: "Afternic" },
+                ].map((platform) => {
+                  const selected = notListedPlatforms.includes(platform.value);
+                  return (
+                    <button
+                      key={platform.value}
+                      type="button"
+                      onClick={() => toggleNotListed(platform.value)}
+                      aria-pressed={selected}
+                      className={cn(
+                        "h-8 rounded-full px-3.5 text-xs font-medium transition-colors",
+                        selected
+                          ? "bg-accent-primary text-white"
+                          : "border border-border text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                      )}
+                    >
+                      {platform.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-text-muted">Lander</Label>
+                  <Select
+                    value={currentLander || "all"}
+                    onValueChange={(value) => updateParam({ lander: value === "all" ? "" : value })}
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="buynow">Buy it Now</SelectItem>
+                      <SelectItem value="price_form">Request Price</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                      <SelectItem value="no_method">Custom with no method</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-text-muted">Shows</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: "buynow", label: "Buy Now" },
+                      { value: "makeoffer", label: "Make Offer" },
+                      { value: "lease", label: "Lease to Own" },
+                    ].map((method) => {
+                      const selected = showMethods.includes(method.value);
+                      return (
+                        <button
+                          key={method.value}
+                          type="button"
+                          onClick={() => toggleShowMethod(method.value)}
+                          aria-pressed={selected}
+                          className={cn(
+                            "h-8 rounded-full px-3.5 text-xs font-medium transition-colors",
+                            selected
+                              ? "bg-accent-primary text-white"
+                              : "border border-border text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                          )}
+                        >
+                          {method.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

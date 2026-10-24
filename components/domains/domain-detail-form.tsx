@@ -26,6 +26,7 @@ import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainDeleteDialog } from "@/components/domains/domain-delete-dialog";
 import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { DomainRenewalHistory } from "@/components/domains/domain-renewal-history";
+import { AfternicStatsCard } from "@/components/domains/afternic-stats-card";
 import { RenewDomainsDialog } from "@/components/domains/renew-domains-dialog";
 import { RemoveFromPlatformsPrompt } from "@/components/platforms/remove-from-platforms-dialog";
 import { domainEditSchema, type DomainEdit } from "@/lib/validations/domain";
@@ -245,6 +246,8 @@ export function DomainDetailForm({ domain }: DomainDetailFormProps) {
           <DomainStatusBadge status={statusValue} />
         </div>
       </div>
+
+      <AfternicStatsCard domainId={domain.id} domainName={domain.domain} />
 
       <Card>
         <CardHeader>

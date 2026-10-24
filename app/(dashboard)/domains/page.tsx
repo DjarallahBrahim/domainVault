@@ -29,6 +29,9 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
     renewal: typeof params.renewal === "string" ? params.renewal : undefined,
     registrars: typeof params.registrar === "string" ? params.registrar : undefined,
     notListed: typeof params.notListed === "string" ? params.notListed : undefined,
+    lander: typeof params.lander === "string" ? params.lander : undefined,
+    shows: typeof params.shows === "string" ? params.shows : undefined,
+    renewed: typeof params.renewed === "string" ? params.renewed : undefined,
   };
 
   const supabase = await createClient();

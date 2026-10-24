@@ -61,3 +61,18 @@ export async function fetchSpaceshipApiSecret(): Promise<string | null> {
       ?.spaceship_api_secret ?? null
   );
 }
+
+/** Fetches the stored Afternic API secret on demand. */
+export async function fetchAfternicApiSecret(): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("afternic_api_secret")
+    .maybeSingle();
+
+  if (error) throw error;
+  return (
+    (data as { afternic_api_secret: string | null } | null)
+      ?.afternic_api_secret ?? null
+  );
+}

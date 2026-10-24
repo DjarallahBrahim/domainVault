@@ -22,6 +22,9 @@ export const queryKeys = {
   spaceshipListings: {
     all: ["spaceship-listings"] as const,
   },
+  afternicListings: {
+    all: ["afternic-listings"] as const,
+  },
   userSettings: {
     all: ["user-settings"] as const,
   },

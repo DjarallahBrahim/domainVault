@@ -4,11 +4,13 @@ import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
+import { AfternicCardRow } from "@/components/domains/AfternicCardRow";
 import { TldCell } from "@/components/domains/TldCell";
 import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
+import type { AfternicListing } from "@/types/afternic";
 import { useRouter } from "next/navigation";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -26,6 +28,12 @@ interface DomainCardProps {
   onSpaceshipCreate: (domain: DomainRow) => void;
   onSpaceshipRefresh: (domain: DomainRow) => void;
   spaceshipRefreshingIds: Set<string>;
+  afternicListings: Map<string, AfternicListing>;
+  onAfternicEdit: (domain: DomainRow, listing: AfternicListing) => void;
+  onAfternicCreate: (domain: DomainRow) => void;
+  onAfternicRefresh: (domain: DomainRow) => void;
+  onAfternicLogSale: (domain: DomainRow, listing: AfternicListing) => void;
+  afternicRefreshingIds: Set<string>;
   reservedExtensions: Map<string, string[]>;
 }
 
@@ -47,6 +55,12 @@ export function DomainCard({
   onSpaceshipCreate,
   onSpaceshipRefresh,
   spaceshipRefreshingIds,
+  afternicListings,
+  onAfternicEdit,
+  onAfternicCreate,
+  onAfternicRefresh,
+  onAfternicLogSale,
+  afternicRefreshingIds,
   reservedExtensions,
 }: DomainCardProps) {
   const router = useRouter();
@@ -117,6 +131,16 @@ export function DomainCard({
               refreshing={spaceshipRefreshingIds.has(domain.id)}
             />
           </div>
+        </div>
+        <div className="border-t border-border pt-2">
+          <AfternicCardRow
+            listing={afternicListings.get(domain.id)}
+            onEdit={(listing) => onAfternicEdit(domain, listing)}
+            onCreate={() => onAfternicCreate(domain)}
+            onRefresh={() => onAfternicRefresh(domain)}
+            onLogSale={(listing) => onAfternicLogSale(domain, listing)}
+            refreshing={afternicRefreshingIds.has(domain.id)}
+          />
         </div>
         <div className="flex justify-between">
           <span>Added</span>

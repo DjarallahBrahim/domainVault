@@ -4,7 +4,7 @@ import { marketplaceLogos, type MarketplaceLogo } from "./data";
 function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
   return (
     <div
-      className="force-light relative min-h-[384px] w-full"
+      className="force-light relative min-h-[480px] w-full sm:min-h-[384px]"
       aria-label="DNfly.io publishing workflow"
     >
       {/* DNfly.io card */}
@@ -38,25 +38,142 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
 
       {/* Connector lines */}
       <svg
-        className="pointer-events-none absolute inset-0 z-10 h-full w-full text-primary"
+        className="pointer-events-none absolute inset-0 z-10 hidden h-full w-full text-primary sm:block"
         viewBox="0 0 700 384"
         fill="none"
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <path className="diagram-flow" d="M350 84 C350 105 350 112 350 135" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
-        <path className="diagram-flow" d="M350 170 C300 200 140 195 120 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
-        <path className="diagram-flow" d="M350 170 C350 205 350 205 350 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
-        <path className="diagram-flow" d="M350 170 C400 200 560 195 580 252" stroke="currentColor" strokeOpacity="0.4" strokeWidth="2" />
-        <path d="M115 243 L120 252 L125 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M345 243 L350 252 L355 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M575 243 L580 252 L585 243" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          className="diagram-flow"
+          d="M350 84 C350 105 350 112 350 135"
+          stroke="currentColor"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+        <path
+          className="diagram-flow"
+          d="M350 170 C300 200 150 200 87.5 252"
+          stroke="currentColor"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+        <path
+          className="diagram-flow"
+          d="M350 170 C335 205 290 210 262.5 252"
+          stroke="currentColor"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+        <path
+          className="diagram-flow"
+          d="M350 170 C365 205 410 210 437.5 252"
+          stroke="currentColor"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+        <path
+          className="diagram-flow"
+          d="M350 170 C400 200 550 200 612.5 252"
+          stroke="currentColor"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+        <path
+          d="M82.5 243 L87.5 252 L92.5 243"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M257.5 243 L262.5 252 L267.5 243"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M432.5 243 L437.5 252 L442.5 243"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M607.5 243 L612.5 252 L617.5 243"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
 
-        {/* Plain circles — movement comes from CSS offset-path + the
-            diagram-dot-travel keyframes, sharing the card glow's clock. */}
-        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--left" />
-        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--center" />
-        <circle r="4" fill="currentColor" className="diagram-dot diagram-dot--right" />
+        {/* Plain circles — SMIL motion paths share one timeline, so all four
+            branches always dispatch at exactly the same moment. */}
+        <circle r="4" fill="currentColor" className="diagram-dot">
+          <animateMotion
+            dur="0.8s"
+            begin="0s"
+            repeatCount="indefinite"
+            path="M350 170 C300 200 150 200 87.5 252"
+          />
+          <animate
+            attributeName="opacity"
+            dur="2.4s"
+            begin="0s"
+            repeatCount="indefinite"
+            values="1;1;0;0"
+            keyTimes="0;0.333;0.34;1"
+          />
+        </circle>
+        <circle r="4" fill="currentColor" className="diagram-dot">
+          <animateMotion
+            dur="0.8s"
+            begin="0s"
+            repeatCount="indefinite"
+            path="M350 170 C335 205 290 210 262.5 252"
+          />
+          <animate
+            attributeName="opacity"
+            dur="2.4s"
+            begin="0s"
+            repeatCount="indefinite"
+            values="1;1;0;0"
+            keyTimes="0;0.333;0.34;1"
+          />
+        </circle>
+        <circle r="4" fill="currentColor" className="diagram-dot">
+          <animateMotion
+            dur="0.8s"
+            begin="0s"
+            repeatCount="indefinite"
+            path="M350 170 C365 205 410 210 437.5 252"
+          />
+          <animate
+            attributeName="opacity"
+            dur="2.4s"
+            begin="0s"
+            repeatCount="indefinite"
+            values="1;1;0;0"
+            keyTimes="0;0.333;0.34;1"
+          />
+        </circle>
+        <circle r="4" fill="currentColor" className="diagram-dot">
+          <animateMotion
+            dur="0.8s"
+            begin="0s"
+            repeatCount="indefinite"
+            path="M350 170 C400 200 550 200 612.5 252"
+          />
+          <animate
+            attributeName="opacity"
+            dur="2.4s"
+            begin="0s"
+            repeatCount="indefinite"
+            values="1;1;0;0"
+            keyTimes="0;0.333;0.34;1"
+          />
+        </circle>
       </svg>
 
       {/* Pill */}
@@ -71,14 +188,18 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
       </div>
 
       {/* Marketplace cards */}
-      <div className="absolute inset-x-0 bottom-0 z-20 grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="absolute inset-x-0 bottom-0 z-20 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {logos.map((logo) => (
           <div
             key={logo.alt}
             className="diagram-card-pulse rounded-2xl border border-border bg-card px-4 py-7 text-center shadow-card transition-transform hover:-translate-y-1"
           >
             <div className="flex h-10 items-center justify-center">
-              <img src={logo.src} alt={logo.alt} className="max-h-10 max-w-full rounded-md object-contain" />
+              <img
+                src={logo.src}
+                alt={logo.alt}
+                className="max-h-10 max-w-full rounded-md object-contain"
+              />
             </div>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-primary">
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-tint">
@@ -94,7 +215,7 @@ function MarketplaceSyncDiagram({ logos }: { logos: MarketplaceLogo[] }) {
 }
 
 export function MarketplacesSection() {
-  const listLogos = marketplaceLogos.filter((logo) => logo.alt !== "Afternic");
+  const listLogos = marketplaceLogos;
 
   return (
     <section id="marketplaces" className="relative overflow-hidden bg-tint py-20">
@@ -111,8 +232,8 @@ export function MarketplacesSection() {
               Every marketplace.
             </h2>
             <p className="mt-6 max-w-md text-lg leading-8 text-muted-foreground">
-              Connect your marketplaces and publish your domains automatically. Update your price
-              once. Sync everywhere.
+              Connect Sedo, Spaceship, Afternic and Atom, publish your domains automatically, and
+              update your price once. Every listing stays in sync.
             </p>
             <ul className="mt-8 space-y-4 text-sm font-medium text-muted-foreground">
               {listLogos.map((logo) => (

@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RefreshCw, ChevronDown } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { TldDropdown } from "./TldDropdown";
 import { cn } from "@/lib/utils";
 
@@ -36,10 +37,7 @@ export function TldCell({
     setIsLoading(true);
 
     try {
-      const res = await fetch(
-        `/api/tld-checker/domains/${domainId}/refresh`,
-        { method: "POST" }
-      );
+      const res = await fetch(`/api/tld-checker/domains/${domainId}/refresh`, { method: "POST" });
 
       if (res.ok) {
         const { data } = await res.json();
@@ -59,19 +57,22 @@ export function TldCell({
 
   return (
     <div className="inline-flex items-center gap-1">
-      <button
-        type="button"
-        onClick={handleRefresh}
-        className="inline-flex items-center text-muted-foreground hover:text-accent-primary transition-colors"
-        title="Refresh TLDs"
-      >
-        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-      </button>
+      <Tooltip content="Re-check reserved TLDs">
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="inline-flex items-center text-muted-foreground transition-colors hover:text-accent-primary"
+          aria-label="Re-check reserved TLDs"
+        >
+          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+        </button>
+      </Tooltip>
       {count > 0 && (
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              title="View reserved TLDs"
               className={cn(
                 "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-mono border transition-colors cursor-pointer",
                 "bg-accent-warning/10 border-accent-warning/30 text-accent-warning"
