@@ -20,7 +20,7 @@ export function HeroSection({ ctaHref }: { ctaHref: string }) {
 
         <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-8 text-muted-foreground sm:text-lg">
           Import your portfolio, monitor renewals, track sales, and publish domains to Sedo,
-          Spaceship, Atom and more — from one dashboard.
+          Spaceship, Afternic, Atom and more — from one dashboard.
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

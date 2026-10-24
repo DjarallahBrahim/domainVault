@@ -20,6 +20,9 @@ export interface DomainFilters {
   expiryMax?: string;
   registrars?: string;
   notListed?: string;
+  lander?: string;
+  shows?: string;
+  renewed?: string;
   renewal?: string;
   created?: string;
 }
@@ -27,7 +30,48 @@ export interface DomainFilters {
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
   sedo: "sedo_listings",
   spaceship: "spaceship_listings",
+  afternic: "afternic_listings",
 };
+
+/** Collects domain_ids that already have a listing on the given platform. */
+async function fetchExcludedDomainIds(
+  supabase: ReturnType<typeof createClient>,
+  platform: string,
+  userId: string
+): Promise<string[]> {
+  const ids: string[] = [];
+
+  if (platform === "sedo") {
+    const { data, error } = await supabase
+      .from("sedo_listings")
+      .select("domain_id")
+      .eq("user_id", userId);
+    if (error) throw error;
+    for (const row of (data ?? []) as Array<{ domain_id: string }>) {
+      ids.push(row.domain_id);
+    }
+  } else if (platform === "spaceship") {
+    const { data, error } = await supabase
+      .from("spaceship_listings")
+      .select("domain_id")
+      .eq("user_id", userId);
+    if (error) throw error;
+    for (const row of (data ?? []) as Array<{ domain_id: string }>) {
+      ids.push(row.domain_id);
+    }
+  } else if (platform === "afternic") {
+    const { data, error } = await supabase
+      .from("afternic_listings")
+      .select("domain_id")
+      .eq("user_id", userId);
+    if (error) throw error;
+    for (const row of (data ?? []) as Array<{ domain_id: string }>) {
+      ids.push(row.domain_id);
+    }
+  }
+
+  return ids;
+}
 
 export async function fetchDomains(filters: DomainFilters) {
   const supabase = createClient();
@@ -46,16 +90,22 @@ export async function fetchDomains(filters: DomainFilters) {
   const sortColumn = filters.sort ?? "created_at";
   const sortOrder = filters.order === "asc" ? true : false;
   const priceSort = sortColumn === "sedo_price" || sortColumn === "spaceship_price";
+  // `total_cost` may not exist on older databases but both inputs always do,
+  // so compute it client-side instead of ordering by a possibly-missing column.
+  const totalCostSort = sortColumn === "total_cost";
+  const clientSort = priceSort || totalCostSort;
 
-  const selectFields = priceSort
-    ? sortColumn === "sedo_price"
-      ? "*, sedo_listings(sedo_price)"
-      : "*, spaceship_listings(spaceship_price)"
-    : "*";
+  const selectFields = `${
+    priceSort
+      ? sortColumn === "sedo_price"
+        ? "*, sedo_listings(sedo_price)"
+        : "*, spaceship_listings(spaceship_price)"
+      : "*"
+  }${filters.lander || filters.shows ? ", afternic_listings!inner(domain_id)" : ""}`;
 
   let query = supabase
     .from("domains")
-    .select(selectFields, { count: "exact" })
+    .select(selectFields as never, { count: "exact" })
     .eq("user_id", user.id);
 
   if (filters.status === "all") {
@@ -122,10 +172,59 @@ export async function fetchDomains(filters: DomainFilters) {
   }
 
   if (filters.notListed) {
-    const table = PLATFORM_LISTINGS_TABLE[filters.notListed];
-    if (table) {
-      query = query.not("id", "in", `(select "domain_id" from "${table}")`);
+    const platforms = filters.notListed
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter((value) => Boolean(PLATFORM_LISTINGS_TABLE[value]));
+
+    const excluded = new Set<string>();
+    for (const platform of platforms) {
+      const ids = await fetchExcludedDomainIds(supabase, platform, user.id);
+      for (const id of ids) excluded.add(id);
     }
+
+    if (excluded.size > 0) {
+      query = query.not("id", "in", `(${Array.from(excluded).join(",")})`);
+    }
+  }
+
+  if (filters.lander || filters.shows) {
+    if (filters.lander === "no_method") {
+      query = query
+        .eq("afternic_listings.intake_style", "CUSTOM_LANDER")
+        .eq("afternic_listings.show_lander_buynow", false)
+        .eq("afternic_listings.show_lander_makeoffer", false)
+        .eq("afternic_listings.show_lander_lease", false);
+    } else if (filters.lander) {
+      const styles: Record<string, string> = {
+        buynow: "BUYNOW",
+        price_form: "PRICE_FORM",
+        custom: "CUSTOM_LANDER",
+      };
+      const style = styles[filters.lander];
+      if (style) {
+        query = query.eq("afternic_listings.intake_style", style);
+      }
+    }
+
+    if (filters.shows) {
+      for (const show of filters.shows
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)) {
+        if (show === "buynow") {
+          query = query.eq("afternic_listings.show_lander_buynow", true);
+        } else if (show === "makeoffer") {
+          query = query.eq("afternic_listings.show_lander_makeoffer", true);
+        } else if (show === "lease") {
+          query = query.eq("afternic_listings.show_lander_lease", true);
+        }
+      }
+    }
+  }
+
+  if (filters.renewed === "yes") {
+    query = query.gt("renewal_count", 0);
   }
 
   if (filters.renewal === "yes") {
@@ -146,7 +245,7 @@ export async function fetchDomains(filters: DomainFilters) {
   let domains: DomainRow[];
   let count: number;
 
-  if (priceSort) {
+  if (clientSort) {
     const priceKey = sortColumn === "sedo_price" ? "sedo_listings" : "spaceship_listings";
 
     const {
@@ -161,7 +260,13 @@ export async function fetchDomains(filters: DomainFilters) {
 
     const all = (data ?? []) as unknown as Array<DomainRow & Record<string, unknown>>;
 
-    const priceOf = (row: DomainRow & Record<string, unknown>): number | undefined => {
+    const valueOf = (row: DomainRow & Record<string, unknown>): number | undefined => {
+      if (totalCostSort) {
+        const total = row.total_cost;
+        if (total !== null && total !== undefined) return Number(total);
+        return (Number(row.purchase_price) || 0) + (Number(row.renewal_cost) || 0);
+      }
+
       const rel = row[priceKey];
       if (rel == null) return undefined;
       const rec = Array.isArray(rel)
@@ -173,8 +278,8 @@ export async function fetchDomains(filters: DomainFilters) {
     };
 
     const sorted = [...all].sort((a, b) => {
-      const pa = priceOf(a);
-      const pb = priceOf(b);
+      const pa = valueOf(a);
+      const pb = valueOf(b);
       if (pa === undefined && pb === undefined) return 0;
       if (pa === undefined) return 1;
       if (pb === undefined) return -1;
@@ -252,11 +357,7 @@ export async function deleteDomain(id: string) {
   } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
-    .from("domains")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const { error } = await supabase.from("domains").delete().eq("id", id).eq("user_id", user.id);
 
   if (error) throw error;
 }
@@ -270,11 +371,7 @@ export async function deleteDomains(ids: string[]) {
   } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
-    .from("domains")
-    .delete()
-    .in("id", ids)
-    .eq("user_id", user.id);
+  const { error } = await supabase.from("domains").delete().in("id", ids).eq("user_id", user.id);
 
   if (error) throw error;
 }

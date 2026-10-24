@@ -53,7 +53,7 @@ export function ComparisonSection() {
             </span>
           </div>
           <div className="mt-3 space-y-1.5 border-t border-border pt-3 text-xs font-medium text-muted-foreground">
-            {["sedo", "Spaceship", "atom"].map((m) => (
+            {["Sedo", "Spaceship", "Afternic", "Atom"].map((m) => (
               <div key={m} className="flex items-center justify-between">
                 <span>{m}</span>
                 <Check className="h-3.5 w-3.5 text-primary-deep" />

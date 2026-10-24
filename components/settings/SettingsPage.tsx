@@ -14,6 +14,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { toast } from "sonner";
 import { SedoCredentialsForm } from "@/components/settings/SedoCredentialsForm";
 import { SpaceshipCredentialsForm } from "@/components/settings/SpaceshipCredentialsForm";
+import { AfternicCredentialsForm } from "@/components/settings/AfternicCredentialsForm";
 
 export function SettingsPage() {
   const router = useRouter();
@@ -30,9 +31,7 @@ export function SettingsPage() {
 
   useEffect(() => setThemeMounted(true), []);
 
-  const themeValue = themeMounted
-    ? ((theme as "light" | "dark" | "system") ?? "system")
-    : null;
+  const themeValue = themeMounted ? ((theme as "light" | "dark" | "system") ?? "system") : null;
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString("en-US", {
@@ -168,9 +167,7 @@ export function SettingsPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-section text-text-primary">Appearance</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            Choose how DNfly.io looks on this device.
-          </p>
+          <p className="mt-1 text-sm text-text-muted">Choose how DNfly.io looks on this device.</p>
         </div>
 
         <Card className="max-w-md">
@@ -229,6 +226,7 @@ export function SettingsPage() {
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <SedoCredentialsForm />
           <SpaceshipCredentialsForm />
+          <AfternicCredentialsForm />
         </div>
       </section>
 

@@ -40,7 +40,7 @@ export const features: Feature[] = [
   {
     icon: Link2,
     title: "Marketplace Automation",
-    text: "Publish to Sedo, Spaceship, Atom and other channels automatically.",
+    text: "Publish to Sedo, Spaceship, Afternic, Atom and other channels automatically.",
   },
   {
     icon: CalendarClock,

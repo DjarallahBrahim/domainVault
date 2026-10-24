@@ -174,6 +174,8 @@ export interface Database {
           sedo_password: string | null;
           spaceship_api_key: string | null;
           spaceship_api_secret: string | null;
+          afternic_api_key: string | null;
+          afternic_api_secret: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -186,6 +188,8 @@ export interface Database {
           sedo_password?: string | null;
           spaceship_api_key?: string | null;
           spaceship_api_secret?: string | null;
+          afternic_api_key?: string | null;
+          afternic_api_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -198,6 +202,8 @@ export interface Database {
           sedo_password?: string | null;
           spaceship_api_key?: string | null;
           spaceship_api_secret?: string | null;
+          afternic_api_key?: string | null;
+          afternic_api_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -284,6 +290,114 @@ export interface Database {
           spaceship_price?: number;
           spaceship_minprice?: number;
           spaceship_currency?: string;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      afternic_listings: {
+        Row: {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          display_name: string | null;
+          list_status:
+            | "PENDING"
+            | "FAILED_COMPLIANCE"
+            | "ACTIVE"
+            | "HIDDEN"
+            | "ON_HOLD"
+            | "SOLD"
+            | "INACTIVE";
+          fast_transfer_status: string | null;
+          buynow_price: number | null;
+          floor_price: number | null;
+          minbid_price: number | null;
+          landing_page: "SALES_TYPE" | "PARKING_TYPE";
+          intake_style: "BUYNOW" | "PRICE_FORM" | "CUSTOM_LANDER";
+          hidden: boolean;
+          featured: boolean;
+          leasing_enabled: boolean;
+          max_lease_period: number | null;
+          show_lander_buynow: boolean;
+          show_lander_makeoffer: boolean;
+          show_lander_lease: boolean;
+          intake_views: number | null;
+          intake_leads: number | null;
+          afternic_registrar: string | null;
+          listed_at: string | null;
+          last_synced_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          domain_id: string;
+          domain_name: string;
+          display_name?: string | null;
+          list_status?:
+            | "PENDING"
+            | "FAILED_COMPLIANCE"
+            | "ACTIVE"
+            | "HIDDEN"
+            | "ON_HOLD"
+            | "SOLD"
+            | "INACTIVE";
+          fast_transfer_status?: string | null;
+          buynow_price?: number | null;
+          floor_price?: number | null;
+          minbid_price?: number | null;
+          landing_page?: "SALES_TYPE" | "PARKING_TYPE";
+          intake_style?: "BUYNOW" | "PRICE_FORM" | "CUSTOM_LANDER";
+          hidden?: boolean;
+          featured?: boolean;
+          leasing_enabled?: boolean;
+          max_lease_period?: number | null;
+          show_lander_buynow?: boolean;
+          show_lander_makeoffer?: boolean;
+          show_lander_lease?: boolean;
+          intake_views?: number | null;
+          intake_leads?: number | null;
+          afternic_registrar?: string | null;
+          listed_at?: string | null;
+          last_synced_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          domain_id?: string;
+          domain_name?: string;
+          display_name?: string | null;
+          list_status?:
+            | "PENDING"
+            | "FAILED_COMPLIANCE"
+            | "ACTIVE"
+            | "HIDDEN"
+            | "ON_HOLD"
+            | "SOLD"
+            | "INACTIVE";
+          fast_transfer_status?: string | null;
+          buynow_price?: number | null;
+          floor_price?: number | null;
+          minbid_price?: number | null;
+          landing_page?: "SALES_TYPE" | "PARKING_TYPE";
+          intake_style?: "BUYNOW" | "PRICE_FORM" | "CUSTOM_LANDER";
+          hidden?: boolean;
+          featured?: boolean;
+          leasing_enabled?: boolean;
+          max_lease_period?: number | null;
+          show_lander_buynow?: boolean;
+          show_lander_makeoffer?: boolean;
+          show_lander_lease?: boolean;
+          intake_views?: number | null;
+          intake_leads?: number | null;
+          afternic_registrar?: string | null;
+          listed_at?: string | null;
           last_synced_at?: string;
           created_at?: string;
           updated_at?: string;
