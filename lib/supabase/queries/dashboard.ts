@@ -45,7 +45,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const { data: domains, error: domainError } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date, to_be_renewal")
+    .select("purchase_price, renewal_cost, status, expiration_date, to_be_renewal")
     .eq("user_id", user.id);
 
   if (domainError) throw domainError;
@@ -66,7 +66,10 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const active = domainRows.filter((d) => d.status === "active");
   const activeRenewal = active as unknown as DomainRenewalRow[];
 
-  const portfolio_value = active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0);
+  const portfolio_value = active.reduce(
+    (sum, d) => sum + (d.purchase_price ?? 0) + (d.renewal_cost ?? 0),
+    0
+  );
   const expiring_90d_all = activeRenewal.filter((d) => {
     const exp = new Date(d.expiration_date);
     const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
@@ -246,7 +249,7 @@ export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
 }
 
 export async function fetchQuickStats(): Promise<{
-  avg_price: number;
+  avg_cost: number;
   most_common_registrar: string;
   oldest_domain: string;
   newest_domain: string;
@@ -271,8 +274,10 @@ export async function fetchQuickStats(): Promise<{
   const active = rows.filter((d) => d.status === "active");
   const expired = rows.filter((d) => d.status === "expired");
 
-  const prices = active.map((d) => d.purchase_price ?? 0).filter((p) => p > 0);
-  const avg_price = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+  const prices = active
+    .map((d) => (d.purchase_price ?? 0) + (d.renewal_cost ?? 0))
+    .filter((p) => p > 0);
+  const avg_cost = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
 
   const registrarMap = new Map<string, number>();
   for (const d of active) {
@@ -302,7 +307,7 @@ export async function fetchQuickStats(): Promise<{
   const total_earnings = sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0);
 
   return {
-    avg_price: Math.round(avg_price * 100) / 100,
+    avg_cost: Math.round(avg_cost * 100) / 100,
     most_common_registrar,
     oldest_domain,
     newest_domain,
@@ -316,6 +321,8 @@ export interface SalesAnalyticsRow {
   domain: string;
   sale_price: number;
   purchase_price: number | null;
+  renewal_cost: number;
+  total_cost: number | null;
   sold_at: string;
   platform: string | null;
   buyer: string | null;
@@ -345,6 +352,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       domains!inner (
         domain,
         purchase_price,
+        renewal_cost,
         created_at
       )
     `
@@ -363,17 +371,29 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       buyer: string | null;
       notes: string | null;
       domain_id: string;
-      domains: { domain: string; purchase_price: number | null; created_at: string } | null;
+      domains: {
+        domain: string;
+        purchase_price: number | null;
+        renewal_cost: number | null;
+        created_at: string;
+      } | null;
     }>
-  ).map((s) => ({
-    id: s.id,
-    domain: s.domains?.domain ?? "",
-    sale_price: s.sale_price,
-    purchase_price: s.domains?.purchase_price ?? null,
-    sold_at: s.sold_at,
-    platform: s.platform,
-    buyer: s.buyer,
-    notes: s.notes,
-    created_at: s.domains?.created_at ?? null,
-  }));
+  ).map((s) => {
+    const purchasePrice = s.domains?.purchase_price ?? null;
+    const renewalCost = s.domains?.renewal_cost ?? 0;
+
+    return {
+      id: s.id,
+      domain: s.domains?.domain ?? "",
+      sale_price: s.sale_price,
+      purchase_price: purchasePrice,
+      renewal_cost: renewalCost,
+      total_cost: purchasePrice === null ? null : purchasePrice + renewalCost,
+      sold_at: s.sold_at,
+      platform: s.platform,
+      buyer: s.buyer,
+      notes: s.notes,
+      created_at: s.domains?.created_at ?? null,
+    };
+  });
 }

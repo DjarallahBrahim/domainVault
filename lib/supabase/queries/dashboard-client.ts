@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { addMonths, format } from "date-fns";
+import { addMonths, endOfMonth, format, startOfMonth } from "date-fns";
 import type { Database } from "@/types/supabase";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -113,7 +113,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   const { data: domains, error } = await supabase
     .from("domains")
-    .select("purchase_price, status, expiration_date, to_be_renewal")
+    .select("purchase_price, renewal_cost, status, expiration_date, to_be_renewal")
     .eq("user_id", user.id);
   if (error) throw error;
   const { data: salesRaw, error: sErr } = await supabase
@@ -132,7 +132,10 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   });
   return {
     total_active: active.length,
-    portfolio_value: active.reduce((sum, d) => sum + (d.purchase_price ?? 0), 0),
+    portfolio_value: active.reduce(
+      (sum, d) => sum + (d.purchase_price ?? 0) + (d.renewal_cost ?? 0),
+      0
+    ),
     total_sales: sales.reduce((sum, s) => sum + (s.sale_price ?? 0), 0),
     expiring_90d: in90d.filter((d) => d.to_be_renewal === null).length,
     expiring_90d_all: in90d.length,
@@ -216,6 +219,8 @@ export interface MonthSnapshot {
   acquiredCount: number;
   soldCount: number;
   revenue: number;
+  renewalCost: number;
+  renewedCount: number;
   acquiredDomains: MonthSnapshotDomain[];
   soldDomains: MonthSnapshotSale[];
 }
@@ -243,6 +248,25 @@ export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
     .select("id, domain_id, domain_name, sold_at, sale_price, buyer, platform")
     .eq("user_id", user.id);
   if (salesError) throw salesError;
+
+  const { data: renewals, error: renewalsError } = await supabase
+    .from("domain_renewals")
+    .select("domain_id, renewed_at, cost")
+    .eq("user_id", user.id)
+    .gte("renewed_at", startOfMonth(new Date()).toISOString())
+    .lte("renewed_at", endOfMonth(new Date()).toISOString());
+  if (renewalsError) throw renewalsError;
+
+  let renewalCost = 0;
+  const renewedDomainIds = new Set<string>();
+  for (const renewal of (renewals ?? []) as Array<{
+    domain_id: string;
+    renewed_at: string;
+    cost: number | null;
+  }>) {
+    renewalCost += renewal.cost ?? 0;
+    renewedDomainIds.add(renewal.domain_id);
+  }
 
   let invested = 0;
   let acquiredCount = 0;
@@ -274,6 +298,8 @@ export async function fetchMonthSnapshot(): Promise<MonthSnapshot> {
     acquiredCount,
     soldCount,
     revenue,
+    renewalCost,
+    renewedCount: renewedDomainIds.size,
     acquiredDomains,
     soldDomains,
   };
@@ -299,6 +325,12 @@ export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
     .eq("user_id", user.id);
   if (salesError) throw salesError;
 
+  const { data: renewals, error: renewalsError } = await supabase
+    .from("domain_renewals")
+    .select("renewed_at, cost")
+    .eq("user_id", user.id);
+  if (renewalsError) throw renewalsError;
+
   const byMonth = new Map<string, { spend: number; sold: number }>();
   for (const d of (domains ?? []) as unknown as Array<{
     created_at: string | null;
@@ -315,6 +347,16 @@ export async function fetchSpendVsSold(): Promise<SpendVsSoldPoint[]> {
     const key = s.sold_at.slice(0, 7);
     const entry = byMonth.get(key) || { spend: 0, sold: 0 };
     entry.sold += s.sale_price ?? 0;
+    byMonth.set(key, entry);
+  }
+  for (const r of (renewals ?? []) as unknown as Array<{
+    renewed_at: string;
+    cost: number | null;
+  }>) {
+    if (!r.renewed_at) continue;
+    const key = r.renewed_at.slice(0, 7);
+    const entry = byMonth.get(key) || { spend: 0, sold: 0 };
+    entry.spend += r.cost ?? 0;
     byMonth.set(key, entry);
   }
 
@@ -349,7 +391,7 @@ export async function fetchExpiringDomains(limit = 10): Promise<DomainRow[]> {
 }
 
 export async function fetchQuickStats(): Promise<{
-  avg_price: number;
+  avg_cost: number;
   most_common_registrar: string;
   oldest_domain: string;
   newest_domain: string;
@@ -368,7 +410,9 @@ export async function fetchQuickStats(): Promise<{
   if (error) throw error;
   const rows = (data ?? []) as unknown as DomainRow[];
   const active = rows.filter((d) => d.status === "active");
-  const prices = active.map((d) => d.purchase_price ?? 0).filter((p) => p > 0);
+  const prices = active
+    .map((d) => (d.purchase_price ?? 0) + (d.renewal_cost ?? 0))
+    .filter((p) => p > 0);
   const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
   const map = new Map<string, number>();
   for (const d of active) {
@@ -392,7 +436,7 @@ export async function fetchQuickStats(): Promise<{
     .eq("user_id", user.id);
   const sales = (salesRaw ?? []) as unknown as Array<{ sale_price: number }>;
   return {
-    avg_price: Math.round(avg * 100) / 100,
+    avg_cost: Math.round(avg * 100) / 100,
     most_common_registrar: topReg,
     oldest_domain: sorted.length > 0 ? sorted[0].domain : "—",
     newest_domain: sorted.length > 0 ? sorted[sorted.length - 1].domain : "—",
@@ -508,6 +552,8 @@ export interface SalesAnalyticsRow {
   domain: string;
   sale_price: number;
   purchase_price: number | null;
+  renewal_cost: number;
+  total_cost: number | null;
   sold_at: string;
   platform: string | null;
   sale_type: "inbound" | "outbound";
@@ -540,6 +586,7 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       domains!inner (
         domain,
         purchase_price,
+        renewal_cost,
         created_at
       )
     `
@@ -559,18 +606,30 @@ export async function fetchSalesAnalytics(): Promise<SalesAnalyticsRow[]> {
       buyer: string | null;
       notes: string | null;
       domain_id: string;
-      domains: { domain: string; purchase_price: number | null; created_at: string } | null;
+      domains: {
+        domain: string;
+        purchase_price: number | null;
+        renewal_cost: number | null;
+        created_at: string;
+      } | null;
     }>
-  ).map((s) => ({
-    id: s.id,
-    domain: s.domains?.domain ?? "",
-    sale_price: s.sale_price,
-    purchase_price: s.domains?.purchase_price ?? null,
-    sold_at: s.sold_at,
-    platform: s.platform,
-    sale_type: s.sale_type,
-    buyer: s.buyer,
-    notes: s.notes,
-    created_at: s.domains?.created_at ?? null,
-  }));
+  ).map((s) => {
+    const purchasePrice = s.domains?.purchase_price ?? null;
+    const renewalCost = s.domains?.renewal_cost ?? 0;
+
+    return {
+      id: s.id,
+      domain: s.domains?.domain ?? "",
+      sale_price: s.sale_price,
+      purchase_price: purchasePrice,
+      renewal_cost: renewalCost,
+      total_cost: purchasePrice === null ? null : purchasePrice + renewalCost,
+      sold_at: s.sold_at,
+      platform: s.platform,
+      sale_type: s.sale_type,
+      buyer: s.buyer,
+      notes: s.notes,
+      created_at: s.domains?.created_at ?? null,
+    };
+  });
 }

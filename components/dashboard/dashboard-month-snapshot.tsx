@@ -4,7 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
-import { ArrowRight, Banknote, CalendarPlus, ShoppingCart, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  CalendarPlus,
+  CreditCard,
+  RefreshCw,
+  ShoppingCart,
+  Wallet,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +74,25 @@ export function DashboardMonthSnapshot() {
       onClick: data ? () => setView("invested") : undefined,
     },
     {
+      key: "renewedCount",
+      label: "Renewed",
+      icon: RefreshCw,
+      accent: "primary" as const,
+      value: data?.renewedCount ?? 0,
+      sub: null,
+      onClick: undefined,
+    },
+    {
+      key: "renewalCost",
+      label: "Renewal Cost",
+      icon: CreditCard,
+      accent: "danger" as const,
+      prefix: "$",
+      value: data?.renewalCost ?? 0,
+      sub: null,
+      onClick: undefined,
+    },
+    {
       key: "soldCount",
       label: "Sold",
       icon: ShoppingCart,
@@ -92,7 +119,7 @@ export function DashboardMonthSnapshot() {
         <header className="mb-5">
           <h2 className="text-section text-text-primary">{title} Snapshot</h2>
         </header>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {cells.map((cell) => (
             <StatCard
               key={cell.key}
