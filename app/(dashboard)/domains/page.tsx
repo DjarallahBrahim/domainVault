@@ -32,6 +32,7 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
     lander: typeof params.lander === "string" ? params.lander : undefined,
     shows: typeof params.shows === "string" ? params.shows : undefined,
     renewed: typeof params.renewed === "string" ? params.renewed : undefined,
+    reservedTld: typeof params.reservedTld === "string" ? params.reservedTld : undefined,
   };
 
   const supabase = await createClient();

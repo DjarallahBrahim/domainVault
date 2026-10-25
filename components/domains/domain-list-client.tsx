@@ -78,6 +78,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         lander: filters.lander,
         shows: filters.shows,
         renewed: filters.renewed,
+        reservedTld: filters.reservedTld,
       }),
     initialData,
     staleTime: 10 * 1000,
@@ -365,6 +366,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         lander: filters.lander,
         shows: filters.shows,
         renewed: filters.renewed,
+        reservedTld: filters.reservedTld,
         page: 1,
         pageSize: 10000,
       });

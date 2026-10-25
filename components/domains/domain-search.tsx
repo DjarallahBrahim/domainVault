@@ -40,6 +40,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const urlSearch = searchParams.get("search") ?? "";
   const currentStatus = searchParams.get("status") ?? "all";
   const currentTld = searchParams.get("tld") ?? "";
+  const currentReservedTld = searchParams.get("reservedTld") ?? "";
   const currentExpiry = searchParams.get("expiry") ?? "";
   const currentExpiryMin = searchParams.get("expiryMin") ?? "";
   const currentExpiryMax = searchParams.get("expiryMax") ?? "";
@@ -60,6 +61,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     .filter(Boolean);
 
   const [searchValue, setSearchValue] = useState(urlSearch.replace(/,/g, " "));
+  const [reservedTldValue, setReservedTldValue] = useState(currentReservedTld);
   const [expiryMin, setExpiryMin] = useState(currentExpiryMin);
   const [expiryMax, setExpiryMax] = useState(currentExpiryMax);
   const [expiryRange, setExpiryRange] = useState<[number, number]>([
@@ -74,6 +76,10 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
       expiryMax === "" ? EXPIRY_MAX_MONTHS : Number(expiryMax),
     ]);
   }, [expiryMin, expiryMax]);
+
+  useEffect(() => {
+    setReservedTldValue(currentReservedTld);
+  }, [currentReservedTld]);
 
   const updateParam = useCallback(
     (updates: Record<string, string>) => {
@@ -90,6 +96,20 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     },
     [router, pathname, searchParams]
   );
+
+  const commitReservedTld = useCallback(() => {
+    const cleaned =
+      reservedTldValue
+        .split(/[\s,]+/)
+        .map((part) => part.trim())
+        .filter(Boolean)[0]
+        ?.replace(/^\.+/, "")
+        .replace(/\.+$/, "")
+        .toLowerCase() ?? "";
+    setReservedTldValue(cleaned);
+    if (cleaned === currentReservedTld) return;
+    updateParam({ reservedTld: cleaned });
+  }, [reservedTldValue, currentReservedTld, updateParam]);
 
   const commitExpiry = useCallback(
     ([lo, hi]: number[]) => {
@@ -121,6 +141,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
   function clearAll() {
     setSearchValue("");
+    setReservedTldValue("");
     setExpiryMin("");
     setExpiryMax("");
     const params = new URLSearchParams();
@@ -134,6 +155,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     urlSearch ||
     currentStatus !== "all" ||
     currentTld ||
+    currentReservedTld ||
     currentExpiry ||
     currentExpiryMin ||
     currentExpiryMax ||
@@ -148,6 +170,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const activeFilterCount = [
     currentStatus !== "all" ? currentStatus : "",
     currentTld,
+    currentReservedTld,
     currentExpiry || currentExpiryMin || currentExpiryMax ? "expiry" : "",
     currentCreated,
     currentRegistrars,
@@ -343,7 +366,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
             <div className="space-y-3">
               <p className={sectionLabel}>Classification</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs text-text-muted font-medium">TLD</Label>
                   <Select
@@ -384,6 +407,40 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">Reserved TLD</Label>
+                  <div className="relative">
+                    <Input
+                      value={reservedTldValue}
+                      onChange={(e) => setReservedTldValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitReservedTld();
+                        }
+                      }}
+                      onBlur={commitReservedTld}
+                      placeholder=".in or in"
+                      title="Show domains with this extension reserved. Enter .in or in."
+                      className="h-10 rounded-lg pr-8"
+                    />
+                    {reservedTldValue && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setReservedTldValue("");
+                          updateParam({ reservedTld: "" });
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                        aria-label="Clear reserved TLD filter"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -22,6 +22,18 @@ export interface DomainFilters {
   renewed?: string;
   renewal?: string;
   created?: string;
+  reservedTld?: string;
+}
+
+function normalizeReservedTld(value: string | undefined): string | null {
+  if (!value) return null;
+  const token = value
+    .split(/[\s,]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)[0];
+  if (!token) return null;
+  const cleaned = token.replace(/^\.+/, "").replace(/\.+$/, "").toLowerCase();
+  return cleaned || null;
 }
 
 const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
@@ -54,13 +66,17 @@ export async function fetchDomains(filters: DomainFilters) {
   const totalCostSort = sortColumn === "total_cost";
   const clientSort = priceSort || totalCostSort;
 
+  const reservedTld = normalizeReservedTld(filters.reservedTld);
+
   const selectFields = `${
     priceSort
       ? sortColumn === "sedo_price"
         ? "*, sedo_listings(sedo_price)"
         : "*, spaceship_listings(spaceship_price)"
       : "*"
-  }${filters.lander || filters.shows ? ", afternic_listings!inner(domain_id)" : ""}`;
+  }${filters.lander || filters.shows ? ", afternic_listings!inner(domain_id)" : ""}${
+    reservedTld ? ", domain_extension_checks!inner(tld)" : ""
+  }`;
 
   let query = resolved
     .from("domains")
@@ -77,6 +93,12 @@ export async function fetchDomains(filters: DomainFilters) {
 
   if (filters.tld) {
     query = query.eq("tld", filters.tld.toLowerCase());
+  }
+
+  if (reservedTld) {
+    query = query
+      .eq("domain_extension_checks.tld", reservedTld)
+      .eq("domain_extension_checks.is_reserved", true);
   }
 
   if (filters.search) {
