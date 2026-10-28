@@ -3,7 +3,7 @@
 import { WidgetCard } from "@/components/ui/widget-card";
 
 interface QuickStatsData {
-  avg_price: number;
+  avg_cost: number;
   most_common_registrar: string;
   oldest_domain: string;
   newest_domain: string;
@@ -18,7 +18,7 @@ interface DashboardQuickStatsProps {
 export function DashboardQuickStats({ stats }: DashboardQuickStatsProps) {
   const items = stats
     ? [
-        { label: "Avg Price", value: `$${stats.avg_price.toLocaleString("en-US")}` },
+        { label: "Avg Cost", value: `$${stats.avg_cost.toLocaleString("en-US")}` },
         { label: "Top Registrar", value: stats.most_common_registrar },
         { label: "Oldest Domain", value: stats.oldest_domain, mono: true },
         { label: "Newest Domain", value: stats.newest_domain, mono: true },

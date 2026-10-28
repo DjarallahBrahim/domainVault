@@ -23,12 +23,8 @@ export function DashboardSalesLeaderboard() {
 
   const sorted = [...(data ?? [])].sort((a, b) => {
     if (mode === "roi") {
-      const roiA = a.purchase_price
-        ? ((a.sale_price - a.purchase_price) / a.purchase_price) * 100
-        : -Infinity;
-      const roiB = b.purchase_price
-        ? ((b.sale_price - b.purchase_price) / b.purchase_price) * 100
-        : -Infinity;
+      const roiA = a.total_cost ? ((a.sale_price - a.total_cost) / a.total_cost) * 100 : -Infinity;
+      const roiB = b.total_cost ? ((b.sale_price - b.total_cost) / b.total_cost) * 100 : -Infinity;
       return roiB - roiA;
     }
     return b.sale_price - a.sale_price;
@@ -65,9 +61,7 @@ export function DashboardSalesLeaderboard() {
         </div>
 
         {displayed.map((s, i) => {
-          const roiPct = s.purchase_price
-            ? ((s.sale_price - s.purchase_price) / s.purchase_price) * 100
-            : null;
+          const roiPct = s.total_cost ? ((s.sale_price - s.total_cost) / s.total_cost) * 100 : null;
           const isExpanded = expandedId === s.id;
           const holdDays = s.created_at
             ? differenceInDays(parseISO(s.sold_at), parseISO(s.created_at))
@@ -112,31 +106,39 @@ export function DashboardSalesLeaderboard() {
                     <div className="flex justify-between">
                       <span className="text-text-muted">Purchase Price</span>
                       <span className="tabular-nums">
-                        {s.purchase_price
-                          ? `$${s.purchase_price.toLocaleString("en-US")}`
-                          : "—"}
+                        {s.purchase_price ? `$${s.purchase_price.toLocaleString("en-US")}` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Renewals</span>
+                      <span className="tabular-nums">
+                        {s.renewal_cost > 0 ? `$${s.renewal_cost.toLocaleString("en-US")}` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Cost Basis</span>
+                      <span className="tabular-nums">
+                        {s.total_cost ? `$${s.total_cost.toLocaleString("en-US")}` : "—"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">Sale Price</span>
-                      <span className="tabular-nums">
-                        ${s.sale_price.toLocaleString("en-US")}
-                      </span>
+                      <span className="tabular-nums">${s.sale_price.toLocaleString("en-US")}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">Profit</span>
                       <span
                         className={cn(
                           "tabular-nums",
-                          s.purchase_price
-                            ? s.sale_price - s.purchase_price >= 0
+                          s.total_cost
+                            ? s.sale_price - s.total_cost >= 0
                               ? "text-accent-success"
                               : "text-accent-danger"
                             : "text-text-muted"
                         )}
                       >
-                        {s.purchase_price
-                          ? `$${(s.sale_price - s.purchase_price).toLocaleString("en-US")}`
+                        {s.total_cost
+                          ? `$${(s.sale_price - s.total_cost).toLocaleString("en-US")}`
                           : "—"}
                       </span>
                     </div>

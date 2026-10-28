@@ -23,6 +23,7 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "expired", label: "Expired" },
+  { value: "sold", label: "Sold" },
   { value: "pending", label: "Pending" },
 ] as const;
 

@@ -5,13 +5,25 @@ import { X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { askingPriceSuggestions, minPriceSuggestions } from "@/lib/sedo/pricing";
-import { upsertSpaceshipListing, deleteSpaceshipListing } from "@/lib/supabase/queries/spaceship-listings-client";
+import {
+  upsertSpaceshipListing,
+  deleteSpaceshipListing,
+} from "@/lib/supabase/queries/spaceship-listings-client";
 import type { SpaceshipListing } from "@/types/spaceship";
+import type { AfternicListing } from "@/types/afternic";
+import type { SedoListing } from "@/types/sedo";
 
 interface SpaceshipOverlayProps {
   open: boolean;
@@ -27,14 +39,29 @@ interface SpaceshipOverlayProps {
   onSuccess: () => void;
   batch?: boolean;
   batchDomains?: Array<{ id: string; domain: string }>;
+  batchAfternicListings?: Map<string, AfternicListing>;
+  batchSedoListings?: Map<string, SedoListing>;
 }
 
-export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuccess, batch, batchDomains }: SpaceshipOverlayProps) {
+type SpaceshipPriceSource = "manual" | "afternic" | "sedo";
+
+export function SpaceshipOverlay({
+  open,
+  domain,
+  existingListing,
+  onClose,
+  onSuccess,
+  batch,
+  batchDomains,
+  batchAfternicListings,
+  batchSedoListings,
+}: SpaceshipOverlayProps) {
   const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
 
   const [askingPrice, setAskingPrice] = useState("");
   const [minOffer, setMinOffer] = useState("");
+  const [priceSource, setPriceSource] = useState<SpaceshipPriceSource>("manual");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [noCredentials, setNoCredentials] = useState(false);
@@ -57,6 +84,7 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
     }
 
     setError("");
+    setPriceSource("manual");
     setShowRemoveConfirm(false);
 
     async function checkCredentials() {
@@ -72,10 +100,28 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
   const askSuggestions = existingListing ? [] : askingPriceSuggestions(bin);
   const minPriceChips = askingPriceNum > 0 ? minPriceSuggestions(askingPriceNum) : [];
 
+  const priceSourceLabel =
+    priceSource === "afternic" ? "Afternic" : priceSource === "sedo" ? "Sedo" : "manual";
+
+  function priceForDomain(id: string): number {
+    if (priceSource === "afternic") {
+      return batchAfternicListings?.get(id)?.buynow_price ?? 0;
+    }
+    if (priceSource === "sedo") {
+      return batchSedoListings?.get(id)?.sedo_price ?? 0;
+    }
+    return Number(askingPrice) || 0;
+  }
+
   const handleSubmit = useCallback(async () => {
     setError("");
 
-    if (!askingPrice || isNaN(Number(askingPrice)) || Number(askingPrice) <= 0) {
+    const usingBatchSource = Boolean(batch && priceSource !== "manual");
+
+    if (
+      !usingBatchSource &&
+      (!askingPrice || isNaN(Number(askingPrice)) || Number(askingPrice) <= 0)
+    ) {
       setError("Asking Price is required");
       return;
     }
@@ -83,13 +129,36 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
     setLoading(true);
     try {
       if (batch && batchDomains?.length) {
+        const batchItems = batchDomains
+          .map((d) => {
+            const price = priceForDomain(d.id);
+            const minprice =
+              minOffer && Number(minOffer) > 0 ? Math.min(Number(minOffer), price) : 0;
+            return { ...d, price, minprice };
+          })
+          .filter((item) => item.price > 0);
+
+        if (batchItems.length === 0) {
+          setError(
+            priceSource === "manual"
+              ? "Asking Price is required"
+              : `No selected domains have a ${priceSourceLabel} price`
+          );
+          setLoading(false);
+          return;
+        }
+
+        const skipped = batchDomains.length - batchItems.length;
+
         const batchResponse = await fetch("/api/spaceship/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            price: Number(askingPrice),
-            minprice: Number(minOffer) || 0,
-            domainIds: batchDomains.map((d) => d.id),
+            items: batchItems.map((item) => ({
+              domainId: item.id,
+              price: item.price,
+              minprice: item.minprice,
+            })),
           }),
         });
 
@@ -99,22 +168,25 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
           throw new Error(batchBody.error ?? "Spaceship API error");
         }
 
-        
-
-        for (const d of batchDomains) {
+        for (const d of batchItems) {
           await upsertSpaceshipListing({
             domain_id: d.id,
             domain_name: d.domain,
-            spaceship_price: Number(askingPrice),
-            spaceship_minprice: Number(minOffer) || 0,
+            spaceship_price: d.price,
+            spaceship_minprice: d.minprice,
             spaceship_currency: "USD",
           });
         }
 
+        if (skipped > 0) {
+          toast.warning(
+            `${skipped} domain${skipped === 1 ? "" : "s"} skipped (no ${priceSourceLabel} price)`
+          );
+        }
         if (batchBody.data?.errors?.length) {
           toast.warning(`${batchBody.data.errors.length} domains had errors`);
         } else {
-          toast.success(`${batchDomains.length} domains updated on Spaceship`);
+          toast.success(`${batchItems.length} domains updated on Spaceship`);
         }
 
         queryClient.invalidateQueries({ queryKey: queryKeys.spaceshipListings.all });
@@ -176,7 +248,22 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
     } finally {
       setLoading(false);
     }
-  }, [askingPrice, minOffer, domain, existingListing, bin, onClose, onSuccess, queryClient]);
+  }, [
+    askingPrice,
+    minOffer,
+    priceSource,
+    priceSourceLabel,
+    batch,
+    batchDomains,
+    batchAfternicListings,
+    batchSedoListings,
+    domain,
+    existingListing,
+    bin,
+    onClose,
+    onSuccess,
+    queryClient,
+  ]);
 
   const handleRemove = useCallback(async () => {
     setLoading(true);
@@ -221,41 +308,76 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
               ? `Bulk Edit — ${batchDomains?.length ?? 0} domains`
               : isEdit
                 ? `Edit Listing — ${domain?.domain}`
-                : `List on Spaceship — ${domain?.domain}`
-            }
+                : `List on Spaceship — ${domain?.domain}`}
           </h2>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-5">
           {!batch && (
-          <>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Domain</span>
-              <span className="font-mono">{domain?.domain}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Registrar</span>
-              <span>{domain?.registrar || "\u2014"}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Expires</span>
-              <span>{domain?.expiration_date ? new Date(domain.expiration_date).toLocaleDateString() : ""}</span>
-            </div>
-          </div>
-          <div className="border-t border-border" />
-          </>
+            <>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Domain</span>
+                  <span className="font-mono">{domain?.domain}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Registrar</span>
+                  <span>{domain?.registrar || "\u2014"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Expires</span>
+                  <span>
+                    {domain?.expiration_date
+                      ? new Date(domain.expiration_date).toLocaleDateString()
+                      : ""}
+                  </span>
+                </div>
+              </div>
+              <div className="border-t border-border" />
+            </>
           )}
 
           {noCredentials && (
-            <p className="text-sm text-accent-danger">Add Spaceship credentials in Settings first</p>
+            <p className="text-sm text-accent-danger">
+              Add Spaceship credentials in Settings first
+            </p>
+          )}
+
+          {batch && (
+            <div className="space-y-2">
+              <Label>Price source</Label>
+              <Select
+                value={priceSource}
+                onValueChange={(value) => setPriceSource(value as SpaceshipPriceSource)}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[80]">
+                  <SelectItem value="manual">Manual price</SelectItem>
+                  <SelectItem value="afternic">Use each domain&apos;s Afternic Buy Now</SelectItem>
+                  <SelectItem value="sedo">Use each domain&apos;s Sedo price</SelectItem>
+                </SelectContent>
+              </Select>
+              {priceSource !== "manual" && (
+                <p className="text-xs text-text-muted">
+                  Asking Price is ignored. Each domain uses its {priceSourceLabel} price; domains
+                  without one are skipped.
+                </p>
+              )}
+            </div>
           )}
 
           <div className="space-y-2">
-            <Label>Asking Price *</Label>
+            <Label>
+              {batch && priceSource !== "manual" ? "Asking Price (from source)" : "Asking Price *"}
+            </Label>
             <Input
               type="number"
               step="0.01"
@@ -263,10 +385,10 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
               value={askingPrice}
               onChange={(e) => setAskingPrice(e.target.value)}
               placeholder="0.00"
-              disabled={loading || noCredentials}
+              disabled={loading || noCredentials || (batch && priceSource !== "manual")}
             />
 
-            {askSuggestions.length > 0 && (
+            {priceSource === "manual" && askSuggestions.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {askSuggestions.map((s) => (
                   <button
@@ -296,7 +418,7 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
               disabled={loading || noCredentials}
             />
 
-            {minPriceChips.length > 0 && (
+            {priceSource === "manual" && minPriceChips.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {minPriceChips.map((s) => (
                   <button
@@ -333,7 +455,12 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
                 >
                   {loading ? "Removing..." : "Yes"}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowRemoveConfirm(false)} disabled={loading}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRemoveConfirm(false)}
+                  disabled={loading}
+                >
                   Cancel
                 </Button>
               </div>
@@ -360,10 +487,16 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
           )}
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+            <Button variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
             {noCredentials ? (
               <Button disabled title="Add Spaceship credentials in Settings first">
-                {batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Spaceship"}
+                {batch
+                  ? `Apply to ${batchDomains?.length ?? 0} domains`
+                  : isEdit
+                    ? "Update"
+                    : "List on Spaceship"}
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={loading}>
@@ -372,7 +505,13 @@ export function SpaceshipOverlay({ open, domain, existingListing, onClose, onSuc
                     <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
                     Processing...
                   </span>
-                ) : batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Spaceship"}
+                ) : batch ? (
+                  `Apply to ${batchDomains?.length ?? 0} domains`
+                ) : isEdit ? (
+                  "Update"
+                ) : (
+                  "List on Spaceship"
+                )}
               </Button>
             )}
           </div>

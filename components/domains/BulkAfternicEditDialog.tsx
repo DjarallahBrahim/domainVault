@@ -75,6 +75,8 @@ export interface BulkEditCandidate {
   id: string;
   domain: string;
   bin: number | null;
+  sedoPrice: number | null;
+  spaceshipPrice: number | null;
   listing: AfternicListing;
 }
 
@@ -87,8 +89,8 @@ interface BulkAfternicEditDialogProps {
   onRecheck?: (items: Array<{ id: string; domain: string }>) => void;
 }
 
-type PriceRule = "bin" | "bin20" | "bin30" | "fixed";
-type MinbidRule = "20" | "30" | "40" | "50";
+type PriceRule = "bin" | "bin20" | "bin30" | "fixed" | "sedo" | "spaceship";
+type MinbidRule = "20" | "30" | "40" | "50" | "custom";
 
 function computeBuynow(
   rule: PriceRule,
@@ -96,6 +98,14 @@ function computeBuynow(
   candidate: BulkEditCandidate
 ): number | null {
   if (rule === "fixed") return fixed > 0 ? Math.round(fixed) : null;
+  if (rule === "sedo") {
+    return candidate.sedoPrice && candidate.sedoPrice > 0 ? Math.round(candidate.sedoPrice) : null;
+  }
+  if (rule === "spaceship") {
+    return candidate.spaceshipPrice && candidate.spaceshipPrice > 0
+      ? Math.round(candidate.spaceshipPrice)
+      : null;
+  }
   const base = candidate.bin;
   if (!base) return null;
   if (rule === "bin") return Math.round(base);
@@ -128,6 +138,7 @@ export function BulkAfternicEditDialog({
 
   const [changeMinbid, setChangeMinbid] = useState(false);
   const [minbidRule, setMinbidRule] = useState<MinbidRule>("30");
+  const [minbidCustom, setMinbidCustom] = useState("");
 
   const [changeLander, setChangeLander] = useState(false);
   const [intakeStyle, setIntakeStyle] = useState<AfternicIntakeStyle>("BUYNOW");
@@ -188,7 +199,12 @@ export function BulkAfternicEditDialog({
       if (changeBuynow) {
         const next = computeBuynow(priceRule, Number(fixedPrice) || 0, candidate);
         if (next === null) {
-          skipReason = "No BIN";
+          skipReason =
+            priceRule === "sedo"
+              ? "No Sedo price"
+              : priceRule === "spaceship"
+                ? "No Spaceship price"
+                : "No BIN";
         } else if (next > MAX_BUYNOW_USD) {
           skipReason = "Price too high";
         } else {
@@ -207,14 +223,25 @@ export function BulkAfternicEditDialog({
         if (!resultingBuynow || resultingBuynow <= 0) {
           skipReason = "No Buy Now";
         } else {
-          const next = clampMinbid(resultingBuynow * (Number(minbidRule) / 100));
-          changes.minbid = next;
-          currentParts.push(
-            listing.minbid_price
-              ? `min $${Math.round(listing.minbid_price).toLocaleString("en-US")}`
-              : "min —"
-          );
-          nextParts.push(`min $${next.toLocaleString("en-US")}`);
+          const raw =
+            minbidRule === "custom"
+              ? Number(minbidCustom) || 0
+              : resultingBuynow * (Number(minbidRule) / 100);
+          const next = clampMinbid(raw);
+
+          if (minbidRule === "custom" && raw < MIN_BID_USD) {
+            skipReason = `Min offer min $${MIN_BID_USD}`;
+          } else if (next > resultingBuynow) {
+            skipReason = "Min offer > Buy Now";
+          } else {
+            changes.minbid = next;
+            currentParts.push(
+              listing.minbid_price
+                ? `min $${Math.round(listing.minbid_price).toLocaleString("en-US")}`
+                : "min —"
+            );
+            nextParts.push(`min $${next.toLocaleString("en-US")}`);
+          }
         }
       }
 
@@ -306,6 +333,7 @@ export function BulkAfternicEditDialog({
     fixedPrice,
     changeMinbid,
     minbidRule,
+    minbidCustom,
     changeLander,
     intakeStyle,
     changeVisibility,
@@ -489,6 +517,10 @@ export function BulkAfternicEditDialog({
                       <SelectItem value="bin">Use each domain&apos;s BIN</SelectItem>
                       <SelectItem value="bin20">BIN −20%</SelectItem>
                       <SelectItem value="bin30">BIN −30%</SelectItem>
+                      <SelectItem value="sedo">Use each domain&apos;s Sedo price</SelectItem>
+                      <SelectItem value="spaceship">
+                        Use each domain&apos;s Spaceship price
+                      </SelectItem>
                       <SelectItem value="fixed">Fixed price</SelectItem>
                     </SelectContent>
                   </Select>
@@ -517,7 +549,7 @@ export function BulkAfternicEditDialog({
                 Min offer
               </label>
               {changeMinbid && (
-                <div className="pl-6">
+                <div className="grid gap-2 pl-6 sm:grid-cols-2">
                   <Select
                     value={minbidRule}
                     onValueChange={(value) => setMinbidRule(value as MinbidRule)}
@@ -530,8 +562,19 @@ export function BulkAfternicEditDialog({
                       <SelectItem value="30">30% of Buy Now</SelectItem>
                       <SelectItem value="40">40% of Buy Now</SelectItem>
                       <SelectItem value="50">50% of Buy Now</SelectItem>
+                      <SelectItem value="custom">Custom amount</SelectItem>
                     </SelectContent>
                   </Select>
+                  {minbidRule === "custom" && (
+                    <Input
+                      type="number"
+                      step="1"
+                      min={MIN_BID_USD}
+                      value={minbidCustom}
+                      onChange={(e) => setMinbidCustom(e.target.value)}
+                      placeholder={`Min offer (min $${MIN_BID_USD})`}
+                    />
+                  )}
                 </div>
               )}
             </div>

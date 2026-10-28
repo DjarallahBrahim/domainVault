@@ -56,6 +56,7 @@ export function DashboardGlobalStats({ stats }: DashboardGlobalStatsProps) {
       accent: "success",
       prefix: "$",
       value: stats?.portfolio_value ?? 0,
+      sub: "Purchase + renewals",
       sensitive: true,
     },
     {

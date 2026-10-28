@@ -54,7 +54,7 @@ export function DashboardSpendSoldChart() {
   return (
     <WidgetCard
       title="Spend vs Sold"
-      description="Acquisition spend versus sales over the last 3 months"
+      description="Spend (acquisitions + renewals) versus sales over the last 3 months"
       loading={isLoading}
     >
       <div className="mb-4 flex items-center justify-center gap-6 text-xs text-text-muted">
