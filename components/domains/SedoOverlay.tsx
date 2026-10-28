@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  X,
-  DollarSign,
-  Trash2,
-} from "lucide-react";
+import { X, DollarSign, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,6 +19,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { askingPriceSuggestions, minPriceSuggestions } from "@/lib/sedo/pricing";
 import { upsertSedoListing, deleteSedoListing } from "@/lib/supabase/queries/sedo-listings-client";
 import type { SedoListing } from "@/types/sedo";
+import type { AfternicListing } from "@/types/afternic";
+import type { SpaceshipListing } from "@/types/spaceship";
 
 interface SedoOverlayProps {
   open: boolean;
@@ -31,15 +36,30 @@ interface SedoOverlayProps {
   onSuccess: () => void;
   batch?: boolean;
   batchDomains?: Array<{ id: string; domain: string }>;
+  batchAfternicListings?: Map<string, AfternicListing>;
+  batchSpaceshipListings?: Map<string, SpaceshipListing>;
 }
 
-export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess, batch, batchDomains }: SedoOverlayProps) {
+type SedoPriceSource = "manual" | "afternic" | "spaceship";
+
+export function SedoOverlay({
+  open,
+  domain,
+  existingListing,
+  onClose,
+  onSuccess,
+  batch,
+  batchDomains,
+  batchAfternicListings,
+  batchSpaceshipListings,
+}: SedoOverlayProps) {
   const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
 
   const [askingPrice, setAskingPrice] = useState("");
   const [minOffer, setMinOffer] = useState("");
   const [isFixed, setIsFixed] = useState(true);
+  const [priceSource, setPriceSource] = useState<SedoPriceSource>("manual");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [noCredentials, setNoCredentials] = useState(false);
@@ -63,6 +83,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
     }
 
     setIsFixed(true);
+    setPriceSource("manual");
     setError("");
     setShowRemoveConfirm(false);
 
@@ -79,17 +100,31 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
   }, [open, existingListing, bin]);
 
   const askingPriceNum = parseFloat(askingPrice) || 0;
-  const askSuggestions = existingListing
-    ? []
-    : askingPriceSuggestions(bin);
-  const minPriceSuggestionsList = askingPriceNum > 0
-    ? minPriceSuggestions(askingPriceNum)
-    : [];
+  const askSuggestions = existingListing ? [] : askingPriceSuggestions(bin);
+  const minPriceSuggestionsList = askingPriceNum > 0 ? minPriceSuggestions(askingPriceNum) : [];
+
+  const priceSourceLabel =
+    priceSource === "afternic" ? "Afternic" : priceSource === "spaceship" ? "Spaceship" : "manual";
+
+  function priceForDomain(id: string): number {
+    if (priceSource === "afternic") {
+      return batchAfternicListings?.get(id)?.buynow_price ?? 0;
+    }
+    if (priceSource === "spaceship") {
+      return batchSpaceshipListings?.get(id)?.spaceship_price ?? 0;
+    }
+    return Number(askingPrice) || 0;
+  }
 
   const handleSubmit = useCallback(async () => {
     setError("");
 
-    if (!askingPrice || isNaN(Number(askingPrice)) || Number(askingPrice) <= 0) {
+    const usingBatchSource = Boolean(batch && priceSource !== "manual");
+
+    if (
+      !usingBatchSource &&
+      (!askingPrice || isNaN(Number(askingPrice)) || Number(askingPrice) <= 0)
+    ) {
       setError("Asking Price is required");
       return;
     }
@@ -102,7 +137,11 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
         : Number(askingPrice)
       : Number(minOffer);
 
-    if (!isFixed && (!minOffer || isNaN(minPriceValue) || minPriceValue <= 0)) {
+    if (
+      !usingBatchSource &&
+      !isFixed &&
+      (!minOffer || isNaN(minPriceValue) || minPriceValue <= 0)
+    ) {
       setError("Min Offer is required for negotiable listings");
       return;
     }
@@ -110,14 +149,37 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
     setLoading(true);
     try {
       if (batch && batchDomains?.length) {
+        const batchItems = batchDomains
+          .map((d) => {
+            const price = priceForDomain(d.id);
+            const minprice =
+              minOffer && Number(minOffer) > 0 ? Math.min(Number(minOffer), price) : price;
+            return { ...d, price, minprice };
+          })
+          .filter((item) => item.price > 0);
+
+        if (batchItems.length === 0) {
+          setError(
+            priceSource === "manual"
+              ? "Asking Price is required"
+              : `No selected domains have a ${priceSourceLabel} price`
+          );
+          setLoading(false);
+          return;
+        }
+
+        const skipped = batchDomains.length - batchItems.length;
+
         const batchResponse = await fetch("/api/sedo/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            price: Number(askingPrice),
-            minprice: minPriceValue,
-            fixedprice: (isFixed ? 1 : 0),
-            domainIds: batchDomains.map((d) => d.id),
+            items: batchItems.map((item) => ({
+              domainId: item.id,
+              price: item.price,
+              minprice: item.minprice,
+              fixedprice: isFixed ? 1 : 0,
+            })),
           }),
         });
 
@@ -127,22 +189,27 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
           throw new Error(batchBody.error ?? "Sedo API error");
         }
 
-        for (const d of batchDomains) {
+        for (const d of batchItems) {
           await upsertSedoListing({
             domain_id: d.id,
             domain_name: d.domain,
-            sedo_price: Number(askingPrice),
-            sedo_minprice: minPriceValue,
+            sedo_price: d.price,
+            sedo_minprice: d.minprice,
             sedo_fixedprice: isFixed ? 1 : 0,
             sedo_currency: 1,
             sedo_forsale: 1,
           });
         }
 
+        if (skipped > 0) {
+          toast.warning(
+            `${skipped} domain${skipped === 1 ? "" : "s"} skipped (no ${priceSourceLabel} price)`
+          );
+        }
         if (batchBody.data?.errors?.length) {
           toast.warning(`${batchBody.data.errors.length} domains had errors`);
         } else {
-          toast.success(`${batchDomains.length} domains listed/updated on Sedo`);
+          toast.success(`${batchItems.length} domains listed/updated on Sedo`);
         }
 
         queryClient.invalidateQueries({ queryKey: queryKeys.sedoListings.all });
@@ -208,7 +275,23 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
     } finally {
       setLoading(false);
     }
-  }, [askingPrice, minOffer, isFixed, domain, existingListing, bin, onClose, onSuccess, queryClient]);
+  }, [
+    askingPrice,
+    minOffer,
+    isFixed,
+    priceSource,
+    priceSourceLabel,
+    batch,
+    batchDomains,
+    batchAfternicListings,
+    batchSpaceshipListings,
+    domain,
+    existingListing,
+    bin,
+    onClose,
+    onSuccess,
+    queryClient,
+  ]);
 
   const handleRemove = useCallback(async () => {
     setLoading(true);
@@ -254,8 +337,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
               ? `Bulk Edit — ${batchDomains?.length ?? 0} domains`
               : isEdit
                 ? `Edit Listing — ${domain?.domain}`
-                : `List on Sedo — ${domain?.domain}`
-            }
+                : `List on Sedo — ${domain?.domain}`}
           </h2>
           <button
             onClick={onClose}
@@ -267,34 +349,63 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
 
         <div className="p-6 space-y-5">
           {!batch && (
-          <>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Domain</span>
-              <span className="font-mono">{domain?.domain}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Registrar</span>
-              <span>{domain?.registrar || "\u2014"}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Expires</span>
-              <span>{domain?.expiration_date ? new Date(domain.expiration_date).toLocaleDateString() : ""}</span>
-            </div>
-          </div>
+            <>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Domain</span>
+                  <span className="font-mono">{domain?.domain}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Registrar</span>
+                  <span>{domain?.registrar || "\u2014"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Expires</span>
+                  <span>
+                    {domain?.expiration_date
+                      ? new Date(domain.expiration_date).toLocaleDateString()
+                      : ""}
+                  </span>
+                </div>
+              </div>
 
-          <div className="border-t border-border" />
-          </>
+              <div className="border-t border-border" />
+            </>
           )}
 
           {noCredentials && (
-            <p className="text-sm text-accent-danger">
-              Add Sedo credentials in Settings first
-            </p>
+            <p className="text-sm text-accent-danger">Add Sedo credentials in Settings first</p>
+          )}
+
+          {batch && (
+            <div className="space-y-2">
+              <Label>Price source</Label>
+              <Select
+                value={priceSource}
+                onValueChange={(value) => setPriceSource(value as SedoPriceSource)}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[80]">
+                  <SelectItem value="manual">Manual price</SelectItem>
+                  <SelectItem value="afternic">Use each domain&apos;s Afternic Buy Now</SelectItem>
+                  <SelectItem value="spaceship">Use each domain&apos;s Spaceship price</SelectItem>
+                </SelectContent>
+              </Select>
+              {priceSource !== "manual" && (
+                <p className="text-xs text-text-muted">
+                  Asking Price is ignored. Each domain uses its {priceSourceLabel} price; domains
+                  without one are skipped.
+                </p>
+              )}
+            </div>
           )}
 
           <div className="space-y-2">
-            <Label>Asking Price *</Label>
+            <Label>
+              {batch && priceSource !== "manual" ? "Asking Price (from source)" : "Asking Price *"}
+            </Label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
@@ -305,12 +416,12 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
                 onChange={(e) => setAskingPrice(e.target.value)}
                 placeholder="0.00"
                 className="pl-9"
-                disabled={loading || noCredentials}
+                disabled={loading || noCredentials || (batch && priceSource !== "manual")}
               />
             </div>
             <span className="text-xs text-text-muted">USD</span>
 
-            {askSuggestions.length > 0 && (
+            {priceSource === "manual" && askSuggestions.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {askSuggestions.map((s) => (
                   <button
@@ -345,7 +456,7 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
             </div>
             <span className="text-xs text-text-muted">USD</span>
 
-            {minPriceSuggestionsList.length > 0 && (
+            {priceSource === "manual" && minPriceSuggestionsList.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {minPriceSuggestionsList.map((s) => (
                   <button
@@ -448,11 +559,12 @@ export function SedoOverlay({ open, domain, existingListing, onClose, onSuccess,
               Cancel
             </Button>
             {noCredentials ? (
-              <Button
-                disabled
-                title="Add Sedo credentials in Settings first"
-              >
-                {batch ? `Apply to ${batchDomains?.length ?? 0} domains` : isEdit ? "Update" : "List on Sedo"}
+              <Button disabled title="Add Sedo credentials in Settings first">
+                {batch
+                  ? `Apply to ${batchDomains?.length ?? 0} domains`
+                  : isEdit
+                    ? "Update"
+                    : "List on Sedo"}
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={loading}>

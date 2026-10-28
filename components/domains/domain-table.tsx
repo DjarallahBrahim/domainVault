@@ -64,6 +64,7 @@ interface DomainTableProps {
   onSpaceshipBatch: () => void;
   onSedoBatchSync: () => void;
   onSpaceshipBatchSync: () => void;
+  onAfternicBatchSync: () => void;
   onAfternicBulkList: () => void;
   onAfternicBulkEdit: () => void;
   onAfternicBulkRemove: () => void;
@@ -104,6 +105,7 @@ export function DomainTable({
   onSpaceshipBatch,
   onSedoBatchSync,
   onSpaceshipBatchSync,
+  onAfternicBatchSync,
   onAfternicBulkList,
   onAfternicBulkEdit,
   onAfternicBulkRemove,
@@ -297,7 +299,33 @@ export function DomainTable({
                     )}
                   </div>
                 </TableHead>
-                <TableHead>Afternic</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    <span>Afternic</span>
+                    {selectedIds.size > 0 && (
+                      <Tooltip content={`Sync ${selectedIds.size} domains with Afternic`}>
+                        <button
+                          onClick={onAfternicBatchSync}
+                          className="text-text-muted transition-colors hover:text-accent-primary"
+                          aria-label={`Sync ${selectedIds.size} domains with Afternic`}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                      </Tooltip>
+                    )}
+                    {selectedIds.size > 0 && (
+                      <Tooltip content={`Edit Afternic listings for ${selectedIds.size} domains`}>
+                        <button
+                          onClick={onAfternicBulkEdit}
+                          className="text-text-muted transition-colors hover:text-accent-primary"
+                          aria-label={`Edit Afternic listings for ${selectedIds.size} domains`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+                </TableHead>
                 {showAllColumns && (
                   <TableHead>
                     <button

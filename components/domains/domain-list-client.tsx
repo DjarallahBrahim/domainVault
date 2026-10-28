@@ -201,6 +201,18 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
     refreshAfternicOne(domain.domain, domain.id);
   }
 
+  function handleAfternicBatchSync() {
+    const rows = selectedDomainRows();
+    if (rows.length === 0) return;
+
+    for (const domain of rows) {
+      refreshAfternicOne(domain.domain, domain.id, { silent: true });
+    }
+
+    toast.success(`Syncing ${rows.length} Afternic listing${rows.length === 1 ? "" : "s"}`);
+    setSelectedIds(new Set());
+  }
+
   function handleAfternicEdit(domain: DomainRow, listing: AfternicListing) {
     setAfternicOverlayDomain(domain);
     setAfternicExistingListing(listing);
@@ -524,6 +536,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           onSpaceshipBatch={handleSpaceshipBatch}
           onSedoBatchSync={handleSedoBatchSync}
           onSpaceshipBatchSync={handleSpaceshipBatchSync}
+          onAfternicBatchSync={handleAfternicBatchSync}
           onAfternicBulkList={() => setBulkListOpen(true)}
           onAfternicBulkEdit={() => handleAfternicBulkEdit("edit")}
           onAfternicBulkRemove={handleAfternicBulkRemove}
@@ -624,6 +637,8 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
                 .map((d) => ({ id: d.id, domain: d.domain }))
             : undefined
         }
+        batchAfternicListings={afternicListings}
+        batchSpaceshipListings={spaceshipListings}
       />
 
       <SpaceshipOverlay
@@ -655,6 +670,8 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
                 .map((d) => ({ id: d.id, domain: d.domain }))
             : undefined
         }
+        batchAfternicListings={afternicListings}
+        batchSedoListings={sedoListings}
       />
 
       <AfternicOverlay
@@ -699,7 +716,18 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           mode={bulkEditMode}
           candidates={selectedDomainRows().flatMap((d) => {
             const listing = afternicListings.get(d.id);
-            return listing ? [{ id: d.id, domain: d.domain, bin: binOf(d), listing }] : [];
+            return listing
+              ? [
+                  {
+                    id: d.id,
+                    domain: d.domain,
+                    bin: binOf(d),
+                    sedoPrice: sedoListings.get(d.id)?.sedo_price ?? null,
+                    spaceshipPrice: spaceshipListings.get(d.id)?.spaceship_price ?? null,
+                    listing,
+                  },
+                ]
+              : [];
           })}
           onComplete={() => {
             setBulkEditOpen(false);
