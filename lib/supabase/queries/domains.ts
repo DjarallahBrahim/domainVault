@@ -40,9 +40,63 @@ const PLATFORM_LISTINGS_TABLE: Record<string, string> = {
   sedo: "sedo_listings",
   spaceship: "spaceship_listings",
   afternic: "afternic_listings",
+  atom: "atom_listings",
 };
 
 const DEFAULT_PAGE_SIZE = 50;
+
+function parseNotListedPlatforms(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((v) => v.trim().toLowerCase())
+      .filter((v) => Boolean(PLATFORM_LISTINGS_TABLE[v]))
+  );
+}
+
+/**
+ * Builds the `select` embed list. "Not listed on X" uses a `!left` embed plus
+ * an `is null` filter (anti-join) so the listing IDs never have to live in the
+ * URL — a huge `not.in.(...)` list gets rejected by the proxy once a portfolio
+ * grows.
+ */
+function buildDomainSelectEmbeds(
+  sortColumn: string,
+  notListedSet: Set<string>,
+  hasAfternicLander: boolean
+): string[] {
+  const embeds: string[] = [];
+
+  if (sortColumn === "sedo_price") {
+    const sedo = notListedSet.has("sedo");
+    embeds.push(`sedo_listings${sedo ? "!left" : ""}(sedo_price${sedo ? ",domain_id" : ""})`);
+  } else if (notListedSet.has("sedo")) {
+    embeds.push("sedo_listings!left(domain_id)");
+  }
+
+  if (sortColumn === "spaceship_price") {
+    const ship = notListedSet.has("spaceship");
+    embeds.push(
+      `spaceship_listings${ship ? "!left" : ""}(spaceship_price${ship ? ",domain_id" : ""})`
+    );
+  } else if (notListedSet.has("spaceship")) {
+    embeds.push("spaceship_listings!left(domain_id)");
+  }
+
+  if (hasAfternicLander) {
+    embeds.push(`afternic_listings${notListedSet.has("afternic") ? "!left" : "!inner"}(domain_id)`);
+  } else if (notListedSet.has("afternic")) {
+    embeds.push("afternic_listings!left(domain_id)");
+  }
+
+  if (sortColumn === "atom_price") {
+    embeds.push(`atom_listings!left(selling_price${notListedSet.has("atom") ? ",domain_id" : ""})`);
+  } else if (notListedSet.has("atom")) {
+    embeds.push("atom_listings!left(domain_id)");
+  }
+
+  return embeds;
+}
 
 export async function fetchDomains(filters: DomainFilters) {
   const supabase = createServerClient();
@@ -60,21 +114,19 @@ export async function fetchDomains(filters: DomainFilters) {
 
   const sortColumn = filters.sort ?? "created_at";
   const sortOrder = filters.order === "asc" ? true : false;
-  const priceSort = sortColumn === "sedo_price" || sortColumn === "spaceship_price";
+  const priceSort =
+    sortColumn === "sedo_price" || sortColumn === "spaceship_price" || sortColumn === "atom_price";
   // `total_cost` may not exist on older databases but both inputs always do,
   // so compute it client-side instead of ordering by a possibly-missing column.
   const totalCostSort = sortColumn === "total_cost";
   const clientSort = priceSort || totalCostSort;
 
   const reservedTld = normalizeReservedTld(filters.reservedTld);
+  const notListedSet = parseNotListedPlatforms(filters.notListed);
+  const afternicLander = Boolean(filters.lander || filters.shows);
+  const embeds = buildDomainSelectEmbeds(sortColumn, notListedSet, afternicLander);
 
-  const selectFields = `${
-    priceSort
-      ? sortColumn === "sedo_price"
-        ? "*, sedo_listings(sedo_price)"
-        : "*, spaceship_listings(spaceship_price)"
-      : "*"
-  }${filters.lander || filters.shows ? ", afternic_listings!inner(domain_id)" : ""}${
+  const selectFields = `*${embeds.length ? "," + embeds.join(",") : ""}${
     reservedTld ? ", domain_extension_checks!inner(tld)" : ""
   }`;
 
@@ -152,47 +204,9 @@ export async function fetchDomains(filters: DomainFilters) {
     }
   }
 
-  if (filters.notListed) {
-    const platforms = filters.notListed
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter((value) => Boolean(PLATFORM_LISTINGS_TABLE[value]));
-
-    const excluded = new Set<string>();
-
-    for (const platform of platforms) {
-      if (platform === "sedo") {
-        const { data, error } = await resolved
-          .from("sedo_listings")
-          .select("domain_id")
-          .eq("user_id", user.id);
-        if (error) throw error;
-        for (const row of (data ?? []) as Array<{ domain_id: string }>) {
-          excluded.add(row.domain_id);
-        }
-      } else if (platform === "spaceship") {
-        const { data, error } = await resolved
-          .from("spaceship_listings")
-          .select("domain_id")
-          .eq("user_id", user.id);
-        if (error) throw error;
-        for (const row of (data ?? []) as Array<{ domain_id: string }>) {
-          excluded.add(row.domain_id);
-        }
-      } else if (platform === "afternic") {
-        const { data, error } = await resolved
-          .from("afternic_listings")
-          .select("domain_id")
-          .eq("user_id", user.id);
-        if (error) throw error;
-        for (const row of (data ?? []) as Array<{ domain_id: string }>) {
-          excluded.add(row.domain_id);
-        }
-      }
-    }
-
-    if (excluded.size > 0) {
-      query = query.not("id", "in", `(${Array.from(excluded).join(",")})`);
+  if (notListedSet.size > 0) {
+    for (const platform of notListedSet) {
+      query = query.is(`${PLATFORM_LISTINGS_TABLE[platform]}.domain_id`, null);
     }
   }
 
@@ -254,7 +268,18 @@ export async function fetchDomains(filters: DomainFilters) {
   let count: number;
 
   if (clientSort) {
-    const priceKey = sortColumn === "sedo_price" ? "sedo_listings" : "spaceship_listings";
+    const priceKey =
+      sortColumn === "sedo_price"
+        ? "sedo_listings"
+        : sortColumn === "spaceship_price"
+          ? "spaceship_listings"
+          : "atom_listings";
+    const priceField =
+      sortColumn === "sedo_price"
+        ? "sedo_price"
+        : sortColumn === "spaceship_price"
+          ? "spaceship_price"
+          : "selling_price";
 
     const {
       data,
@@ -281,7 +306,7 @@ export async function fetchDomains(filters: DomainFilters) {
         ? (rel[0] as Record<string, unknown> | undefined)
         : (rel as Record<string, unknown>);
       if (rec == null) return undefined;
-      const p = rec[sortColumn] as number | string | null | undefined;
+      const p = rec[priceField] as number | string | null | undefined;
       return p == null ? undefined : Number(p);
     };
 

@@ -24,6 +24,7 @@ import {
 import type { SpaceshipListing } from "@/types/spaceship";
 import type { AfternicListing } from "@/types/afternic";
 import type { SedoListing } from "@/types/sedo";
+import type { AtomListing } from "@/types/atom";
 
 interface SpaceshipOverlayProps {
   open: boolean;
@@ -41,9 +42,10 @@ interface SpaceshipOverlayProps {
   batchDomains?: Array<{ id: string; domain: string }>;
   batchAfternicListings?: Map<string, AfternicListing>;
   batchSedoListings?: Map<string, SedoListing>;
+  batchAtomListings?: Map<string, AtomListing>;
 }
 
-type SpaceshipPriceSource = "manual" | "afternic" | "sedo";
+type SpaceshipPriceSource = "manual" | "afternic" | "sedo" | "atom";
 
 export function SpaceshipOverlay({
   open,
@@ -55,6 +57,7 @@ export function SpaceshipOverlay({
   batchDomains,
   batchAfternicListings,
   batchSedoListings,
+  batchAtomListings,
 }: SpaceshipOverlayProps) {
   const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
@@ -101,7 +104,13 @@ export function SpaceshipOverlay({
   const minPriceChips = askingPriceNum > 0 ? minPriceSuggestions(askingPriceNum) : [];
 
   const priceSourceLabel =
-    priceSource === "afternic" ? "Afternic" : priceSource === "sedo" ? "Sedo" : "manual";
+    priceSource === "afternic"
+      ? "Afternic"
+      : priceSource === "sedo"
+        ? "Sedo"
+        : priceSource === "atom"
+          ? "Atom"
+          : "manual";
 
   function priceForDomain(id: string): number {
     if (priceSource === "afternic") {
@@ -109,6 +118,9 @@ export function SpaceshipOverlay({
     }
     if (priceSource === "sedo") {
       return batchSedoListings?.get(id)?.sedo_price ?? 0;
+    }
+    if (priceSource === "atom") {
+      return batchAtomListings?.get(id)?.selling_price ?? 0;
     }
     return Number(askingPrice) || 0;
   }
@@ -257,6 +269,7 @@ export function SpaceshipOverlay({
     batchDomains,
     batchAfternicListings,
     batchSedoListings,
+    batchAtomListings,
     domain,
     existingListing,
     bin,
@@ -363,6 +376,7 @@ export function SpaceshipOverlay({
                   <SelectItem value="manual">Manual price</SelectItem>
                   <SelectItem value="afternic">Use each domain&apos;s Afternic Buy Now</SelectItem>
                   <SelectItem value="sedo">Use each domain&apos;s Sedo price</SelectItem>
+                  <SelectItem value="atom">Use each domain&apos;s Atom price</SelectItem>
                 </SelectContent>
               </Select>
               {priceSource !== "manual" && (

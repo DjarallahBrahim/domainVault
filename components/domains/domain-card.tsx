@@ -5,12 +5,14 @@ import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { SedoCardRow } from "@/components/domains/SedoCardRow";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { AfternicCardRow } from "@/components/domains/AfternicCardRow";
+import { AtomCardRow } from "@/components/domains/AtomCardRow";
 import { TldCell } from "@/components/domains/TldCell";
 import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
 import type { AfternicListing } from "@/types/afternic";
+import type { AtomListing } from "@/types/atom";
 import { useRouter } from "next/navigation";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -34,6 +36,11 @@ interface DomainCardProps {
   onAfternicRefresh: (domain: DomainRow) => void;
   onAfternicLogSale: (domain: DomainRow, listing: AfternicListing) => void;
   afternicRefreshingIds: Set<string>;
+  atomListings: Map<string, AtomListing>;
+  onAtomEdit: (domain: DomainRow, listing: AtomListing) => void;
+  onAtomCreate: (domain: DomainRow) => void;
+  onAtomRefresh: (domain: DomainRow) => void;
+  atomRefreshingIds: Set<string>;
   reservedExtensions: Map<string, string[]>;
 }
 
@@ -61,6 +68,11 @@ export function DomainCard({
   onAfternicRefresh,
   onAfternicLogSale,
   afternicRefreshingIds,
+  atomListings,
+  onAtomEdit,
+  onAtomCreate,
+  onAtomRefresh,
+  atomRefreshingIds,
   reservedExtensions,
 }: DomainCardProps) {
   const router = useRouter();
@@ -140,6 +152,15 @@ export function DomainCard({
             onRefresh={() => onAfternicRefresh(domain)}
             onLogSale={(listing) => onAfternicLogSale(domain, listing)}
             refreshing={afternicRefreshingIds.has(domain.id)}
+          />
+        </div>
+        <div className="border-t border-border pt-2">
+          <AtomCardRow
+            listing={atomListings.get(domain.id)}
+            onEdit={(listing) => onAtomEdit(domain, listing)}
+            onCreate={() => onAtomCreate(domain)}
+            onRefresh={() => onAtomRefresh(domain)}
+            refreshing={atomRefreshingIds.has(domain.id)}
           />
         </div>
         <div className="flex justify-between">

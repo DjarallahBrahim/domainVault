@@ -3,6 +3,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { deleteSedoListing } from "@/lib/supabase/queries/sedo-listings-client";
 import { deleteSpaceshipListing } from "@/lib/supabase/queries/spaceship-listings-client";
 import { deleteAfternicListing } from "@/lib/supabase/queries/afternic-listings-client";
+import { deleteAtomListing } from "@/lib/supabase/queries/atom-listings-client";
 
 /**
  * A marketplace a domain can be delisted from once it sells.
@@ -26,7 +27,7 @@ export interface RemovablePlatform {
 }
 
 async function hasListing(
-  table: "sedo_listings" | "spaceship_listings" | "afternic_listings",
+  table: "sedo_listings" | "spaceship_listings" | "afternic_listings" | "atom_listings",
   domainId: string
 ): Promise<boolean> {
   const supabase = createClient();
@@ -65,6 +66,15 @@ export const REMOVABLE_PLATFORMS: RemovablePlatform[] = [
     queryKey: queryKeys.afternicListings.all,
     isListed: (domainId) => hasListing("afternic_listings", domainId),
     clearLocal: deleteAfternicListing,
+  },
+  {
+    id: "atom",
+    label: "Atom",
+    endpoint: "/api/atom/delete",
+    method: "DELETE",
+    queryKey: queryKeys.atomListings.all,
+    isListed: (domainId) => hasListing("atom_listings", domainId),
+    clearLocal: deleteAtomListing,
   },
 ];
 

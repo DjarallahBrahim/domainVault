@@ -77,6 +77,7 @@ export interface BulkEditCandidate {
   bin: number | null;
   sedoPrice: number | null;
   spaceshipPrice: number | null;
+  atomPrice: number | null;
   listing: AfternicListing;
 }
 
@@ -89,7 +90,7 @@ interface BulkAfternicEditDialogProps {
   onRecheck?: (items: Array<{ id: string; domain: string }>) => void;
 }
 
-type PriceRule = "bin" | "bin20" | "bin30" | "fixed" | "sedo" | "spaceship";
+type PriceRule = "bin" | "bin20" | "bin30" | "fixed" | "sedo" | "spaceship" | "atom";
 type MinbidRule = "20" | "30" | "40" | "50" | "custom";
 
 function computeBuynow(
@@ -105,6 +106,9 @@ function computeBuynow(
     return candidate.spaceshipPrice && candidate.spaceshipPrice > 0
       ? Math.round(candidate.spaceshipPrice)
       : null;
+  }
+  if (rule === "atom") {
+    return candidate.atomPrice && candidate.atomPrice > 0 ? Math.round(candidate.atomPrice) : null;
   }
   const base = candidate.bin;
   if (!base) return null;
@@ -204,7 +208,9 @@ export function BulkAfternicEditDialog({
               ? "No Sedo price"
               : priceRule === "spaceship"
                 ? "No Spaceship price"
-                : "No BIN";
+                : priceRule === "atom"
+                  ? "No Atom price"
+                  : "No BIN";
         } else if (next > MAX_BUYNOW_USD) {
           skipReason = "Price too high";
         } else {
@@ -521,6 +527,7 @@ export function BulkAfternicEditDialog({
                       <SelectItem value="spaceship">
                         Use each domain&apos;s Spaceship price
                       </SelectItem>
+                      <SelectItem value="atom">Use each domain&apos;s Atom price</SelectItem>
                       <SelectItem value="fixed">Fixed price</SelectItem>
                     </SelectContent>
                   </Select>

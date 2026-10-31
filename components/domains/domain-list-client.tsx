@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -19,6 +19,11 @@ import { BulkAfternicListDialog } from "@/components/domains/BulkAfternicListDia
 import { BulkAfternicEditDialog } from "@/components/domains/BulkAfternicEditDialog";
 import { BulkAfternicRemoveDialog } from "@/components/domains/BulkAfternicRemoveDialog";
 import { ImportUnmatchedAfternicDialog } from "@/components/domains/ImportUnmatchedAfternicDialog";
+import { AtomOverlay } from "@/components/domains/AtomOverlay";
+import { BulkAtomListDialog } from "@/components/domains/BulkAtomListDialog";
+import { BulkAtomEditDialog } from "@/components/domains/BulkAtomEditDialog";
+import { BulkAtomRemoveDialog } from "@/components/domains/BulkAtomRemoveDialog";
+import { ImportUnmatchedAtomDialog } from "@/components/domains/ImportUnmatchedAtomDialog";
 import { SyncMenu } from "@/components/domains/SyncMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SalesLogForm } from "@/components/sales/sales-log-form";
@@ -28,11 +33,14 @@ import { useSpaceshipListings } from "@/lib/hooks/useSpaceshipListings";
 import { useSpaceshipRefreshOne } from "@/lib/hooks/useSpaceshipRefreshOne";
 import { useAfternicListings } from "@/lib/hooks/useAfternicListings";
 import { useAfternicRefreshOne } from "@/lib/hooks/useAfternicRefreshOne";
+import { useAtomListings } from "@/lib/hooks/useAtomListings";
+import { useAtomRefreshOne } from "@/lib/hooks/useAtomRefreshOne";
 import type {
   AfternicSoldDomain,
   AfternicSyncResult,
   AfternicUnmatchedDomain,
 } from "@/lib/hooks/useAfternicSync";
+import type { AtomSyncResult, AtomUnmatchedDomain } from "@/lib/hooks/useAtomSync";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { deleteDomain, deleteDomains, fetchDomains } from "@/lib/supabase/queries/domains-client";
@@ -42,8 +50,60 @@ import type { RenewalTarget } from "@/types/renewal";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
 import type { AfternicListing } from "@/types/afternic";
+import type { AtomListing } from "@/types/atom";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
+
+const ATOM_UNMATCHED_STORAGE_PREFIX = "domainvault:atom-unmatched";
+
+function atomUnmatchedStorageKey(userId: string): string {
+  return `${ATOM_UNMATCHED_STORAGE_PREFIX}:${userId || "default"}`;
+}
+
+function readStoredAtomUnmatched(userId: string): AtomUnmatchedDomain[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(atomUnmatchedStorageKey(userId));
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as { domains?: unknown };
+    if (!Array.isArray(parsed?.domains)) return [];
+
+    return parsed.domains.filter((item): item is AtomUnmatchedDomain => {
+      if (!item || typeof item !== "object") return false;
+      const candidate = item as Partial<AtomUnmatchedDomain>;
+      return typeof candidate.domain === "string" && Boolean(candidate.payload);
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredAtomUnmatched(userId: string, domains: AtomUnmatchedDomain[]): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const key = atomUnmatchedStorageKey(userId);
+    if (domains.length === 0) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), domains }));
+  } catch {
+    // Storage can be unavailable (private mode); the in-memory list still works.
+  }
+}
+
+function clearStoredAtomUnmatched(userId: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(atomUnmatchedStorageKey(userId));
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 interface DomainListClientProps {
   initialData: Awaited<ReturnType<typeof fetchDomains>>;
@@ -114,6 +174,23 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
   const { listings: afternicListings } = useAfternicListings();
   const { refreshOne: refreshAfternicOne, isRefreshing: isAfternicRefreshing } =
     useAfternicRefreshOne();
+
+  const [atomOverlayDomain, setAtomOverlayDomain] = useState<DomainRow | null>(null);
+  const [atomExistingListing, setAtomExistingListing] = useState<AtomListing | null>(null);
+
+  const { listings: atomListings } = useAtomListings();
+  const { refreshOne: refreshAtomOne, isRefreshing: isAtomRefreshing } = useAtomRefreshOne();
+
+  const [atomUnmatched, setAtomUnmatched] = useState<AtomUnmatchedDomain[]>([]);
+  const [showAtomUnmatched, setShowAtomUnmatched] = useState(false);
+
+  useEffect(() => {
+    setAtomUnmatched(readStoredAtomUnmatched(userId));
+  }, [userId]);
+
+  const [atomBulkListOpen, setAtomBulkListOpen] = useState(false);
+  const [atomBulkEditOpen, setAtomBulkEditOpen] = useState(false);
+  const [atomBulkRemoveOpen, setAtomBulkRemoveOpen] = useState(false);
 
   const [afternicUnmatched, setAfternicUnmatched] = useState<AfternicUnmatchedDomain[]>([]);
   const [afternicSold, setAfternicSold] = useState<AfternicSoldDomain[]>([]);
@@ -239,6 +316,69 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
   function handleAfternicSynced(result: AfternicSyncResult) {
     setAfternicUnmatched(result.unmatched);
     setAfternicSold(result.sold);
+  }
+
+  function handleAtomRefresh(domain: DomainRow) {
+    refreshAtomOne(domain.domain, domain.id);
+  }
+
+  function handleAtomBatchSync() {
+    const rows = selectedDomainRows();
+    if (rows.length === 0) return;
+
+    for (const domain of rows) {
+      refreshAtomOne(domain.domain, domain.id, { silent: true });
+    }
+
+    toast.success(`Syncing ${rows.length} Atom listing${rows.length === 1 ? "" : "s"}`);
+    setSelectedIds(new Set());
+  }
+
+  function handleAtomEdit(domain: DomainRow, listing: AtomListing) {
+    setAtomOverlayDomain(domain);
+    setAtomExistingListing(listing);
+  }
+
+  function handleAtomCreate(domain: DomainRow) {
+    setAtomOverlayDomain(domain);
+    setAtomExistingListing(null);
+  }
+
+  function handleAtomClose() {
+    setAtomOverlayDomain(null);
+    setAtomExistingListing(null);
+  }
+
+  function handleAtomSynced(result: AtomSyncResult) {
+    setAtomUnmatched(result.unmatched);
+    writeStoredAtomUnmatched(userId, result.unmatched);
+  }
+
+  function handleAtomBulkList() {
+    const rows = selectedDomainRows();
+    if (rows.length === 0) {
+      toast.error("Select at least one domain");
+      return;
+    }
+    setAtomBulkListOpen(true);
+  }
+
+  function handleAtomBulkEdit() {
+    const rows = selectedDomainRows().filter((d) => atomListings.has(d.id));
+    if (rows.length === 0) {
+      toast.error("Select domains that are listed on Atom first");
+      return;
+    }
+    setAtomBulkEditOpen(true);
+  }
+
+  function handleAtomBulkRemove() {
+    const rows = selectedDomainRows().filter((d) => atomListings.has(d.id));
+    if (rows.length === 0) {
+      toast.error("Select domains that are listed on Atom first");
+      return;
+    }
+    setAtomBulkRemoveOpen(true);
   }
 
   function binOf(domain: DomainRow): number | null {
@@ -460,6 +600,9 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             domains={data.domains.map((d) => ({ id: d.id, domain: d.domain }))}
             userId={userId}
             onAfternicSynced={handleAfternicSynced}
+            onAtomSynced={handleAtomSynced}
+            atomUnmatchedCount={atomUnmatched.length}
+            onReviewAtomUnmatched={() => setShowAtomUnmatched(true)}
           />
         </div>
       </div>
@@ -471,6 +614,18 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             {afternicUnmatched.length === 1 ? " is" : "s are"} not in DomainVault.
           </p>
           <Button size="sm" variant="outline" onClick={() => setShowUnmatched(true)}>
+            Review
+          </Button>
+        </div>
+      )}
+
+      {atomUnmatched.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-warning/30 bg-accent-warning/5 px-4 py-3">
+          <p className="text-sm text-accent-warning">
+            {atomUnmatched.length} Atom domain
+            {atomUnmatched.length === 1 ? " is" : "s are"} not in DomainVault.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setShowAtomUnmatched(true)}>
             Review
           </Button>
         </div>
@@ -532,6 +687,13 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           afternicRefreshingIds={
             new Set(data.domains.filter((d) => isAfternicRefreshing(d.id)).map((d) => d.id))
           }
+          atomListings={atomListings}
+          onAtomEdit={handleAtomEdit}
+          onAtomCreate={handleAtomCreate}
+          onAtomRefresh={handleAtomRefresh}
+          atomRefreshingIds={
+            new Set(data.domains.filter((d) => isAtomRefreshing(d.id)).map((d) => d.id))
+          }
           onSedoBatch={handleSedoBatch}
           onSpaceshipBatch={handleSpaceshipBatch}
           onSedoBatchSync={handleSedoBatchSync}
@@ -545,6 +707,10 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
           }
           onAfternicBulkFtBuynow={() => handleAfternicBulkEdit("ft-buynow")}
           onAfternicBulkPreset={(preset) => handleAfternicBulkEdit(preset)}
+          onAtomBatchSync={handleAtomBatchSync}
+          onAtomBulkList={handleAtomBulkList}
+          onAtomBulkEdit={handleAtomBulkEdit}
+          onAtomBulkRemove={handleAtomBulkRemove}
           onCopySelected={handleCopySelected}
           onBulkRenew={handleBulkRenew}
           reservedExtensions={data.reservedExtensions}
@@ -578,6 +744,13 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             onAfternicLogSale={handleAfternicLogSale}
             afternicRefreshingIds={
               new Set(data.domains.filter((d) => isAfternicRefreshing(d.id)).map((d) => d.id))
+            }
+            atomListings={atomListings}
+            onAtomEdit={handleAtomEdit}
+            onAtomCreate={handleAtomCreate}
+            onAtomRefresh={handleAtomRefresh}
+            atomRefreshingIds={
+              new Set(data.domains.filter((d) => isAtomRefreshing(d.id)).map((d) => d.id))
             }
             reservedExtensions={data.reservedExtensions}
           />
@@ -639,6 +812,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         }
         batchAfternicListings={afternicListings}
         batchSpaceshipListings={spaceshipListings}
+        batchAtomListings={atomListings}
       />
 
       <SpaceshipOverlay
@@ -672,6 +846,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         }
         batchAfternicListings={afternicListings}
         batchSedoListings={sedoListings}
+        batchAtomListings={atomListings}
       />
 
       <AfternicOverlay
@@ -692,6 +867,24 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         onSuccess={handleAfternicClose}
       />
 
+      <AtomOverlay
+        open={atomOverlayDomain !== null}
+        onClose={handleAtomClose}
+        domain={
+          atomOverlayDomain
+            ? {
+                id: atomOverlayDomain.id,
+                domain: atomOverlayDomain.domain,
+                registrar: atomOverlayDomain.registrar,
+                expiration_date: atomOverlayDomain.expiration_date,
+                bin: binOf(atomOverlayDomain),
+              }
+            : null
+        }
+        existingListing={atomExistingListing}
+        onSuccess={handleAtomClose}
+      />
+
       {bulkListOpen && (
         <BulkAfternicListDialog
           open={bulkListOpen}
@@ -700,6 +893,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
             id: d.id,
             domain: d.domain,
             bin: binOf(d),
+            atomPrice: atomListings.get(d.id)?.selling_price ?? null,
             alreadyListed: afternicListings.has(d.id),
           }))}
           onComplete={() => {
@@ -724,6 +918,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
                     bin: binOf(d),
                     sedoPrice: sedoListings.get(d.id)?.sedo_price ?? null,
                     spaceshipPrice: spaceshipListings.get(d.id)?.spaceship_price ?? null,
+                    atomPrice: atomListings.get(d.id)?.selling_price ?? null,
                     listing,
                   },
                 ]
@@ -761,6 +956,79 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         domains={afternicUnmatched}
         onImported={() => setAfternicUnmatched([])}
       />
+
+      <ImportUnmatchedAtomDialog
+        open={showAtomUnmatched}
+        onOpenChange={setShowAtomUnmatched}
+        domains={atomUnmatched}
+        onImported={() => {
+          setAtomUnmatched([]);
+          clearStoredAtomUnmatched(userId);
+        }}
+      />
+
+      {atomBulkListOpen && (
+        <BulkAtomListDialog
+          open={atomBulkListOpen}
+          onOpenChange={setAtomBulkListOpen}
+          candidates={selectedDomainRows().map((d) => ({
+            id: d.id,
+            domain: d.domain,
+            bin: binOf(d),
+            alreadyListed: atomListings.has(d.id),
+            listing: atomListings.get(d.id) ?? null,
+            afternicPrice: afternicListings.get(d.id)?.buynow_price ?? null,
+            sedoPrice: sedoListings.get(d.id)?.sedo_price ?? null,
+            spaceshipPrice: spaceshipListings.get(d.id)?.spaceship_price ?? null,
+          }))}
+          onComplete={() => {
+            setAtomBulkListOpen(false);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      {atomBulkEditOpen && (
+        <BulkAtomEditDialog
+          open={atomBulkEditOpen}
+          onOpenChange={setAtomBulkEditOpen}
+          candidates={selectedDomainRows().flatMap((d) => {
+            const listing = atomListings.get(d.id);
+            return listing
+              ? [
+                  {
+                    id: d.id,
+                    domain: d.domain,
+                    bin: binOf(d),
+                    afternicPrice: afternicListings.get(d.id)?.buynow_price ?? null,
+                    sedoPrice: sedoListings.get(d.id)?.sedo_price ?? null,
+                    spaceshipPrice: spaceshipListings.get(d.id)?.spaceship_price ?? null,
+                    listing,
+                  },
+                ]
+              : [];
+          })}
+          onComplete={() => {
+            setAtomBulkEditOpen(false);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      {atomBulkRemoveOpen && (
+        <BulkAtomRemoveDialog
+          open={atomBulkRemoveOpen}
+          onOpenChange={setAtomBulkRemoveOpen}
+          candidates={selectedDomainRows().flatMap((d) => {
+            const listing = atomListings.get(d.id);
+            return listing ? [{ id: d.id, domain: d.domain, listing }] : [];
+          })}
+          onComplete={() => {
+            setAtomBulkRemoveOpen(false);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
 
       <Dialog
         open={soldTarget !== null}

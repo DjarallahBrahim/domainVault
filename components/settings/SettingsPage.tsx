@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { SedoCredentialsForm } from "@/components/settings/SedoCredentialsForm";
 import { SpaceshipCredentialsForm } from "@/components/settings/SpaceshipCredentialsForm";
 import { AfternicCredentialsForm } from "@/components/settings/AfternicCredentialsForm";
+import { AtomCredentialsForm } from "@/components/settings/AtomCredentialsForm";
 
 export function SettingsPage() {
   const router = useRouter();
@@ -227,6 +228,7 @@ export function SettingsPage() {
           <SedoCredentialsForm />
           <SpaceshipCredentialsForm />
           <AfternicCredentialsForm />
+          <AtomCredentialsForm />
         </div>
       </section>
 
