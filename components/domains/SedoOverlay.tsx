@@ -21,6 +21,7 @@ import { upsertSedoListing, deleteSedoListing } from "@/lib/supabase/queries/sed
 import type { SedoListing } from "@/types/sedo";
 import type { AfternicListing } from "@/types/afternic";
 import type { SpaceshipListing } from "@/types/spaceship";
+import type { AtomListing } from "@/types/atom";
 
 interface SedoOverlayProps {
   open: boolean;
@@ -38,9 +39,10 @@ interface SedoOverlayProps {
   batchDomains?: Array<{ id: string; domain: string }>;
   batchAfternicListings?: Map<string, AfternicListing>;
   batchSpaceshipListings?: Map<string, SpaceshipListing>;
+  batchAtomListings?: Map<string, AtomListing>;
 }
 
-type SedoPriceSource = "manual" | "afternic" | "spaceship";
+type SedoPriceSource = "manual" | "afternic" | "spaceship" | "atom";
 
 export function SedoOverlay({
   open,
@@ -52,6 +54,7 @@ export function SedoOverlay({
   batchDomains,
   batchAfternicListings,
   batchSpaceshipListings,
+  batchAtomListings,
 }: SedoOverlayProps) {
   const isEdit = !batch && !!existingListing;
   const queryClient = useQueryClient();
@@ -104,7 +107,13 @@ export function SedoOverlay({
   const minPriceSuggestionsList = askingPriceNum > 0 ? minPriceSuggestions(askingPriceNum) : [];
 
   const priceSourceLabel =
-    priceSource === "afternic" ? "Afternic" : priceSource === "spaceship" ? "Spaceship" : "manual";
+    priceSource === "afternic"
+      ? "Afternic"
+      : priceSource === "spaceship"
+        ? "Spaceship"
+        : priceSource === "atom"
+          ? "Atom"
+          : "manual";
 
   function priceForDomain(id: string): number {
     if (priceSource === "afternic") {
@@ -112,6 +121,9 @@ export function SedoOverlay({
     }
     if (priceSource === "spaceship") {
       return batchSpaceshipListings?.get(id)?.spaceship_price ?? 0;
+    }
+    if (priceSource === "atom") {
+      return batchAtomListings?.get(id)?.selling_price ?? 0;
     }
     return Number(askingPrice) || 0;
   }
@@ -285,6 +297,7 @@ export function SedoOverlay({
     batchDomains,
     batchAfternicListings,
     batchSpaceshipListings,
+    batchAtomListings,
     domain,
     existingListing,
     bin,
@@ -391,6 +404,7 @@ export function SedoOverlay({
                   <SelectItem value="manual">Manual price</SelectItem>
                   <SelectItem value="afternic">Use each domain&apos;s Afternic Buy Now</SelectItem>
                   <SelectItem value="spaceship">Use each domain&apos;s Spaceship price</SelectItem>
+                  <SelectItem value="atom">Use each domain&apos;s Atom price</SelectItem>
                 </SelectContent>
               </Select>
               {priceSource !== "manual" && (

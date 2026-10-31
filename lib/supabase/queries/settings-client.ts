@@ -56,10 +56,7 @@ export async function fetchSpaceshipApiSecret(): Promise<string | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return (
-    (data as { spaceship_api_secret: string | null } | null)
-      ?.spaceship_api_secret ?? null
-  );
+  return (data as { spaceship_api_secret: string | null } | null)?.spaceship_api_secret ?? null;
 }
 
 /** Fetches the stored Afternic API secret on demand. */
@@ -71,8 +68,17 @@ export async function fetchAfternicApiSecret(): Promise<string | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return (
-    (data as { afternic_api_secret: string | null } | null)
-      ?.afternic_api_secret ?? null
-  );
+  return (data as { afternic_api_secret: string | null } | null)?.afternic_api_secret ?? null;
+}
+
+/** Fetches the stored Atom API token on demand. */
+export async function fetchAtomApiToken(): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("atom_api_token")
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as { atom_api_token: string | null } | null)?.atom_api_token ?? null;
 }

@@ -31,6 +31,7 @@ export interface BulkListCandidate {
   id: string;
   domain: string;
   bin: number | null;
+  atomPrice: number | null;
   alreadyListed: boolean;
 }
 
@@ -41,7 +42,7 @@ interface BulkAfternicListDialogProps {
   onComplete: () => void;
 }
 
-type PriceRule = "bin" | "bin20" | "bin30" | "fixed";
+type PriceRule = "bin" | "bin20" | "bin30" | "fixed" | "atom";
 type MinbidRule = "none" | "20" | "30" | "40" | "50";
 
 interface PreviewRow {
@@ -58,8 +59,16 @@ interface ResultRow {
   message?: string;
 }
 
-function computeBuynow(rule: PriceRule, fixed: number, bin: number | null): number | null {
+function computeBuynow(
+  rule: PriceRule,
+  fixed: number,
+  candidate: BulkListCandidate
+): number | null {
   if (rule === "fixed") return fixed > 0 ? Math.round(fixed) : null;
+  if (rule === "atom") {
+    return candidate.atomPrice && candidate.atomPrice > 0 ? Math.round(candidate.atomPrice) : null;
+  }
+  const bin = candidate.bin;
   if (!bin) return null;
   if (rule === "bin") return Math.round(bin);
   if (rule === "bin20") return Math.round(bin * 0.8);
@@ -85,7 +94,7 @@ export function BulkAfternicListDialog({
 
   const preview = useMemo<PreviewRow[]>(() => {
     return candidates.map((candidate) => {
-      const buynow = computeBuynow(priceRule, Number(fixedPrice) || 0, candidate.bin);
+      const buynow = computeBuynow(priceRule, Number(fixedPrice) || 0, candidate);
       const minbid =
         buynow && minbidRule !== "none" ? clampMinbid(buynow * (Number(minbidRule) / 100)) : null;
 
@@ -225,6 +234,7 @@ export function BulkAfternicListDialog({
                     <SelectItem value="bin">Use each domain&apos;s BIN</SelectItem>
                     <SelectItem value="bin20">BIN −20%</SelectItem>
                     <SelectItem value="bin30">BIN −30%</SelectItem>
+                    <SelectItem value="atom">Use each domain&apos;s Atom price</SelectItem>
                     <SelectItem value="fixed">Fixed price</SelectItem>
                   </SelectContent>
                 </Select>
@@ -362,11 +372,11 @@ export function BulkAfternicListDialog({
                     failedItems.map((item) => ({
                       id: item.id,
                       domain: item.domain,
-                      buynow: computeBuynow(priceRule, Number(fixedPrice) || 0, item.bin),
+                      buynow: computeBuynow(priceRule, Number(fixedPrice) || 0, item),
                       minbid:
                         minbidRule !== "none"
                           ? clampMinbid(
-                              (computeBuynow(priceRule, Number(fixedPrice) || 0, item.bin) ?? 0) *
+                              (computeBuynow(priceRule, Number(fixedPrice) || 0, item) ?? 0) *
                                 (Number(minbidRule) / 100)
                             )
                           : null,

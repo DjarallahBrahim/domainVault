@@ -481,6 +481,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                   { value: "sedo", label: "Sedo" },
                   { value: "spaceship", label: "Spaceship" },
                   { value: "afternic", label: "Afternic" },
+                  { value: "atom", label: "Atom" },
                 ].map((platform) => {
                   const selected = notListedPlatforms.includes(platform.value);
                   return (

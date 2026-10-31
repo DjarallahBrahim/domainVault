@@ -18,20 +18,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DomainStatusBadge } from "@/components/domains/domain-status-badge";
 import { DomainExpiryBadge } from "@/components/domains/domain-expiry-badge";
 import { DomainRenewalBadge } from "@/components/domains/domain-renewal-badge";
 import { SedoCell } from "@/components/domains/SedoCell";
 import { SpaceshipCell } from "@/components/domains/SpaceshipCell";
 import { AfternicCell } from "@/components/domains/AfternicCell";
+import { AtomCell } from "@/components/domains/AtomCell";
 import { TldCell } from "@/components/domains/TldCell";
 import { RenewalToggle } from "@/components/domains/RenewalToggle";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
 import type { AfternicListing } from "@/types/afternic";
+import type { AtomListing } from "@/types/atom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { ArrowUpDown, Pencil, RefreshCw } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
 
@@ -60,6 +69,11 @@ interface DomainTableProps {
   onAfternicRefresh: (domain: DomainRow) => void;
   onAfternicLogSale: (domain: DomainRow, listing: AfternicListing) => void;
   afternicRefreshingIds: Set<string>;
+  atomListings: Map<string, AtomListing>;
+  onAtomEdit: (domain: DomainRow, listing: AtomListing) => void;
+  onAtomCreate: (domain: DomainRow) => void;
+  onAtomRefresh: (domain: DomainRow) => void;
+  atomRefreshingIds: Set<string>;
   onSedoBatch: () => void;
   onSpaceshipBatch: () => void;
   onSedoBatchSync: () => void;
@@ -71,6 +85,10 @@ interface DomainTableProps {
   onAfternicBulkLease: (enable: boolean) => void;
   onAfternicBulkFtBuynow: () => void;
   onAfternicBulkPreset: (preset: "lander-bn-mo" | "lander-all" | "lander-bn-only") => void;
+  onAtomBatchSync: () => void;
+  onAtomBulkList: () => void;
+  onAtomBulkEdit: () => void;
+  onAtomBulkRemove: () => void;
   onCopySelected: () => void;
   onBulkRenew: () => void;
   reservedExtensions: Map<string, string[]>;
@@ -101,6 +119,11 @@ export function DomainTable({
   onAfternicRefresh,
   onAfternicLogSale,
   afternicRefreshingIds,
+  atomListings,
+  onAtomEdit,
+  onAtomCreate,
+  onAtomRefresh,
+  atomRefreshingIds,
   onSedoBatch,
   onSpaceshipBatch,
   onSedoBatchSync,
@@ -112,6 +135,10 @@ export function DomainTable({
   onAfternicBulkLease,
   onAfternicBulkFtBuynow,
   onAfternicBulkPreset,
+  onAtomBatchSync,
+  onAtomBulkList,
+  onAtomBulkEdit,
+  onAtomBulkRemove,
   onCopySelected,
   onBulkRenew,
   reservedExtensions,
@@ -185,6 +212,9 @@ export function DomainTable({
     (id) => afternicListings.get(id)?.fast_transfer_status === "INACTIVE_BUYNOW_MISSING"
   ).length;
 
+  /** Lets the dropdown finish closing before a dialog takes focus. */
+  const afterMenu = (action: () => void) => setTimeout(action, 0);
+
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-2xl bg-bg-surface shadow-card ring-1 ring-border/50">
@@ -211,7 +241,6 @@ export function DomainTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead>Registrar</TableHead>
                 <TableHead>
                   <button
                     onClick={() => updateSort("expiration_date")}
@@ -232,6 +261,7 @@ export function DomainTable({
                     </button>
                   </TableHead>
                 )}
+                {showAllColumns && <TableHead>Registrar</TableHead>}
                 <TableHead>BIN</TableHead>
                 <TableHead>
                   <div className="flex items-center gap-1">
@@ -324,6 +354,118 @@ export function DomainTable({
                         </button>
                       </Tooltip>
                     )}
+                    {selectedIds.size > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="text-text-muted transition-colors hover:text-accent-primary"
+                            aria-label="More Afternic actions"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="z-[80] min-w-[13rem]">
+                          <DropdownMenuItem onSelect={() => afterMenu(onAfternicBulkList)}>
+                            <Plus className="h-4 w-4" />
+                            List {selectedIds.size} on Afternic
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => afterMenu(onAfternicBulkRemove)}>
+                            <Trash2 className="h-4 w-4" />
+                            Remove from Afternic
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => afterMenu(() => onAfternicBulkLease(true))}
+                          >
+                            Enable Lease to Own
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => afterMenu(() => onAfternicBulkLease(false))}
+                          >
+                            Disable Lease to Own
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => afterMenu(() => onAfternicBulkPreset("lander-bn-mo"))}
+                          >
+                            Buy Now + Make Offer
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => afterMenu(() => onAfternicBulkPreset("lander-all"))}
+                          >
+                            All three methods
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => afterMenu(() => onAfternicBulkPreset("lander-bn-only"))}
+                          >
+                            Buy Now only
+                          </DropdownMenuItem>
+                          {selectedFtMissing > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => afterMenu(onAfternicBulkFtBuynow)}>
+                                Set missing Buy Now ({selectedFtMissing})
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateSort("atom_price")}
+                      className="flex items-center gap-0.5 hover:text-text-primary"
+                    >
+                      Atom{sortLabel("atom_price")}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                    {selectedIds.size > 0 && (
+                      <Tooltip content={`Sync ${selectedIds.size} domains with Atom`}>
+                        <button
+                          onClick={onAtomBatchSync}
+                          className="text-text-muted transition-colors hover:text-accent-primary"
+                          aria-label={`Sync ${selectedIds.size} domains with Atom`}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                      </Tooltip>
+                    )}
+                    {selectedIds.size > 0 && (
+                      <Tooltip content={`Edit Atom listings for ${selectedIds.size} domains`}>
+                        <button
+                          onClick={onAtomBulkEdit}
+                          className="text-text-muted transition-colors hover:text-accent-primary"
+                          aria-label={`Edit Atom listings for ${selectedIds.size} domains`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </Tooltip>
+                    )}
+                    {selectedIds.size > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="text-text-muted transition-colors hover:text-accent-primary"
+                            aria-label="More Atom actions"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="z-[80] min-w-[13rem]">
+                          <DropdownMenuItem onSelect={() => afterMenu(onAtomBulkList)}>
+                            <Plus className="h-4 w-4" />
+                            List {selectedIds.size} on Atom
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => afterMenu(onAtomBulkRemove)}>
+                            <Trash2 className="h-4 w-4" />
+                            Remove from Atom
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </TableHead>
                 {showAllColumns && (
@@ -372,9 +514,6 @@ export function DomainTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm">{domain.registrar || "\u2014"}</span>
-                  </TableCell>
-                  <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="text-sm">
                         {new Date(domain.expiration_date).toLocaleDateString()}
@@ -388,6 +527,11 @@ export function DomainTable({
                         domain.total_cost ??
                           (domain.purchase_price ?? 0) + (domain.renewal_cost ?? 0)
                       )}
+                    </TableCell>
+                  )}
+                  {showAllColumns && (
+                    <TableCell>
+                      <span className="text-sm">{domain.registrar || "\u2014"}</span>
                     </TableCell>
                   )}
                   <TableCell className="text-sm">
@@ -419,6 +563,15 @@ export function DomainTable({
                       onRefresh={() => onAfternicRefresh(domain)}
                       onLogSale={(listing) => onAfternicLogSale(domain, listing)}
                       refreshing={afternicRefreshingIds.has(domain.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <AtomCell
+                      listing={atomListings.get(domain.id)}
+                      onEdit={(listing) => onAtomEdit(domain, listing)}
+                      onCreate={() => onAtomCreate(domain)}
+                      onRefresh={() => onAtomRefresh(domain)}
+                      refreshing={atomRefreshingIds.has(domain.id)}
                     />
                   </TableCell>
                   {showAllColumns && (
@@ -515,75 +668,17 @@ export function DomainTable({
             Renew {selectedIds.size} selected
           </button>
           <button
-            onClick={onAfternicBulkList}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            List {selectedIds.size} on Afternic
-          </button>
-          <button
-            onClick={onAfternicBulkEdit}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            Edit on Afternic
-          </button>
-          <button
-            onClick={() => onAfternicBulkLease(true)}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            Enable Lease to Own
-          </button>
-          <button
-            onClick={() => onAfternicBulkLease(false)}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            Disable Lease to Own
-          </button>
-          <button
-            onClick={() => onAfternicBulkPreset("lander-bn-mo")}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            Buy Now + Make Offer
-          </button>
-          <button
-            onClick={() => onAfternicBulkPreset("lander-all")}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            All three methods
-          </button>
-          <button
-            onClick={() => onAfternicBulkPreset("lander-bn-only")}
-            className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
-          >
-            Buy Now only
-          </button>
-          {selectedFtMissing > 0 && (
-            <button
-              onClick={onAfternicBulkFtBuynow}
-              className="px-4 py-2 rounded-md bg-accent-warning/10 border border-accent-warning/20 text-sm font-medium text-accent-warning hover:bg-accent-warning/20 transition-colors"
-            >
-              Set missing Buy Now ({selectedFtMissing})
-            </button>
-          )}
-          <button
-            onClick={onAfternicBulkRemove}
-            className="px-4 py-2 rounded-md bg-accent-danger/10 border border-accent-danger/20 text-sm font-medium text-accent-danger hover:bg-accent-danger/20 transition-colors"
-          >
-            Remove from Afternic
-          </button>
-          <button
             onClick={onCopySelected}
             className="px-4 py-2 rounded-md bg-bg-elevated border border-border text-sm font-medium hover:bg-bg-elevated/80 transition-colors"
           >
             Copy {selectedIds.size} selected
           </button>
-          {selectedIds.size > 1 && (
-            <button
-              onClick={() => onDelete("__bulk__")}
-              className="px-4 py-2 rounded-md bg-accent-danger text-white text-sm font-medium hover:bg-accent-danger/90 transition-colors"
-            >
-              Delete {selectedIds.size} selected
-            </button>
-          )}
+          <button
+            onClick={() => onDelete("__bulk__")}
+            className="px-4 py-2 rounded-md bg-accent-danger text-white text-sm font-medium hover:bg-accent-danger/90 transition-colors"
+          >
+            Delete {selectedIds.size} selected
+          </button>
         </div>
       )}
     </div>

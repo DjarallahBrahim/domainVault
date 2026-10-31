@@ -25,6 +25,9 @@ export const queryKeys = {
   afternicListings: {
     all: ["afternic-listings"] as const,
   },
+  atomListings: {
+    all: ["atom-listings"] as const,
+  },
   userSettings: {
     all: ["user-settings"] as const,
   },
