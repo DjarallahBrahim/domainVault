@@ -1,5 +1,6 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
+import type { TldStatus } from "@/lib/tld-checker/tldDiff";
 import { addMonths, format, startOfMonth } from "date-fns";
 
 type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
@@ -329,20 +330,24 @@ export async function fetchDomains(filters: DomainFilters) {
     domains = (data ?? []) as unknown as DomainRow[];
   }
 
-  const reservedExtensions = new Map<string, string[]>();
+  const reservedExtensions = new Map<string, TldStatus[]>();
   if (domains.length > 0) {
     const { data: extData } = await resolved
       .from("domain_extension_checks")
-      .select("domain_id, tld")
+      .select("domain_id, tld, is_live")
       .in(
         "domain_id",
         domains.map((d) => d.id)
       )
       .eq("is_reserved", true);
 
-    for (const row of (extData ?? []) as Array<{ domain_id: string; tld: string }>) {
+    for (const row of (extData ?? []) as Array<{
+      domain_id: string;
+      tld: string;
+      is_live: boolean;
+    }>) {
       const list = reservedExtensions.get(row.domain_id) ?? [];
-      list.push(row.tld);
+      list.push({ tld: row.tld, isLive: row.is_live });
       reservedExtensions.set(row.domain_id, list);
     }
   }

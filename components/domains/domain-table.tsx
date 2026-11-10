@@ -34,6 +34,7 @@ import { AfternicCell } from "@/components/domains/AfternicCell";
 import { AtomCell } from "@/components/domains/AtomCell";
 import { TldCell } from "@/components/domains/TldCell";
 import { RenewalToggle } from "@/components/domains/RenewalToggle";
+import type { TldStatus } from "@/lib/tld-checker/tldDiff";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -91,7 +92,7 @@ interface DomainTableProps {
   onAtomBulkRemove: () => void;
   onCopySelected: () => void;
   onBulkRenew: () => void;
-  reservedExtensions: Map<string, string[]>;
+  reservedExtensions: Map<string, TldStatus[]>;
 }
 
 export function DomainTable({
@@ -589,6 +590,9 @@ export function DomainTable({
                           | null) ?? null
                       }
                       reservedExtensions={reservedExtensions.get(domain.id) ?? []}
+                      hasPreviousScan={Boolean(
+                        (domain as Record<string, unknown>).tlds_last_checked_at
+                      )}
                     />
                   </TableCell>
                   <TableCell>

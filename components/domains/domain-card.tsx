@@ -8,6 +8,7 @@ import { AfternicCardRow } from "@/components/domains/AfternicCardRow";
 import { AtomCardRow } from "@/components/domains/AtomCardRow";
 import { TldCell } from "@/components/domains/TldCell";
 import { RenewalToggle } from "@/components/domains/RenewalToggle";
+import type { TldStatus } from "@/lib/tld-checker/tldDiff";
 import type { Database } from "@/types/supabase";
 import type { SedoListing } from "@/types/sedo";
 import type { SpaceshipListing } from "@/types/spaceship";
@@ -41,7 +42,7 @@ interface DomainCardProps {
   onAtomCreate: (domain: DomainRow) => void;
   onAtomRefresh: (domain: DomainRow) => void;
   atomRefreshingIds: Set<string>;
-  reservedExtensions: Map<string, string[]>;
+  reservedExtensions: Map<string, TldStatus[]>;
 }
 
 const formatPrice = (price: number | null): string => {
@@ -101,6 +102,7 @@ export function DomainCard({
               ((domain as Record<string, unknown>).reserved_tlds_count as number | null) ?? null
             }
             reservedExtensions={reservedExtensions.get(domain.id) ?? []}
+            hasPreviousScan={Boolean((domain as Record<string, unknown>).tlds_last_checked_at)}
           />
         </div>
       </div>

@@ -21,14 +21,14 @@ export function TldSyncButton({
   domains = [],
   userId,
 }: TldSyncButtonProps) {
-  const { isRunning, done, total, error, run, cancel } =
-    useTldBatchCheck();
+  const { isRunning, done, total, error, run, cancel } = useTldBatchCheck();
 
   const [finished, setFinished] = useState(false);
 
-  const resolvedDomains = scope === "page" && domainIds.length > 0
-    ? domains.filter((d) => domainIds.includes(d.id))
-    : domains;
+  const resolvedDomains =
+    scope === "page" && domainIds.length > 0
+      ? domains.filter((d) => domainIds.includes(d.id))
+      : domains;
 
   const handleSync = useCallback(async () => {
     if (isRunning) return;
@@ -40,15 +40,14 @@ export function TldSyncButton({
       .eq("is_active", true)
       .order("sort_order");
 
-    const tlds = (tldRows as Array<{ extension: string }> ?? [])
-      .map((r) => r.extension);
+    const tlds = ((tldRows as Array<{ extension: string }>) ?? []).map((r) => r.extension);
 
     if (tlds.length === 0) return;
 
     setFinished(false);
-    await run({ domains: resolvedDomains, tlds, userId });
+    await run({ domains: resolvedDomains, tlds, userId, scope });
     setFinished(true);
-  }, [isRunning, resolvedDomains, userId, run]);
+  }, [isRunning, resolvedDomains, userId, run, scope]);
 
   const handleReset = useCallback(() => {
     setFinished(false);
@@ -58,14 +57,9 @@ export function TldSyncButton({
     return (
       <div className="flex items-center gap-2">
         <span className="text-xs text-accent-success font-mono">
-          Sync complete ({done} pairs)
+          Sync complete ({done} pairs) · report saved
         </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          className="font-mono text-xs"
-        >
+        <Button variant="outline" size="sm" onClick={handleReset} className="font-mono text-xs">
           <RefreshCw className="h-3.5 w-3.5" />
           Sync Again
         </Button>
@@ -76,15 +70,8 @@ export function TldSyncButton({
   if (error) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-accent-danger font-mono">
-          {error.slice(0, 80)}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          className="font-mono text-xs"
-        >
+        <span className="text-xs text-accent-danger font-mono">{error.slice(0, 80)}</span>
+        <Button variant="outline" size="sm" onClick={handleReset} className="font-mono text-xs">
           Retry
         </Button>
       </div>
@@ -112,12 +99,7 @@ export function TldSyncButton({
 
   if (variant === "icon") {
     return (
-      <Button
-        onClick={handleSync}
-        size="sm"
-        variant="outline"
-        className="font-mono text-xs"
-      >
+      <Button onClick={handleSync} size="sm" variant="outline" className="font-mono text-xs">
         <RefreshCw className="h-4 w-4" />
       </Button>
     );

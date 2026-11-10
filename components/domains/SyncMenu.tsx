@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, ChevronDown, Inbox } from "lucide-react";
+import { RefreshCw, ChevronDown, Inbox, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +19,8 @@ import type { AfternicSyncResult } from "@/lib/hooks/useAfternicSync";
 import { useAtomSync } from "@/lib/hooks/useAtomSync";
 import type { AtomSyncResult } from "@/lib/hooks/useAtomSync";
 import { TldSyncModal } from "./TldSyncModal";
+import { TldReportDialog } from "./TldReportDialog";
+import { loadReportFromCache } from "@/lib/tld-checker/report";
 
 interface SyncMenuProps {
   totalDomains: number;
@@ -42,8 +44,14 @@ export function SyncMenu({
   onReviewAtomUnmatched,
 }: SyncMenuProps) {
   const [tldOpen, setTldOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [hasReport, setHasReport] = useState(false);
   const [hasAfternicCredentials, setHasAfternicCredentials] = useState<boolean | null>(null);
   const [hasAtomCredentials, setHasAtomCredentials] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setHasReport(loadReportFromCache() !== null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +162,19 @@ export function SyncMenu({
             <RefreshCw className="h-4 w-4" />
             Sync TLDs
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setHasReport(loadReportFromCache() !== null);
+              setTimeout(() => setReportOpen(true), 0);
+            }}
+            title={
+              hasReport ? "View the last TLD sync report" : "No report yet — run Sync TLDs first"
+            }
+          >
+            <ScrollText className="h-4 w-4" />
+            TLD Report
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleSedo} disabled={isSedoSyncing}>
             <RefreshCw className="h-4 w-4" />
             Sync Sedo
@@ -206,6 +227,8 @@ export function SyncMenu({
         domains={domains}
         userId={userId}
       />
+
+      <TldReportDialog open={reportOpen} onOpenChange={setReportOpen} />
     </>
   );
 }
