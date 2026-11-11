@@ -139,6 +139,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         shows: filters.shows,
         renewed: filters.renewed,
         reservedTld: filters.reservedTld,
+        atomType: filters.atomType,
       }),
     initialData,
     staleTime: 10 * 1000,
@@ -519,6 +520,7 @@ export function DomainListClient({ initialData, tlds, registrars, userId }: Doma
         shows: filters.shows,
         renewed: filters.renewed,
         reservedTld: filters.reservedTld,
+        atomType: filters.atomType,
         page: 1,
         pageSize: 10000,
       });

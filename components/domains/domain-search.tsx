@@ -50,6 +50,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
   const currentRenewal = searchParams.get("renewal") ?? "";
   const currentRenewed = searchParams.get("renewed") ?? "";
   const currentNotListed = searchParams.get("notListed") ?? "";
+  const currentAtomType = searchParams.get("atomType") ?? "";
   const currentLander = searchParams.get("lander") ?? "";
   const currentShows = searchParams.get("shows") ?? "";
   const showMethods = currentShows
@@ -165,6 +166,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     currentRenewal ||
     currentRenewed ||
     currentNotListed ||
+    currentAtomType ||
     currentLander ||
     currentShows;
 
@@ -178,6 +180,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
     currentRenewal,
     currentRenewed,
     currentNotListed ? "notListed" : "",
+    currentAtomType,
     currentLander,
     currentShows,
   ].filter(Boolean).length;
@@ -367,7 +370,7 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
 
             <div className="space-y-3">
               <p className={sectionLabel}>Classification</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs text-text-muted font-medium">TLD</Label>
                   <Select
@@ -384,6 +387,27 @@ export function DomainSearch({ tlds, registrars, onExport }: DomainSearchProps) 
                           .{tld}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-text-muted font-medium">Atom listing</Label>
+                  <Select
+                    value={currentAtomType || "all"}
+                    onValueChange={(value) =>
+                      updateParam({ atomType: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="h-10 rounded-lg">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="premium">Premium only</SelectItem>
+                      <SelectItem value="plus">Plus only</SelectItem>
+                      <SelectItem value="standard">Standard only</SelectItem>
+                      <SelectItem value="geo">Geo only</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -24,6 +24,15 @@ export interface DomainFilters {
   renewal?: string;
   created?: string;
   reservedTld?: string;
+  atomType?: string;
+}
+
+const ATOM_LISTING_TYPES = new Set(["standard", "plus", "premium", "geo"]);
+
+/** Validates the Atom listing type filter; unknown values are ignored. */
+function normalizeAtomType(value: string | undefined): string | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return ATOM_LISTING_TYPES.has(normalized) ? normalized : null;
 }
 
 function normalizeReservedTld(value: string | undefined): string | null {
@@ -64,7 +73,8 @@ function parseNotListedPlatforms(value: string | undefined): Set<string> {
 function buildDomainSelectEmbeds(
   sortColumn: string,
   notListedSet: Set<string>,
-  hasAfternicLander: boolean
+  hasAfternicLander: boolean,
+  atomType: string | null
 ): string[] {
   const embeds: string[] = [];
 
@@ -90,10 +100,18 @@ function buildDomainSelectEmbeds(
     embeds.push("afternic_listings!left(domain_id)");
   }
 
-  if (sortColumn === "atom_price") {
-    embeds.push(`atom_listings!left(selling_price${notListedSet.has("atom") ? ",domain_id" : ""})`);
-  } else if (notListedSet.has("atom")) {
-    embeds.push("atom_listings!left(domain_id)");
+  // A listing-type filter needs an inner join so domains without a matching
+  // Atom listing are dropped. "Not listed on Atom" still forces a left join
+  // (anti-join), and both filters together intentionally return no rows.
+  const atomNotListed = notListedSet.has("atom");
+  const atomColumns: string[] = [];
+  if (sortColumn === "atom_price") atomColumns.push("selling_price");
+  if (atomType) atomColumns.push("listing_type");
+  if (atomNotListed) atomColumns.push("domain_id");
+
+  if (atomColumns.length > 0) {
+    const join = atomType && !atomNotListed ? "!inner" : "!left";
+    embeds.push(`atom_listings${join}(${atomColumns.join(",")})`);
   }
 
   return embeds;
@@ -123,9 +141,10 @@ export async function fetchDomains(filters: DomainFilters) {
   const clientSort = priceSort || totalCostSort;
 
   const reservedTld = normalizeReservedTld(filters.reservedTld);
+  const atomType = normalizeAtomType(filters.atomType);
   const notListedSet = parseNotListedPlatforms(filters.notListed);
   const afternicLander = Boolean(filters.lander || filters.shows);
-  const embeds = buildDomainSelectEmbeds(sortColumn, notListedSet, afternicLander);
+  const embeds = buildDomainSelectEmbeds(sortColumn, notListedSet, afternicLander, atomType);
 
   const selectFields = `*${embeds.length ? "," + embeds.join(",") : ""}${
     reservedTld ? ", domain_extension_checks!inner(tld)" : ""
@@ -209,6 +228,10 @@ export async function fetchDomains(filters: DomainFilters) {
     for (const platform of notListedSet) {
       query = query.is(`${PLATFORM_LISTINGS_TABLE[platform]}.domain_id`, null);
     }
+  }
+
+  if (atomType) {
+    query = query.eq("atom_listings.listing_type", atomType);
   }
 
   if (filters.lander || filters.shows) {

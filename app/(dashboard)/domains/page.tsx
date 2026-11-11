@@ -33,6 +33,7 @@ export default async function DomainsPage({ searchParams }: DomainsPageProps) {
     shows: typeof params.shows === "string" ? params.shows : undefined,
     renewed: typeof params.renewed === "string" ? params.renewed : undefined,
     reservedTld: typeof params.reservedTld === "string" ? params.reservedTld : undefined,
+    atomType: typeof params.atomType === "string" ? params.atomType : undefined,
   };
 
   const supabase = await createClient();
