@@ -95,10 +95,13 @@ function buildDomainSelectEmbeds(
     embeds.push("spaceship_listings!left(domain_id)");
   }
 
-  if (hasAfternicLander) {
-    embeds.push(`afternic_listings${notListedSet.has("afternic") ? "!left" : "!inner"}(domain_id)`);
-  } else if (notListedSet.has("afternic")) {
-    embeds.push("afternic_listings!left(domain_id)");
+  if (hasAfternicLander || sortColumn === "afternic_price" || notListedSet.has("afternic")) {
+    const afternicColumns: string[] = [];
+    if (sortColumn === "afternic_price") afternicColumns.push("buynow_price");
+    afternicColumns.push("domain_id");
+    const afternicNotListed = notListedSet.has("afternic");
+    const join = hasAfternicLander && !afternicNotListed ? "!inner" : "!left";
+    embeds.push(`afternic_listings${join}(${afternicColumns.join(",")})`);
   }
 
   // A listing-type filter needs an inner join so domains without a matching
@@ -135,7 +138,10 @@ export async function fetchDomains(filters: DomainFilters) {
   const sortColumn = filters.sort ?? "created_at";
   const sortOrder = filters.order === "asc" ? true : false;
   const priceSort =
-    sortColumn === "sedo_price" || sortColumn === "spaceship_price" || sortColumn === "atom_price";
+    sortColumn === "sedo_price" ||
+    sortColumn === "spaceship_price" ||
+    sortColumn === "afternic_price" ||
+    sortColumn === "atom_price";
   // `total_cost` may not exist on older databases but both inputs always do,
   // so compute it client-side instead of ordering by a possibly-missing column.
   const totalCostSort = sortColumn === "total_cost";
@@ -298,13 +304,17 @@ export async function fetchDomains(filters: DomainFilters) {
         ? "sedo_listings"
         : sortColumn === "spaceship_price"
           ? "spaceship_listings"
-          : "atom_listings";
+          : sortColumn === "afternic_price"
+            ? "afternic_listings"
+            : "atom_listings";
     const priceField =
       sortColumn === "sedo_price"
         ? "sedo_price"
         : sortColumn === "spaceship_price"
           ? "spaceship_price"
-          : "selling_price";
+          : sortColumn === "afternic_price"
+            ? "buynow_price"
+            : "selling_price";
 
     const {
       data,

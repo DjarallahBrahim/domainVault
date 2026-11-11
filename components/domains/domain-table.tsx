@@ -332,7 +332,13 @@ export function DomainTable({
                 </TableHead>
                 <TableHead>
                   <div className="flex items-center gap-1">
-                    <span>Afternic</span>
+                    <button
+                      onClick={() => updateSort("afternic_price")}
+                      className="flex items-center gap-0.5 hover:text-text-primary"
+                    >
+                      Afternic{sortLabel("afternic_price")}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
                     {selectedIds.size > 0 && (
                       <Tooltip content={`Sync ${selectedIds.size} domains with Afternic`}>
                         <button
