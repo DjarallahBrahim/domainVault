@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Pencil, Plus, RefreshCw, XCircle } from "lucide-react";
+import { Diamond, Pencil, Plus, RefreshCw, XCircle } from "lucide-react";
 import type { AtomListing, AtomListingType } from "@/types/atom";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -100,15 +100,18 @@ export function AtomCell({ listing, onEdit, onCreate, onRefresh, refreshing }: A
           ? "text-accent-danger"
           : "text-text-muted";
 
+  const typeIcon =
+    listing.listing_type === "premium" ? (
+      <Diamond className="h-3.5 w-3.5" aria-hidden />
+    ) : listing.listing_type === "plus" ? (
+      <Plus className="h-3.5 w-3.5" aria-hidden />
+    ) : null;
+
   return (
     <div className="flex items-center gap-1.5">
       <Tooltip content={`${listing.list_status} · ${atomTypeHint(listing.listing_type)}`}>
         <span className={`flex items-center gap-1 text-sm ${toneClass}`}>
-          {tone === "danger" ? (
-            <XCircle className="h-3.5 w-3.5" aria-hidden />
-          ) : tone === "success" ? (
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-          ) : null}
+          {typeIcon ?? (tone === "danger" ? <XCircle className="h-3.5 w-3.5" aria-hidden /> : null)}
           <span className="font-mono">{formatPrice(listing.selling_price)}</span>
         </span>
       </Tooltip>
